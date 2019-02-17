@@ -221,33 +221,20 @@ def from_bq_overwrite_data(db_tablename, bq_tablename):
     safe_commit(db)
 
 
-# python bigquery_import.py --db pmh_record --bq pmh.pmh_record
+# heroku run python bq_transfer.py --pg bq_journals --bq unpaywall.journals
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Run stuff.")
-    parser.add_argument('--table', nargs="?", type=str, help="table name in postgres (eg pmh_record)")
-    parser.add_argument('--bq', nargs="?", type=str, help="table name in bigquery, including dataset (eg pmh.pmh_record)")
+    parser.add_argument('--pg', nargs="?", type=str, help="table name in postgres (eg bq_journals)")
+    parser.add_argument('--bq', nargs="?", type=str, help="table name in bigquery (eg unpaywall.journals)")
 
     parsed_args = parser.parse_args()
-    if parsed_args.table == "pmh_record":
-        to_bq_updated_data("pmh_record", "pmh.pmh_record")
-    elif parsed_args.table == "page_new":
-        to_bq_updated_data("page_new", "pmh.page_new")
-    elif parsed_args.table == "endpoint":
-        to_bq_overwrite_data("endpoint", "pmh.endpoint")
-    elif parsed_args.table == "repository":
-        to_bq_overwrite_data("repository", "pmh.repository")
-    elif parsed_args.table == "repo_request":
-        to_bq_overwrite_data("repo_request", "pmh.repo_request")
-    elif parsed_args.table == "unpaywall":
-        to_bq_import_unpaywall()
-    elif parsed_args.table == "bq_repo_pulse":
-        from_bq_overwrite_data("bq_repo_pulse", "pmh.repo_pulse_view")
-    elif parsed_args.table == "bq_journal_by_licence_by_year":
-        from_bq_overwrite_data("bq_journal_by_licence_by_year", "unpaywall.journal_by_licence_by_year_view")
+    from_bq_overwrite_data(parsed_args.pg, parsed_args.bq)
 
 # gcloud init --console-only
 # gsutil cp unpaywall_snapshot_2018-09-27T192440.jsonl gs://unpaywall-grid/unpaywall
 # bq show --schema --format=prettyjson pmh.page_new > schema.json; bq --location=US load --noreplace --source_format=CSV --skip_leading_rows=1 --max_bad_records=1000 --allow_quoted_newlines pmh.page_new gs://unpaywall-grid/pmh/page_new_recent_20190112.csv ./schema.json
 # bq show --schema --format=prettyjson pmh.pmh_record > schema.json; bq --location=US load --noreplace --source_format=CSV --skip_leading_rows=1 --max_bad_records=1000 --allow_quoted_newlines pmh.pmh_record gs://unpaywall-grid/pmh/pmh_record_recent_new.csv ./schema.json
 # bq show --schema --format=prettyjson unpaywall.unpaywall > schema.json; bq --location=US load --noreplace --source_format=CSV --skip_leading_rows=1 --max_bad_records=1000 --allow_quoted_newlines --field_delimiter=þ unpaywall.unpaywall_raw gs://unpaywall-grid/unpaywall/changed*.jsonl ./schema.json
+
+
