@@ -16,6 +16,8 @@ from app import app
 from app import db
 from app import logger
 
+from sqlalchemy import sql
+
 
 
 
@@ -112,6 +114,28 @@ def base_endpoint():
         "version": "0.0.1",
         "msg": "Don't panic"
     })
+
+
+@app.route("/search/journals/title/<q>", methods=["GET"])
+def journal_title_search(q):
+    ret = []
+    command = """select vid, num_articles, top_journal_name
+        from unpaywall_vids
+        where top_journal_name ilike '{str}%'
+        order by num_articles desc
+        limit 10
+    """.format(str=q)
+    res = db.session.connection().execute(sql.text(command))
+    rows = res.fetchall()
+    for row in rows:
+        ret.append({
+            "id": row[0],
+            "num_articles": row[1],
+            "name": row[2]
+        })
+    return jsonify({"list": ret, "count": len(ret)})
+
+
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
