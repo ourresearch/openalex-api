@@ -223,6 +223,7 @@ def from_bq_overwrite_data(db_tablename, bq_tablename):
 
 # heroku run python bq_transfer.py --pg bq_journals --bq unpaywall.journals
 # heroku run python bq_transfer.py --pg bq_grid_base --bq grid.grid_base
+# heroku run python bq_transfer.py --pg bq_org_name_by_num_papers_trgm_idx --bq doiboost.num_dois_by_org_view
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Run stuff.")
