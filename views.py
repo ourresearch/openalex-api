@@ -181,7 +181,7 @@ def journal_title_search_new(query):
             SELECT regexp_matches(lower_title, :p4, 'g') as match FROM s
         ) s_all
         group by match
-        order by score desc, length(match::text) asc
+        order by score desc, length(match::text) desc
         LIMIT 50;""").bindparams(
             p0='%{}%'.format(query),
             p1=ur'({}\w*?\M)'.format(query),
@@ -221,18 +221,18 @@ def institutions_name_search_new(query):
     ret = []
 
     query_statement = sql.text(ur"""
-        with s as (SELECT id as grid_id, lower(org) as lower_org FROM bq_grid_base WHERE org iLIKE :p0)
-        select match, count(*) as score from (
-            SELECT regexp_matches(lower_org, :p1, 'g') as match FROM s
+        with s as (SELECT grid_id, lower(org_name) as lower_org, num_papers FROM bq_org_name_by_num_papers WHERE org_name iLIKE :p0)
+        select match, sum(num_papers) as score from (
+            SELECT regexp_matches(lower_org, :p1, 'g') as match, num_papers FROM s
             union all
-            SELECT regexp_matches(lower_org, :p2, 'g') as match FROM s
+            SELECT regexp_matches(lower_org, :p2, 'g') as match, num_papers FROM s
             union all
-            SELECT regexp_matches(lower_org, :p3, 'g') as match FROM s
+            SELECT regexp_matches(lower_org, :p3, 'g') as match, num_papers FROM s
             union all
-            SELECT regexp_matches(lower_org, :p4, 'g') as match FROM s
+            SELECT regexp_matches(lower_org, :p4, 'g') as match, num_papers FROM s
         ) s_all
         group by match
-        order by score desc, length(match::text) asc
+        order by score desc, length(match::text) desc
         LIMIT 50;""").bindparams(
             p0='%{}%'.format(query),
             p1=ur'({}\w*?\M)'.format(query),
