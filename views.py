@@ -187,7 +187,7 @@ def journal_title_search_new(query):
             p1=ur'({}\w*?\M)'.format(query),
             p2=ur'({}\w*?(?:\s+\w+){{1}})\M'.format(query),
             p3=ur'({}\w*?(?:\s+\w+){{2}})\M'.format(query),
-            p4=ur'({}\w*?(?:\s+\w+){{3}}|)\M'.format(query)
+            p4=ur'({}\w*?(?:\s+\w+){{3}})\M'.format(query)
         )
 
     rows = db.engine.execute(query_statement).fetchall()
@@ -195,16 +195,43 @@ def journal_title_search_new(query):
     phrases = [{"phrase":row[0][0], "score":row[1]} for row in rows if row[0][0]]
     # print phrases
     ret = phrases
-
-    # for row in rows:
-    #     ret.append({
-    #         "id": row[0],
-    #         "num_articles": row[1],
-    #         "name": row[2],
-    #         "fulltext_rank": row[3],
-    #         "score": row[4]
-    #     })
     return jsonify({"list": ret, "count": len(ret)})
+
+
+@app.route("/search/institutions/name/new/<query>", methods=["GET"])
+def institutions_name_search_new(query):
+    ret = []
+
+    query_statement = sql.text(ur"""
+        with s as (SELECT id as grid_id, lower(org) as lower_org FROM bq_grid_base WHERE org iLIKE :p0)
+        select match, count(*) as score from (
+            SELECT regexp_matches(lower_org, :p1, 'g') as match FROM s
+            union all
+            SELECT regexp_matches(lower_org, :p2, 'g') as match FROM s
+            union all
+            SELECT regexp_matches(lower_org, :p3, 'g') as match FROM s
+            union all
+            SELECT regexp_matches(lower_org, :p4, 'g') as match FROM s
+        ) s_all
+        group by match
+        order by score desc, length(match::text) asc
+        LIMIT 50;""").bindparams(
+            p0='%{}%'.format(query),
+            p1=ur'({}\w*?\M)'.format(query),
+            p2=ur'({}\w*?(?:\s+\w+){{1}})\M'.format(query),
+            p3=ur'({}\w*?(?:\s+\w+){{2}})\M'.format(query),
+            p4=ur'({}\w*?(?:\s+\w+){{3}})\M'.format(query)
+        )
+
+    rows = db.engine.execute(query_statement).fetchall()
+    # print rows
+    phrases = [{"phrase":row[0][0], "score":row[1]} for row in rows if row[0][0]]
+    # print phrases
+    ret = phrases
+    return jsonify({"list": ret, "count": len(ret)})
+
+
+
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
