@@ -119,10 +119,12 @@ def base_endpoint():
 @app.route("/search/journals/title/<q>", methods=["GET"])
 def journal_title_search(q):
     ret = []
-    command = """select vid, num_articles, top_journal_name
+    command = """select vid, num_articles, top_journal_name,
+            ts_rank_cd(to_tsvector('english', top_journal_name), query, 1) AS rank,
+            num_articles + 1000 * ts_rank_cd(to_tsvector('english', top_journal_name), query, 1) as score
             from unpaywall_vids, phraseto_tsquery('english', '{q}') query
             where to_tsvector('english', top_journal_name) @@ query
-            order by num_articles desc
+            order by num_articles + 1000 * ts_rank_cd(to_tsvector('english', top_journal_name), query, 1) desc
             limit 10
     """.format(q=q)
     res = db.session.connection().execute(sql.text(command))
@@ -131,8 +133,10 @@ def journal_title_search(q):
         ret.append({
             "id": row[0],
             "num_articles": row[1],
-            "name": row[2]
-        })
+            "name": row[2],
+            "fulltext_rank": row[3],
+            "score": row[4]
+})
     return jsonify({"list": ret, "count": len(ret)})
 
 @app.route("/search/journals/title/orig/<q>", methods=["GET"])
