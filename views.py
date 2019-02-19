@@ -9,6 +9,7 @@ from flask import g
 import json
 import os
 import sys
+import re
 from time import time
 
 
@@ -119,14 +120,20 @@ def base_endpoint():
 @app.route("/search/journals/title/<q>", methods=["GET"])
 def journal_title_search(q):
     ret = []
+
+    query_for_search = re.sub(r'[!\'()|&]', ' ', q).strip()
+    if query_for_search:
+        query_for_search = re.sub(r'\s+', ' & ', query_for_search)
+        query_for_search += ':*'
+
     command = """select vid, num_articles, top_journal_name,
             ts_rank_cd(to_tsvector('only_stop_words', top_journal_name), query, 1) AS rank,
-            num_articles + 1000 * ts_rank_cd(to_tsvector('only_stop_words', top_journal_name), query, 1) as score
-            from unpaywall_vids, phraseto_tsquery('only_stop_words', '{q}') query
+            num_articles + 10000 * ts_rank_cd(to_tsvector('only_stop_words', top_journal_name), query, 1) as score
+            from unpaywall_vids, to_tsquery('only_stop_words', '{query_for_search}') query
             where to_tsvector('only_stop_words', top_journal_name) @@ query
-            order by num_articles + 1000 * ts_rank_cd(to_tsvector('only_stop_words', top_journal_name), query, 1) desc
+            order by num_articles + 10000 * ts_rank_cd(to_tsvector('only_stop_words', top_journal_name), query, 1) desc
             limit 10
-    """.format(q=q)
+    """.format(query_for_search=query_for_search)
     res = db.session.connection().execute(sql.text(command))
     rows = res.fetchall()
     for row in rows:
@@ -136,15 +143,15 @@ def journal_title_search(q):
             "name": row[2],
             "fulltext_rank": row[3],
             "score": row[4]
-})
+        })
     return jsonify({"list": ret, "count": len(ret)})
 
-@app.route("/search/journals/title/orig/<q>", methods=["GET"])
-def journal_title_search_orig(q):
+@app.route("/search/journals/title/simple/<q>", methods=["GET"])
+def journal_title_search_simple(q):
     ret = []
     command = """select vid, num_articles, top_journal_name
         from unpaywall_vids
-        where top_journal_name ilike '{str}%'
+        where top_journal_name ilike '%{str}%'
         order by num_articles desc
         limit 10
     """.format(str=q)
@@ -158,7 +165,46 @@ def journal_title_search_orig(q):
         })
     return jsonify({"list": ret, "count": len(ret)})
 
+@app.route("/search/journals/title/new/<query>", methods=["GET"])
+def journal_title_search_new(query):
+    ret = []
 
+    query_statement = sql.text(ur"""
+        with s as (SELECT vid, lower(top_journal_name) as lower_title FROM unpaywall_vids WHERE top_journal_name iLIKE :p0)
+        select match, count(*) as score from (
+            SELECT regexp_matches(lower_title, :p1, 'g') as match FROM s
+            union all
+            SELECT regexp_matches(lower_title, :p2, 'g') as match FROM s
+            union all
+            SELECT regexp_matches(lower_title, :p3, 'g') as match FROM s
+            union all
+            SELECT regexp_matches(lower_title, :p4, 'g') as match FROM s
+        ) s_all
+        group by match
+        order by score desc, length(match::text) asc
+        LIMIT 50;""").bindparams(
+            p0='%{}%'.format(query),
+            p1=ur'({}\w*?\M)'.format(query),
+            p2=ur'({}\w*?(?:\s+\w+){{1}})\M'.format(query),
+            p3=ur'({}\w*?(?:\s+\w+){{2}})\M'.format(query),
+            p4=ur'({}\w*?(?:\s+\w+){{3}}|)\M'.format(query)
+        )
+
+    rows = db.engine.execute(query_statement).fetchall()
+    # print rows
+    phrases = [{"phrase":row[0][0], "score":row[1]} for row in rows if row[0][0]]
+    # print phrases
+    ret = phrases
+
+    # for row in rows:
+    #     ret.append({
+    #         "id": row[0],
+    #         "num_articles": row[1],
+    #         "name": row[2],
+    #         "fulltext_rank": row[3],
+    #         "score": row[4]
+    #     })
+    return jsonify({"list": ret, "count": len(ret)})
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
