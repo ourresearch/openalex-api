@@ -120,6 +120,25 @@ def base_endpoint():
 def journal_title_search(q):
     ret = []
     command = """select vid, num_articles, top_journal_name
+            from unpaywall_vids, phraseto_tsquery('english', q) query
+            where to_tsvector('english', top_journal_name) @@ query
+            order by num_articles desc
+            limit 10
+    """.format(str=q)
+    res = db.session.connection().execute(sql.text(command))
+    rows = res.fetchall()
+    for row in rows:
+        ret.append({
+            "id": row[0],
+            "num_articles": row[1],
+            "name": row[2]
+        })
+    return jsonify({"list": ret, "count": len(ret)})
+
+@app.route("/search/journals/title/orig/<q>", methods=["GET"])
+def journal_title_search_orig(q):
+    ret = []
+    command = """select vid, num_articles, top_journal_name
         from unpaywall_vids
         where top_journal_name ilike '{str}%'
         order by num_articles desc
