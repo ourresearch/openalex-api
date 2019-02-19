@@ -120,11 +120,11 @@ def base_endpoint():
 def journal_title_search(q):
     ret = []
     command = """select vid, num_articles, top_journal_name,
-            ts_rank_cd(to_tsvector('english', top_journal_name), query, 1) AS rank,
-            num_articles + 1000 * ts_rank_cd(to_tsvector('english', top_journal_name), query, 1) as score
-            from unpaywall_vids, phraseto_tsquery('english', '{q}') query
-            where to_tsvector('english', top_journal_name) @@ query
-            order by num_articles + 1000 * ts_rank_cd(to_tsvector('english', top_journal_name), query, 1) desc
+            ts_rank_cd(to_tsvector('only_stop_words', top_journal_name), query, 1) AS rank,
+            num_articles + 1000 * ts_rank_cd(to_tsvector('only_stop_words', top_journal_name), query, 1) as score
+            from unpaywall_vids, phraseto_tsquery('only_stop_words', '{q}') query
+            where to_tsvector('only_stop_words', top_journal_name) @@ query
+            order by num_articles + 1000 * ts_rank_cd(to_tsvector('only_stop_words', top_journal_name), query, 1) desc
             limit 10
     """.format(q=q)
     res = db.session.connection().execute(sql.text(command))
