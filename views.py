@@ -165,39 +165,8 @@ def journal_title_search_simple(q):
         })
     return jsonify({"list": ret, "count": len(ret)})
 
-@app.route("/search/journals/title/new/<query>", methods=["GET"])
-def journal_title_search_new(query):
-    ret = []
 
-    query_statement = sql.text(ur"""
-        with s as (SELECT vid, lower(top_journal_name) as lower_title FROM unpaywall_vids WHERE top_journal_name iLIKE :p0)
-        select match, count(*) as score from (
-            SELECT regexp_matches(lower_title, :p1, 'g') as match FROM s
-            union all
-            SELECT regexp_matches(lower_title, :p2, 'g') as match FROM s
-            union all
-            SELECT regexp_matches(lower_title, :p3, 'g') as match FROM s
-            union all
-            SELECT regexp_matches(lower_title, :p4, 'g') as match FROM s
-        ) s_all
-        group by match
-        order by score desc, length(match::text) desc
-        LIMIT 50;""").bindparams(
-            p0='%{}%'.format(query),
-            p1=ur'({}\w*?\M)'.format(query),
-            p2=ur'({}\w*?(?:\s+\w+){{1}})\M'.format(query),
-            p3=ur'({}\w*?(?:\s+\w+){{2}})\M'.format(query),
-            p4=ur'({}\w*?(?:\s+\w+){{3}})\M'.format(query)
-        )
-
-    rows = db.engine.execute(query_statement).fetchall()
-    # print rows
-    phrases = [{"phrase":row[0][0], "score":row[1]} for row in rows if row[0][0]]
-    # print phrases
-    ret = phrases
-    return jsonify({"list": ret, "count": len(ret)})
-
-@app.route("/search/institutions/name/simple/<q>", methods=["GET"])
+@app.route("/search/institutions/name/<q>", methods=["GET"])
 def institutions_name_search_simple(q):
     ret = []
     command = """select grid_id, num_papers, org_name
@@ -215,39 +184,6 @@ def institutions_name_search_simple(q):
             "name": row[2]
         })
     return jsonify({"list": ret, "count": len(ret)})
-
-@app.route("/search/institutions/name/new/<query>", methods=["GET"])
-def institutions_name_search_new(query):
-    ret = []
-
-    query_statement = sql.text(ur"""
-        with s as (SELECT grid_id, lower(org_name) as lower_org, num_papers FROM bq_org_name_by_num_papers WHERE org_name iLIKE :p0)
-        select match, sum(num_papers) as score from (
-            SELECT regexp_matches(lower_org, :p1, 'g') as match, num_papers FROM s
-            union all
-            SELECT regexp_matches(lower_org, :p2, 'g') as match, num_papers FROM s
-            union all
-            SELECT regexp_matches(lower_org, :p3, 'g') as match, num_papers FROM s
-            union all
-            SELECT regexp_matches(lower_org, :p4, 'g') as match, num_papers FROM s
-        ) s_all
-        group by match
-        order by score desc, length(match::text) desc
-        LIMIT 50;""").bindparams(
-            p0='%{}%'.format(query),
-            p1=ur'({}\w*?\M)'.format(query),
-            p2=ur'({}\w*?(?:\s+\w+){{1}})\M'.format(query),
-            p3=ur'({}\w*?(?:\s+\w+){{2}})\M'.format(query),
-            p4=ur'({}\w*?(?:\s+\w+){{3}})\M'.format(query)
-        )
-
-    rows = db.engine.execute(query_statement).fetchall()
-    # print rows
-    phrases = [{"phrase":row[0][0], "score":row[1]} for row in rows if row[0][0]]
-    # print phrases
-    ret = phrases
-    return jsonify({"list": ret, "count": len(ret)})
-
 
 
 
