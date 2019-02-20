@@ -129,7 +129,7 @@ def journal_title_search(q):
     command = """select vid, num_articles, top_journal_name,
             ts_rank_cd(to_tsvector('only_stop_words', top_journal_name), query, 1) AS rank,
             num_articles + 10000 * ts_rank_cd(to_tsvector('only_stop_words', top_journal_name), query, 1) as score
-            from unpaywall_vids, to_tsquery('only_stop_words', '{query_for_search}') query
+            from bq_our_journals, to_tsquery('only_stop_words', '{query_for_search}') query
             where to_tsvector('only_stop_words', top_journal_name) @@ query
             order by num_articles + 10000 * ts_rank_cd(to_tsvector('only_stop_words', top_journal_name), query, 1) desc
             limit 10
@@ -146,24 +146,6 @@ def journal_title_search(q):
         })
     return jsonify({"list": ret, "count": len(ret)})
 
-@app.route("/search/journals/title/simple/<q>", methods=["GET"])
-def journal_title_search_simple(q):
-    ret = []
-    command = """select vid, num_articles, top_journal_name
-        from unpaywall_vids
-        where top_journal_name ilike '%{str}%'
-        order by num_articles desc
-        limit 10
-    """.format(str=q)
-    res = db.session.connection().execute(sql.text(command))
-    rows = res.fetchall()
-    for row in rows:
-        ret.append({
-            "id": row[0],
-            "num_articles": row[1],
-            "name": row[2]
-        })
-    return jsonify({"list": ret, "count": len(ret)})
 
 
 @app.route("/search/institutions/name/<q>", methods=["GET"])
