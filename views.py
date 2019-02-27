@@ -150,7 +150,7 @@ def journal_title_search(q):
             "fulltext_rank": row[4],
             "score": row[5],
         })
-    return jsonify({"a test": 1,   "list": ret, "count": len(ret)})
+    return jsonify({ "list": ret, "count": len(ret)})
 
 
 
