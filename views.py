@@ -126,9 +126,14 @@ def journal_title_search(q):
         query_for_search = re.sub(r'\s+', ' & ', query_for_search)
         query_for_search += ':*'
 
-    command = """select vid, num_articles_since_2018, top_journal_name, prop_cc_by_since_2018,
-            ts_rank_cd(to_tsvector('only_stop_words', top_journal_name), query, 1) AS rank,
-            num_articles + 10000 * ts_rank_cd(to_tsvector('only_stop_words', top_journal_name), query, 1) as score
+    command = """select 
+                vid, 
+                num_articles_since_2018, 
+                top_journal_name, 
+                prop_cc_by_since_2018,
+                ts_rank_cd(to_tsvector('only_stop_words', top_journal_name), query, 1) AS rank,
+                num_articles + 10000 * ts_rank_cd(to_tsvector('only_stop_words', top_journal_name), query, 1) as score
+            
             from bq_our_journals, to_tsquery('only_stop_words', '{query_for_search}') query
             where to_tsvector('only_stop_words', top_journal_name) @@ query
             order by num_articles_since_2018 + 10000 * ts_rank_cd(to_tsvector('only_stop_words', top_journal_name), query, 1) desc
@@ -141,11 +146,11 @@ def journal_title_search(q):
             "id": row[0],
             "num_articles_since_2018": row[1],
             "name": row[2],
-            "fulltext_rank": row[3],
-            "score": row[4],
-            "prop_cc_by_since_2018": row[5]
+            "prop_cc_by_since_2018": row[3],
+            "fulltext_rank": row[4],
+            "score": row[5],
         })
-    return jsonify({"list": ret, "count": len(ret)})
+    return jsonify({"a test": 1,   "list": ret, "count": len(ret)})
 
 
 
