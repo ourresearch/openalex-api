@@ -19,6 +19,7 @@ from app import logger
 
 from sqlalchemy import sql
 
+from data.funders import funder_names
 
 
 
@@ -155,7 +156,7 @@ def journal_title_search(q):
 
 
 @app.route("/search/institutions/name/<q>", methods=["GET"])
-def institutions_name_search_simple(q):
+def institutions_name_search(q):
     ret = []
     command = """select grid_id, num_papers, org_name
         from bq_org_name_by_num_papers
@@ -171,6 +172,14 @@ def institutions_name_search_simple(q):
             "num_articles": row[1],
             "name": row[2]
         })
+    return jsonify({"list": ret, "count": len(ret)})
+
+
+@app.route("/search/funders/name/<q>", methods=["GET"])
+def funders_name_search(q):
+
+    ret = [funder for funder in funder_names if q.lower() in funder["alternate_names"].lower()]
+
     return jsonify({"list": ret, "count": len(ret)})
 
 
