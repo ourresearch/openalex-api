@@ -20,6 +20,7 @@ from app import logger
 from sqlalchemy import sql
 
 from data.funders import funder_names
+from our_journals import BqOurJournalsIssnl
 
 
 
@@ -215,49 +216,49 @@ def serp_get():
     res = db.session.connection().execute(sql.text(command))
     rows = res.fetchall()
 
-    for row in rows:
-        record = {
-            "id": row[0],
-            "issnl": row[0],
-            "name": row[2],
-            "fulltext_rank": row[4],
-            "score": row[5],
-        }
-        num_articles_since_2018 = row[1]
-        prop_cc_by_since_2018 = row[3]
-        policy = {"compliant": False}
-        if prop_cc_by_since_2018 >= .9:
-            policy = {
-                "compliant": True,
-                "path": ["gold_path"]
-            }
-        record ["plan_s_policy"] = policy
-        record ["metrics"] = {
-            "num_articles_since_2018": num_articles_since_2018,
-        }
-        response.append(record)
+    issnls = [row[0] for row in rows]
+    our_journals = BqOurJournalsIssnl.query.filter(BqOurJournalsIssnl.issnl.in_(issnls)).all()
+    print our_journals
+    responses = []
+    for this_journal in our_journals:
+        response = this_journal.to_dict()
+        matching_score_row = [row for row in rows if row[0]==this_journal.issnl][0]
+        response["fulltext_rank"] = matching_score_row[4]
+        response["score"] = matching_score_row[5]
+        responses.append(response)
 
-    if "Water Research" in journal:
-        response.append(
-        {
-          "fulltext_rank": 0.0910239,
-          "id": "13846",
-          "metrics": {
-            "num_articles_since_2018": 42
-          },
-          "name": "Water Research X",
-          "plan_s_policy": {
-                "compliant": False,
-                "details": ["mirror_journal"]
-            },
-          "score": 21145.2392196655
-        }
-        )
+    #     if prop_cc_by_since_2018 >= .9:
+    #         policy = {
+    #             "compliant": True,
+    #             "path": ["gold_path"]
+    #         }
+    #     record ["plan_s_policy"] = policy
+    #     record ["metrics"] = {
+    #         "num_articles_since_2018": num_articles_since_2018,
+    #     }
+    #     response.append(record)
+    #
+    # if "Water Research" in journal:
+    #     response.append(
+    #     {
+    #       "fulltext_rank": 0.0910239,
+    #       "id": "13846",
+    #       "metrics": {
+    #         "num_articles_since_2018": 42
+    #       },
+    #       "name": "Water Research X",
+    #       "plan_s_policy": {
+    #             "compliant": False,
+    #             "details": ["mirror_journal"]
+    #         },
+    #       "score": 21145.2392196655
+    #     }
+    #     )
 
 
-    results = sorted(response, key=lambda k: k['score'], reverse=True)
+    results = sorted(responses, key=lambda k: k['score'], reverse=True)
 
-    return jsonify({ "list": response, "count": len(response)})
+    return jsonify({ "list": responses, "count": len(responses)})
 
 
 
