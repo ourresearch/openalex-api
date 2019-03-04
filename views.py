@@ -183,6 +183,84 @@ def funders_name_search(q):
     return jsonify({"list": ret, "count": len(ret)})
 
 
+@app.route("/serp", methods=["GET"])
+def serp_get():
+
+    journal = request.args.get("journal", None)
+    funder = request.args.get("funder", None)
+    institution = request.args.get("institution", None)
+
+    if not journal:
+        abort_json(422, "missing journal")
+
+    response = []
+
+    query_for_search = re.sub(r'[!\'()|&]', ' ', journal).strip()
+    if query_for_search:
+        query_for_search = re.sub(r'\s+', ' & ', query_for_search)
+        query_for_search += ':*'
+
+    command = """select 
+                vid, 
+                num_articles_since_2018, 
+                top_journal_name, 
+                prop_cc_by_since_2018,
+                ts_rank_cd(to_tsvector('only_stop_words', top_journal_name), query, 1) AS rank,
+                num_articles + 10000 * ts_rank_cd(to_tsvector('only_stop_words', top_journal_name), query, 1) as score
+            
+            from bq_our_journals, to_tsquery('only_stop_words', '{query_for_search}') query
+            where to_tsvector('only_stop_words', top_journal_name) @@ query
+            order by num_articles_since_2018 + 10000 * ts_rank_cd(to_tsvector('only_stop_words', top_journal_name), query, 1) desc
+            limit 50
+    """.format(query_for_search=query_for_search)
+    res = db.session.connection().execute(sql.text(command))
+    rows = res.fetchall()
+
+    for row in rows:
+        record = {
+            "id": row[0],
+            "issnl": None,
+            "name": row[2],
+            "fulltext_rank": row[4],
+            "score": row[5],
+        }
+        num_articles_since_2018 = row[1]
+        prop_cc_by_since_2018 = row[3]
+        policy = {"compliant": False}
+        if prop_cc_by_since_2018 >= .9:
+            policy = {
+                "compliant": True,
+                "path": ["gold_path"]
+            }
+        record ["plan_s_policy"] = policy
+        record ["metrics"] = {
+            "num_articles_since_2018": num_articles_since_2018,
+        }
+        response.append(record)
+
+    if "Water Research" in journal:
+        response.append(
+        {
+          "fulltext_rank": 0.0910239,
+          "id": "13846",
+          "metrics": {
+            "num_articles_since_2018": 42
+          },
+          "name": "Water Research X",
+          "plan_s_policy": {
+                "compliant": False,
+                "details": ["mirror_journal"]
+            },
+          "score": 21145.2392196655
+        }
+        )
+
+
+    results = sorted(response, key=lambda k: k['score'], reverse=True)
+
+    return jsonify({ "list": response, "count": len(response)})
+
+
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
