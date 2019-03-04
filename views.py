@@ -201,16 +201,15 @@ def serp_get():
         query_for_search += ':*'
 
     command = """select 
-                vid, 
+                issnl, 
                 num_articles_since_2018, 
-                top_journal_name, 
+                title, 
                 prop_cc_by_since_2018,
-                ts_rank_cd(to_tsvector('only_stop_words', top_journal_name), query, 1) AS rank,
-                num_articles + 10000 * ts_rank_cd(to_tsvector('only_stop_words', top_journal_name), query, 1) as score
-            
-            from bq_our_journals, to_tsquery('only_stop_words', '{query_for_search}') query
-            where to_tsvector('only_stop_words', top_journal_name) @@ query
-            order by num_articles_since_2018 + 10000 * ts_rank_cd(to_tsvector('only_stop_words', top_journal_name), query, 1) desc
+                ts_rank_cd(to_tsvector('only_stop_words', title), query, 1) AS rank,
+                num_articles + 10000 * ts_rank_cd(to_tsvector('only_stop_words', title), query, 1) as score
+            from bq_our_journals_issnl, to_tsquery('only_stop_words', '{query_for_search}') query
+            where to_tsvector('only_stop_words', title) @@ query
+            order by num_articles_since_2018 + 10000 * ts_rank_cd(to_tsvector('only_stop_words', title), query, 1) desc
             limit 50
     """.format(query_for_search=query_for_search)
     res = db.session.connection().execute(sql.text(command))
@@ -219,7 +218,7 @@ def serp_get():
     for row in rows:
         record = {
             "id": row[0],
-            "issnl": None,
+            "issnl": row[0],
             "name": row[2],
             "fulltext_rank": row[4],
             "score": row[5],

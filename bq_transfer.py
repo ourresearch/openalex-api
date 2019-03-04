@@ -3,9 +3,9 @@
 
 import os
 import json
+import re
 import argparse
 from google.cloud import bigquery
-from oauth2client.service_account import ServiceAccountCredentials
 import unicodecsv
 
 from app import db
@@ -93,7 +93,13 @@ def from_bq_to_local_file(temp_data_filename, bq_tablename, header=True):
         if header:
             writer.writeheader()
         for row in rows:
-            writer.writerow(dict(zip(fieldnames, row)))
+            clean_row = []
+            for val in row:
+                if isinstance(val, basestring):
+                    clean_row.append(val.replace(u"\t", u" "))
+                else:
+                    clean_row.append(val)
+            writer.writerow(dict(zip(fieldnames, clean_row)))
 
     print('Saved {} rows from {}.'.format(len(rows), bq_tablename))
     return fieldnames
@@ -213,6 +219,14 @@ def from_bq_overwrite_data(db_tablename, bq_tablename):
     cursor = db.session.connection().connection.cursor()
 
     cursor.execute(u"truncate {};".format(db_tablename))
+
+    # replace quoted tabs with just a tab, because the quote is there by mistake
+    # temp_data_cleaned_filename = 'data_export_cleaned.csv'
+
+    # o = open(temp_data_cleaned_filename,"w")
+    # data = open(temp_data_filename).read()
+    # o.write(re.sub("\t", "|", re.sub("|"," ", data)))
+    # o.close()
 
     with open(temp_data_filename, "rb") as f:
         cursor.copy_from(f, db_tablename, sep='\t', columns=column_names, null="")
