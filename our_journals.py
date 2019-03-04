@@ -72,21 +72,78 @@ class BqOurJournalsIssnl(db.Model):
 
         return None
 
+    @property
+    def is_plan_s_compliant(self):
+        return self.is_gold_oa
+
+    @property
+    def is_gold_oa(self):
+        return self.prop_cc_by_since_2018 >= 0.9
 
     def to_dict_journal_row(self):
         plan_s_policy = {"compliant": False, "reason": []}
-        if self.prop_cc_by_since_2018 >= 0.9:
+        if self.is_gold_oa:
             plan_s_policy = {"compliant": True, "reason": ["gold_oa"]}
 
         response = {
             "issnl": self.issnl,
             "url": self.get_journal_url_from_issn(),
             "name": self.title,
-            "topics": [t.to_dict() for t in self.topics],
+            "topics": [t.topic for t in self.topics],
             "publisher": self.publisher,
             "country": self.country,
             "num_articles_since_2018": self.num_articles_since_2018,
             "h_index": self.h_index,
             "policy_compliance": {"plan_s": plan_s_policy}
         }
+        return response
+
+
+    def to_dict_full(self):
+        response = self.to_dict_journal_row()
+        response["url"] = self.get_journal_url_from_issn()
+        open_dict = {}
+        if self.is_plan_s_compliant:
+            open_fields =  """num_cc_by
+                prop_cc_by
+                prop_oa
+                num_oa
+                num_articles_since_2018
+                num_cc_by_since_2018
+                prop_cc_by_since_2018
+                prop_oa_since_2018
+                num_oa_since_2018
+                has_apcs
+                apc_url
+                apc_fee
+                apc_currency
+                has_submission_fee
+                submission_fee_url
+                submission_fee
+                submission_fee_currency
+                has_apc_waiver
+                apc_waiver_url
+                first_year_oa
+                languages
+                editorial_board_url
+                review_process
+                review_process_url
+                aims_scope_url
+                instructions_to_authors_url
+                plagiarism_screening_policy
+                plagiarism_screening_url
+                weeks_submission_to_publication
+                oa_statement_url
+                license
+                license_attributes
+                licence_url
+                author_holds_copyright_no_restictions
+                copyright_url
+                author_holds_publishing_rights_no_restictions
+                publishing_rights_url""".split()
+            for field in open_fields:
+                clean_field = field.strip()
+                open_dict[clean_field] = getattr(self, clean_field)
+        response["oa_details"] = open_dict
+
         return response

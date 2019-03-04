@@ -21,6 +21,7 @@ from sqlalchemy import sql
 
 from data.funders import funder_names
 from our_journals import BqOurJournalsIssnl
+from topic import Topic
 
 
 
@@ -184,10 +185,26 @@ def funders_name_search(q):
     return jsonify({"list": ret, "count": len(ret)})
 
 
-@app.route("/serp", methods=["GET"])
-def serp_get():
+@app.route("/journal/<issnl_query>", methods=["GET"])
+def journal_issnl_get(issnl_query):
+    my_journal = BqOurJournalsIssnl.query.filter(BqOurJournalsIssnl.issnl == issnl_query).first()
+    return jsonify(my_journal.to_dict_full())
 
-    journal = request.args.get("journal", None)
+
+@app.route("/topic/<topic_query>", methods=["GET"])
+def topic_get(topic_query):
+    topic_hits = Topic.query.filter(Topic.topic == topic_query).order_by(Topic.num_articles_3years.desc()).limit(50)
+    our_journals = BqOurJournalsIssnl.query.filter(BqOurJournalsIssnl.issnl.in_([t.issnl for t in topic_hits])).all()
+    responses = [j.to_dict_journal_row() for j in our_journals]
+    responses = sorted(responses, key=lambda k: k['num_articles_since_2018'], reverse=True)
+    return jsonify({ "list": responses, "count": len(responses)})
+
+
+
+@app.route("/search/journals", methods=["GET"])
+def search_journals_get():
+
+    journal = request.args.get("q", None)
     funder = request.args.get("funder", None)
     institution = request.args.get("institution", None)
 
