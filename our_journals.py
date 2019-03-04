@@ -1,8 +1,11 @@
 import requests
 import re
+from sqlalchemy import sql
 
 from app import db
 from topic import Topic
+
+THRESHOLD_PROP_CC_BY_SINCE_2018 = .90
 
 class BqOurJournalsIssnl(db.Model):
     __tablename__ = 'bq_our_journals_issnl'
@@ -73,12 +76,35 @@ class BqOurJournalsIssnl(db.Model):
         return None
 
     @property
+    def topic_names(self):
+        return [t.topic for t in self.topics]
+
+    @property
     def is_plan_s_compliant(self):
         return self.is_gold_oa
 
     @property
     def is_gold_oa(self):
-        return self.prop_cc_by_since_2018 >= 0.9
+        return self.prop_cc_by_since_2018 >= THRESHOLD_PROP_CC_BY_SINCE_2018
+
+    def get_similar_journals(self):
+        topic_string = ",".join(["'{}'".format(t) for t in self.topic_names])
+        command = """select issnl from bq_our_journals_issnl
+                where issnl != '{my_issnl}'
+                and issnl in (select issnl from bq_scimago_issnl_topics where topic in ({my_topics}))
+                and prop_cc_by_since_2018 >= {thresh}
+                order by (abs(sjr - {my_sjr})) asc
+                limit 20""".format(my_issnl=self.issnl, my_sjr=self.sjr, my_topics=topic_string, thresh=THRESHOLD_PROP_CC_BY_SINCE_2018)
+        res = db.session.connection().execute(sql.text(command))
+        rows = res.fetchall()
+
+        issnls = [row[0] for row in rows]
+        our_journals = BqOurJournalsIssnl.query.filter(BqOurJournalsIssnl.issnl.in_(issnls)).all()
+
+        our_journals.sort(key=lambda this_object: abs(self.sjr - this_object.sjr), reverse=False)
+
+        return our_journals
+
 
     def to_dict_journal_row(self):
         plan_s_policy = {"compliant": False, "reason": []}
@@ -89,11 +115,12 @@ class BqOurJournalsIssnl(db.Model):
             "issnl": self.issnl,
             # "url": self.get_journal_url_from_issn(),
             "name": self.title,
-            "topics": [t.topic for t in self.topics],
+            "topics": self.topic_names,
             "publisher": self.publisher,
             "country": self.country,
             "num_articles_since_2018": self.num_articles_since_2018,
             "h_index": self.h_index,
+            "sjr": self.sjr,
             "policy_compliance": {"plan_s": plan_s_policy}
         }
         return response
@@ -145,5 +172,6 @@ class BqOurJournalsIssnl(db.Model):
                 clean_field = field.strip()
                 open_dict[clean_field] = getattr(self, clean_field)
         response["oa_details"] = open_dict
+        response["similar_journals"] = [j.to_dict_journal_row() for j in self.get_similar_journals()]
 
         return response
