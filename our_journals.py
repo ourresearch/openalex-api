@@ -1,4 +1,8 @@
+import requests
+import re
+
 from app import db
+from topic import Topic
 
 class BqOurJournalsIssnl(db.Model):
     __tablename__ = 'bq_our_journals_issnl'
@@ -49,12 +53,39 @@ class BqOurJournalsIssnl(db.Model):
     author_holds_publishing_rights_no_restictions	=  db.Column(db.Boolean)
     publishing_rights_url	=  db.Column(db.Text)
 
+    topics = db.relationship(
+        'Topic',
+        lazy='subquery',
+        cascade="all"
+    )
 
-    def to_dict(self):
+    def get_journal_url_from_issn(self):
+        # url = "https://portal.issn.org/resource/ISSN/{}?format=json".format(self.issnl)
+        # r = requests.get(url)
+        # contents = r.text
+        # hits = re.findall('"url" : "(http.*)"', contents)
+        # if hits:
+        #     return hits[0]
+        # hits = re.findall('"url" :\s*\[\s*"(http.*?)"', contents, re.DOTALL | re.MULTILINE)
+        # if hits:
+        #     return hits[0]
+
+        return None
+
+
+    def to_dict_journal_row(self):
+        plan_s_policy = {"compliant": False, "reason": []}
+        if self.prop_cc_by_since_2018 >= 0.9:
+            plan_s_policy = {"compliant": True, "reason": ["gold_oa"]}
+
         response = {
-            "id": self.issnl,
             "issnl": self.issnl,
+            "url": self.get_journal_url_from_issn(),
             "name": self.title,
-            "policy": {"compliant": False}
+            "topics": [t.to_dict() for t in self.topics],
+            "publisher": self.publisher,
+            "country": self.country,
+            "num_articles_since_2018": self.num_articles_since_2018,
+            "policy_compliance": {"plan_s": plan_s_policy}
         }
         return response

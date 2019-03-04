@@ -211,33 +211,22 @@ def serp_get():
             from bq_our_journals_issnl, to_tsquery('only_stop_words', '{query_for_search}') query
             where to_tsvector('only_stop_words', title) @@ query
             order by num_articles_since_2018 + 10000 * ts_rank_cd(to_tsvector('only_stop_words', title), query, 1) desc
-            limit 50
+            limit 20
     """.format(query_for_search=query_for_search)
     res = db.session.connection().execute(sql.text(command))
     rows = res.fetchall()
 
     issnls = [row[0] for row in rows]
     our_journals = BqOurJournalsIssnl.query.filter(BqOurJournalsIssnl.issnl.in_(issnls)).all()
-    print our_journals
+    # print our_journals
     responses = []
     for this_journal in our_journals:
-        response = this_journal.to_dict()
+        response = this_journal.to_dict_journal_row()
         matching_score_row = [row for row in rows if row[0]==this_journal.issnl][0]
         response["fulltext_rank"] = matching_score_row[4]
         response["score"] = matching_score_row[5]
         responses.append(response)
 
-    #     if prop_cc_by_since_2018 >= .9:
-    #         policy = {
-    #             "compliant": True,
-    #             "path": ["gold_path"]
-    #         }
-    #     record ["plan_s_policy"] = policy
-    #     record ["metrics"] = {
-    #         "num_articles_since_2018": num_articles_since_2018,
-    #     }
-    #     response.append(record)
-    #
     # if "Water Research" in journal:
     #     response.append(
     #     {
