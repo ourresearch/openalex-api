@@ -87,7 +87,7 @@ class BqOurJournalsIssnl(db.Model):
 
         response = {
             "issnl": self.issnl,
-            "url": self.get_journal_url_from_issn(),
+            # "url": self.get_journal_url_from_issn(),
             "name": self.title,
             "topics": [t.topic for t in self.topics],
             "publisher": self.publisher,

@@ -262,7 +262,7 @@ def search_journals_get():
     #     )
 
 
-    results = sorted(responses, key=lambda k: k['score'], reverse=True)
+    responses = sorted(responses, key=lambda k: k['score'], reverse=True)
 
     return jsonify({ "list": responses, "count": len(responses)})
 
