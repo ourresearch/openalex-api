@@ -130,16 +130,16 @@ def journal_title_search(q):
         query_for_search += ':*'
 
     command = """select 
-                vid, 
+                issnl, 
                 num_articles_since_2018, 
-                top_journal_name, 
+                title, 
                 prop_cc_by_since_2018,
-                ts_rank_cd(to_tsvector('only_stop_words', top_journal_name), query, 1) AS rank,
-                num_articles + 10000 * ts_rank_cd(to_tsvector('only_stop_words', top_journal_name), query, 1) as score
+                ts_rank_cd(to_tsvector('only_stop_words', title), query, 1) AS rank,
+                num_articles + 10000 * ts_rank_cd(to_tsvector('only_stop_words', title), query, 1) as score
             
-            from bq_our_journals, to_tsquery('only_stop_words', '{query_for_search}') query
-            where to_tsvector('only_stop_words', top_journal_name) @@ query
-            order by num_articles_since_2018 + 10000 * ts_rank_cd(to_tsvector('only_stop_words', top_journal_name), query, 1) desc
+            from bq_our_journals_issnl, to_tsquery('only_stop_words', '{query_for_search}') query
+            where to_tsvector('only_stop_words', title) @@ query
+            order by num_articles_since_2018 + 10000 * ts_rank_cd(to_tsvector('only_stop_words', title), query, 1) desc
             limit 10
     """.format(query_for_search=query_for_search)
     res = db.session.connection().execute(sql.text(command))
@@ -220,9 +220,6 @@ def search_journals_get():
 
     command = """select 
                 issnl, 
-                num_articles_since_2018, 
-                title, 
-                prop_cc_by_since_2018,
                 ts_rank_cd(to_tsvector('only_stop_words', title), query, 1) AS rank,
                 num_articles + 10000 * ts_rank_cd(to_tsvector('only_stop_words', title), query, 1) as score
             from bq_our_journals_issnl, to_tsquery('only_stop_words', '{query_for_search}') query
@@ -240,28 +237,9 @@ def search_journals_get():
     for this_journal in our_journals:
         response = this_journal.to_dict_journal_row()
         matching_score_row = [row for row in rows if row[0]==this_journal.issnl][0]
-        response["fulltext_rank"] = matching_score_row[4]
-        response["score"] = matching_score_row[5]
+        response["fulltext_rank"] = matching_score_row[1]
+        response["score"] = matching_score_row[2]
         responses.append(response)
-
-    # if "Water Research" in journal:
-    #     response.append(
-    #     {
-    #       "fulltext_rank": 0.0910239,
-    #       "id": "13846",
-    #       "metrics": {
-    #         "num_articles_since_2018": 42
-    #       },
-    #       "name": "Water Research X",
-    #       "plan_s_policy": {
-    #             "compliant": False,
-    #             "details": ["mirror_journal"]
-    #         },
-    #       "score": 21145.2392196655
-    #     }
-    #     )
-
-
     responses = sorted(responses, key=lambda k: k['score'], reverse=True)
 
     return jsonify({ "list": responses, "count": len(responses)})

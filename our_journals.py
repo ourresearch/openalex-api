@@ -128,7 +128,7 @@ class BqOurJournalsIssnl(db.Model):
 
     def to_dict_full(self):
         response = self.to_dict_journal_row()
-        response["url"] = self.get_journal_url_from_issn()
+        # response["url"] = self.get_journal_url_from_issn()
         open_dict = {}
         if self.is_plan_s_compliant:
             open_fields =  """num_cc_by
