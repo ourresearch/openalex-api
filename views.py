@@ -120,6 +120,41 @@ def base_endpoint():
     })
 
 
+@app.route("/search/topics/<q>", methods=["GET"])
+def topics_title_search(q):
+    ret = []
+
+    query_for_search = re.sub(r'[!\'()|&]', ' ', q).strip()
+    if query_for_search:
+        query_for_search = re.sub(r'\s+', ' & ', query_for_search)
+        query_for_search += ':*'
+
+    command = """with together as (
+			select
+            topic,
+            sum(num_articles_3years) as num_total_3years
+        	from bq_scimago_issnl_topics group by topic)
+            select 
+                topic,
+                num_total_3years, 
+                ts_rank_cd(to_tsvector('only_stop_words', topic), query, 1) AS rank,
+                num_total_3years + 100000 * ts_rank_cd(to_tsvector('only_stop_words', topic), query, 1) as score
+            from together, to_tsquery('only_stop_words', '{query_for_search}') query
+            where to_tsvector('only_stop_words', topic) @@ query
+            order by num_total_3years + 100000 * ts_rank_cd(to_tsvector('only_stop_words', topic), query, 1) desc
+            limit 10
+        """.format(query_for_search=query_for_search)
+    res = db.session.connection().execute(sql.text(command))
+    rows = res.fetchall()
+    for row in rows:
+        ret.append({
+            "topic": row[0],
+            "num_total_3years": row[1],
+            "fulltext_rank": row[2],
+            "score": row[3],
+        })
+    return jsonify({ "list": ret, "count": len(ret)})
+
 @app.route("/search/journals/title/<q>", methods=["GET"])
 def journal_title_search(q):
     ret = []
@@ -135,7 +170,7 @@ def journal_title_search(q):
                 title, 
                 prop_cc_by_since_2018,
                 ts_rank_cd(to_tsvector('only_stop_words', title), query, 1) AS rank,
-                num_articles + 10000 * ts_rank_cd(to_tsvector('only_stop_words', title), query, 1) as score
+                num_articles_since_2018 + 10000 * ts_rank_cd(to_tsvector('only_stop_words', title), query, 1) as score
             
             from bq_our_journals_issnl, to_tsquery('only_stop_words', '{query_for_search}') query
             where to_tsvector('only_stop_words', title) @@ query
