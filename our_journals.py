@@ -86,6 +86,7 @@ class BqOurJournalsIssnl(db.Model):
             "publisher": self.publisher,
             "country": self.country,
             "num_articles_since_2018": self.num_articles_since_2018,
+            "h_index": self.h_index,
             "policy_compliance": {"plan_s": plan_s_policy}
         }
         return response
