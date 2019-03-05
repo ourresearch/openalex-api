@@ -236,19 +236,18 @@ def topic_get(topic_query):
 
 
 
-@app.route("/search/journals", methods=["GET"])
-def search_journals_get():
+@app.route("/search/journals/<journal_query>", methods=["GET"])
+def search_journals_get(journal_query):
 
-    journal = request.args.get("q", None)
     funder = request.args.get("funder", None)
     institution = request.args.get("institution", None)
 
-    if not journal:
-        abort_json(422, "missing journal")
+    if not journal_query:
+        abort_json(422, "missing journal query")
 
     response = []
 
-    query_for_search = re.sub(r'[!\'()|&]', ' ', journal).strip()
+    query_for_search = re.sub(r'[!\'()|&]', ' ', journal_query).strip()
     if query_for_search:
         query_for_search = re.sub(r'\s+', ' & ', query_for_search)
         query_for_search += ':*'
