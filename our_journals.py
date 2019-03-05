@@ -101,7 +101,7 @@ class BqOurJournalsIssnl(db.Model):
         issnls = [row[0] for row in rows]
         our_journals = BqOurJournalsIssnl.query.filter(BqOurJournalsIssnl.issnl.in_(issnls)).all()
 
-        our_journals.sort(key=lambda this_object: abs(self.sjr - this_object.sjr), reverse=False)
+        our_journals.sort(key=lambda this_object: abs(self.sjr - (this_object.sjr or 0)), reverse=False)
 
         return our_journals
 

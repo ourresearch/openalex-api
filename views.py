@@ -195,7 +195,7 @@ def journal_title_search(q):
 @app.route("/search/institutions/name/<q>", methods=["GET"])
 def institutions_name_search(q):
     ret = []
-    command = """select grid_id, num_papers, org_name
+    command = """select grid_id, num_papers, org_name, country
         from bq_org_name_by_num_papers
         where org_name ilike '%{str}%'
         order by num_papers desc
