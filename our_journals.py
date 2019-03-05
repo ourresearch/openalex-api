@@ -116,6 +116,7 @@ class BqOurJournalsIssnl(db.Model):
             # "url": self.get_journal_url_from_issn(),
             "name": self.title,
             "topics": self.topic_names,
+            # "topics": [t.to_dict() for t in self.topics],
             "publisher": self.publisher,
             "country": self.country,
             "num_articles_since_2018": self.num_articles_since_2018,

@@ -10,5 +10,5 @@ class Topic(db.Model):
     quadrant = db.Column(db.Numeric)
 
     def to_dict(self):
-        response = [self.topic.strip(), self.quadrant]
+        response = [self.topic, self.quadrant]
         return response
