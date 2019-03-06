@@ -212,7 +212,7 @@ def institutions_name_search(q):
     return jsonify({"list": ret, "count": len(ret)})
 
 
-@app.route("/search/funders/name/<q>", methods=["GET"])
+@app.route("/autocomplete/funders/name/<q>", methods=["GET"])
 def funders_name_search(q):
 
     ret = [funder for funder in funder_names if q.lower() in funder["alternate_names"].lower()]
