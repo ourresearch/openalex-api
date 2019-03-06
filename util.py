@@ -19,6 +19,9 @@ from sqlalchemy import exc
 from subprocess import call
 from requests.adapters import HTTPAdapter
 
+def str2bool(v):
+  return v.lower() in ("yes", "true", "t", "1")
+
 class NoDoiException(Exception):
     pass
 

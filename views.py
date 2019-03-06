@@ -22,7 +22,7 @@ from sqlalchemy import sql
 from data.funders import funder_names
 from our_journals import BqOurJournalsIssnl
 from topic import Topic
-
+from util import str2bool
 
 
 def json_dumper(obj):
@@ -232,7 +232,14 @@ def journal_issnl_get(issnl_query):
 def topic_get(topic_query):
     funder = request.args.get("funder", None)
     institution = request.args.get("institution", None)
-    compliant_only = request.args.get("compliant-only", None)
+    if "compliant-only" in request.args:
+        compliant_only = str2bool(request.args.get("compliant-only", "true"))
+        if request.args.get("compliant-only") == '':
+            compliant_only = True
+    else:
+        compliant_only = False
+
+
     if compliant_only:
         limit = 1000
     else:
@@ -253,7 +260,12 @@ def topic_get(topic_query):
 def search_journals_get(journal_query):
     funder = request.args.get("funder", None)
     institution = request.args.get("institution", None)
-    compliant_only = request.args.get("compliant-only", None)
+    if "compliant-only" in request.args:
+        compliant_only = str2bool(request.args.get("compliant-only", "true"))
+        if request.args.get("compliant-only") == '':
+            compliant_only = True
+    else:
+        compliant_only = False
 
     if compliant_only:
         limit = 1000
