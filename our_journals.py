@@ -77,7 +77,8 @@ class BqOurJournalsIssnl(db.Model):
 
     @property
     def topic_names(self):
-        return [t.topic for t in self.topics]
+        ordered_topics = sorted(self.topics, key=lambda k: k.quadrant, reverse = False)
+        return [t.topic for t in ordered_topics]
 
     @property
     def is_plan_s_compliant(self):
