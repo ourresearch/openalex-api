@@ -222,8 +222,10 @@ def funders_name_search(q):
 
 @app.route("/journal/<issnl_query>", methods=["GET"])
 def journal_issnl_get(issnl_query):
+    funder = request.args.get("funder", None)
+    institution = request.args.get("institution", None)
     my_journal = BqOurJournalsIssnl.query.filter(BqOurJournalsIssnl.issnl == issnl_query).first()
-    return jsonify(my_journal.to_dict_full())
+    return jsonify(my_journal.to_dict_full(funder, institution))
 
 
 @app.route("/topic/<topic_query>", methods=["GET"])
@@ -238,12 +240,8 @@ def topic_get(topic_query):
 
 @app.route("/search/journals/<journal_query>", methods=["GET"])
 def search_journals_get(journal_query):
-
     funder = request.args.get("funder", None)
     institution = request.args.get("institution", None)
-
-    if not journal_query:
-        abort_json(422, "missing journal query")
 
     response = []
 
@@ -269,7 +267,7 @@ def search_journals_get(journal_query):
     # print our_journals
     responses = []
     for this_journal in our_journals:
-        response = this_journal.to_dict_journal_row()
+        response = this_journal.to_dict_journal_row(funder, institution)
         matching_score_row = [row for row in rows if row[0]==this_journal.issnl][0]
         response["fulltext_rank"] = matching_score_row[1]
         response["score"] = matching_score_row[2]

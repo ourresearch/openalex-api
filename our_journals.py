@@ -4,6 +4,7 @@ from sqlalchemy import sql
 
 from app import db
 from topic import Topic
+from data.funders import funder_names
 
 THRESHOLD_PROP_CC_BY_SINCE_2018 = .90
 
@@ -107,31 +108,42 @@ class BqOurJournalsIssnl(db.Model):
         return our_journals
 
 
-    def to_dict_journal_row(self):
-        policy = {"policy": "unknown", "compliant": False, "reason": []}
-        if self.is_gold_oa:
-            policy = {"policy": "plan_s", "compliant": True, "reason": ["gold_oa"]}
+    def to_dict_journal_row(self, funder=None, institution=None):
+        if funder:
+            policy = "not supported yet"
+            matching_funders = [f for f in funder_names if f["name"]==funder]
+            if matching_funders:
+                funder_dict = matching_funders[0]
+                policy = funder_dict["policy"]
+        else:
+            policy = "unspecified"
+
+        policy_dict = {"policy": policy, "compliant": None, "reason": [], "query": {"funder": funder, "institution": institution}}
+
+        if policy == "plan-s":
+            policy_dict["compliant"] = False
+            if self.is_gold_oa:
+                policy_dict["compliant"] = True
+                policy_dict["reason"] = ["gold-oa"]
+
 
         response = {
             "id": self.issnl,
-            # "url": self.get_journal_url_from_issn(),
             "name": self.title,
             "topics": self.topic_names,
-            # "topics": [t.to_dict() for t in self.topics],
             "publisher": self.publisher,
             "country": self.country,
             "num_articles_since_2018": self.num_articles_since_2018,
             "h_index": self.h_index,
             "sjr": self.sjr,
             "sjr_best_quartile": self.sjr_best_quartile,
-            "policy_compliance": policy
+            "policy_compliance": policy_dict
         }
         return response
 
 
-    def to_dict_full(self):
-        response = self.to_dict_journal_row()
-        # response["url"] = self.get_journal_url_from_issn()
+    def to_dict_full(self, funder=None, institution=None):
+        response = self.to_dict_journal_row(funder, institution)
         open_dict = {}
         if self.is_plan_s_compliant:
             open_fields =  """num_cc_by
@@ -175,6 +187,6 @@ class BqOurJournalsIssnl(db.Model):
                 clean_field = field.strip()
                 open_dict[clean_field] = getattr(self, clean_field)
         response["oa_details"] = open_dict
-        response["similar_journals"] = [j.to_dict_journal_row() for j in self.get_similar_journals()]
+        response["similar_journals"] = [j.to_dict_journal_row(funder, institution) for j in self.get_similar_journals()]
 
         return response
