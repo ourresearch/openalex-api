@@ -110,22 +110,22 @@ class BqOurJournalsIssnl(db.Model):
 
     def to_dict_journal_row(self, funder=None, institution=None):
         if funder:
-            policy = "not supported yet"
-            matching_funders = [f for f in funder_names if f["name"]==funder]
+            policy = "not-supported-yet"
+            matching_funders = [f for f in funder_names if f["id"]==funder]
             if matching_funders:
                 funder_dict = matching_funders[0]
                 policy = funder_dict["policy"]
         else:
             policy = "unspecified"
 
-        policy_dict = {"policy": policy, "compliant": None, "reason": [], "query": {"funder": funder, "institution": institution}}
+        policy_dict = {"policy": policy, "compliant": True, "reason": [], "query": {"funder": funder, "institution": institution}}
 
         if policy == "plan-s":
             policy_dict["compliant"] = False
             if self.is_gold_oa:
                 policy_dict["compliant"] = True
                 policy_dict["reason"] = ["gold-oa"]
-            if institution and "max plank" in institution.lower():
+            if institution == "grid.4372.2":
                 if self.publisher and "wiley" in self.publisher.lower():
                     policy_dict["compliant"] = True
                     policy_dict["reason"] += ["transformative-agreement"]
