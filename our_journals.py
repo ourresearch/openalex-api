@@ -107,12 +107,12 @@ class BqOurJournalsIssnl(db.Model):
 
 
     def to_dict_journal_row(self):
-        plan_s_policy = {"compliant": False, "reason": []}
+        policy = {"policy": "unknown", "compliant": False, "reason": []}
         if self.is_gold_oa:
-            plan_s_policy = {"compliant": True, "reason": ["gold_oa"]}
+            policy = {"policy": "plan_s", "compliant": True, "reason": ["gold_oa"]}
 
         response = {
-            "issnl": self.issnl,
+            "id": self.issnl,
             # "url": self.get_journal_url_from_issn(),
             "name": self.title,
             "topics": self.topic_names,
@@ -122,7 +122,7 @@ class BqOurJournalsIssnl(db.Model):
             "num_articles_since_2018": self.num_articles_since_2018,
             "h_index": self.h_index,
             "sjr": self.sjr,
-            "policy_compliance": {"plan_s": plan_s_policy}
+            "policy_compliance": policy
         }
         return response
 

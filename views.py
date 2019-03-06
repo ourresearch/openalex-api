@@ -120,7 +120,7 @@ def base_endpoint():
     })
 
 
-@app.route("/search/topics/<q>", methods=["GET"])
+@app.route("/autocomplete/topics/name/<q>", methods=["GET"])
 def topics_title_search(q):
     ret = []
 
@@ -155,7 +155,7 @@ def topics_title_search(q):
         })
     return jsonify({ "list": ret, "count": len(ret)})
 
-@app.route("/search/journals/title/<q>", methods=["GET"])
+@app.route("/autocomplete/journals/name/<q>", methods=["GET"])
 def journal_title_search(q):
     ret = []
 
@@ -192,10 +192,10 @@ def journal_title_search(q):
 
 
 
-@app.route("/search/institutions/name/<q>", methods=["GET"])
+@app.route("/autocomplete/institutions/name/<q>", methods=["GET"])
 def institutions_name_search(q):
     ret = []
-    command = """select grid_id, num_papers, org_name, country
+    command = """select grid_id, num_papers, org_name
         from bq_org_name_by_num_papers
         where org_name ilike '%{str}%'
         order by num_papers desc
