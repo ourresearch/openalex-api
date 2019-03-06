@@ -125,7 +125,13 @@ class BqOurJournalsIssnl(db.Model):
             if self.is_gold_oa:
                 policy_dict["compliant"] = True
                 policy_dict["reason"] = ["gold-oa"]
-
+            if institution and "max plank" in institution.lower():
+                if self.publisher and "wiley" in self.publisher.lower():
+                    policy_dict["compliant"] = True
+                    policy_dict["reason"] += ["transformative-agreement"]
+            if self.title and self.title.lower().endswith(" x"):
+                    policy_dict["compliant"] = False
+                    policy_dict["reason"] = ["mirror-journal"]
 
         response = {
             "id": self.issnl,
