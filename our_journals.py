@@ -122,6 +122,7 @@ class BqOurJournalsIssnl(db.Model):
             "num_articles_since_2018": self.num_articles_since_2018,
             "h_index": self.h_index,
             "sjr": self.sjr,
+            "sjr_best_quartile": self.sjr_best_quartile,
             "policy_compliance": policy
         }
         return response
