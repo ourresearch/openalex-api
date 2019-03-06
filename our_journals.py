@@ -107,25 +107,29 @@ class BqOurJournalsIssnl(db.Model):
 
         return our_journals
 
+    def is_compliant(self, funder=None, institution=None):
+        funder_dict = self.get_policy_dict(funder, institution)
+        return funder_dict["compliant"]
 
-    def to_dict_journal_row(self, funder=None, institution=None):
-        if funder:
+    def get_policy_dict(self, funder_id=None, institution_id=None):
+        if not funder_id or funder_id == "unsupported":
+            policy = "unspecified"
+        else:
+            # default
             policy = "not-supported-yet"
-            matching_funders = [f for f in funder_names if str(f["id"])==funder]
+            matching_funders = [f for f in funder_names if str(f["id"])==funder_id]
             if matching_funders:
                 funder_dict = matching_funders[0]
                 policy = funder_dict["policy"]
-        else:
-            policy = "unspecified"
 
-        policy_dict = {"policy": policy, "compliant": True, "reason": [], "query": {"funder": funder, "institution": institution}}
+        policy_dict = {"policy": policy, "compliant": True, "reason": [], "query": {"funder": funder_id, "institution": institution_id}}
 
         if policy == "plan-s":
             policy_dict["compliant"] = False
             if self.is_gold_oa:
                 policy_dict["compliant"] = True
                 policy_dict["reason"] = ["gold-oa"]
-            if institution == "grid.4372.2":
+            if institution_id == "grid.4372.2":
                 if self.publisher and "wiley" in self.publisher.lower():
                     policy_dict["compliant"] = True
                     policy_dict["reason"] += ["transformative-agreement"]
@@ -133,6 +137,10 @@ class BqOurJournalsIssnl(db.Model):
                     policy_dict["compliant"] = False
                     policy_dict["reason"] = ["mirror-journal"]
 
+        return policy_dict
+
+
+    def to_dict_journal_row(self, funder=None, institution=None):
         response = {
             "id": self.issnl,
             "name": self.title,
@@ -143,7 +151,7 @@ class BqOurJournalsIssnl(db.Model):
             "h_index": self.h_index,
             "sjr": self.sjr,
             "sjr_best_quartile": self.sjr_best_quartile,
-            "policy_compliance": policy_dict
+            "policy_compliance": self.get_policy_dict(funder, institution)
         }
         return response
 

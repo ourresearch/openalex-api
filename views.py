@@ -230,10 +230,21 @@ def journal_issnl_get(issnl_query):
 
 @app.route("/topic/<topic_query>", methods=["GET"])
 def topic_get(topic_query):
-    topic_hits = Topic.query.filter(Topic.topic == topic_query).order_by(Topic.num_articles_3years.desc()).limit(50)
+    funder = request.args.get("funder", None)
+    institution = request.args.get("institution", None)
+    compliant_only = request.args.get("compliant-only", None)
+    if compliant_only:
+        limit = 1000
+    else:
+        limit = 50
+    topic_hits = Topic.query.filter(Topic.topic == topic_query).order_by(Topic.num_articles_3years.desc()).limit(limit)
     our_journals = BqOurJournalsIssnl.query.filter(BqOurJournalsIssnl.issnl.in_([t.issnl for t in topic_hits])).all()
-    responses = [j.to_dict_journal_row() for j in our_journals]
-    responses = sorted(responses, key=lambda k: k['num_articles_since_2018'], reverse=True)
+    responses = []
+    for this_journal in our_journals:
+        if (not compliant_only) or (compliant_only and this_journal.is_compliant(funder, institution)):
+            response = this_journal.to_dict_journal_row(funder, institution)
+            responses.append(response)
+    responses = sorted(responses, key=lambda k: k['num_articles_since_2018'], reverse=True)[:50]
     return jsonify({ "list": responses, "count": len(responses)})
 
 
@@ -242,6 +253,12 @@ def topic_get(topic_query):
 def search_journals_get(journal_query):
     funder = request.args.get("funder", None)
     institution = request.args.get("institution", None)
+    compliant_only = request.args.get("compliant-only", None)
+
+    if compliant_only:
+        limit = 1000
+    else:
+        limit = 50
 
     response = []
 
@@ -257,8 +274,8 @@ def search_journals_get(journal_query):
             from bq_our_journals_issnl, to_tsquery('only_stop_words', '{query_for_search}') query
             where to_tsvector('only_stop_words', title) @@ query
             order by num_articles_since_2018 + 10000 * ts_rank_cd(to_tsvector('only_stop_words', title), query, 1) desc
-            limit 20
-    """.format(query_for_search=query_for_search)
+            limit {limit}
+    """.format(query_for_search=query_for_search, limit=limit)
     res = db.session.connection().execute(sql.text(command))
     rows = res.fetchall()
 
@@ -267,12 +284,14 @@ def search_journals_get(journal_query):
     # print our_journals
     responses = []
     for this_journal in our_journals:
-        response = this_journal.to_dict_journal_row(funder, institution)
-        matching_score_row = [row for row in rows if row[0]==this_journal.issnl][0]
-        response["fulltext_rank"] = matching_score_row[1]
-        response["score"] = matching_score_row[2]
-        responses.append(response)
-    responses = sorted(responses, key=lambda k: k['score'], reverse=True)
+        if (not compliant_only) or (compliant_only and this_journal.is_compliant(funder, institution)):
+            response = this_journal.to_dict_journal_row(funder, institution)
+            matching_score_row = [row for row in rows if row[0]==this_journal.issnl][0]
+            response["fulltext_rank"] = matching_score_row[1]
+            response["score"] = matching_score_row[2]
+            responses.append(response)
+
+    responses = sorted(responses, key=lambda k: k['score'], reverse=True)[:50]
 
     return jsonify({ "list": responses, "count": len(responses)})
 
