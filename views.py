@@ -232,23 +232,23 @@ def journal_issnl_get(issnl_query):
 def topic_get(topic_query):
     funder = request.args.get("funder", None)
     institution = request.args.get("institution", None)
-    if "compliant-only" in request.args:
-        compliant_only = str2bool(request.args.get("compliant-only", "true"))
-        if request.args.get("compliant-only") == '':
-            compliant_only = True
+
+    include_uncompliant = False
+    if "include-uncompliant" in request.args:
+        include_uncompliant = str2bool(request.args.get("include-uncompliant", "true"))
+        if request.args.get("include-uncompliant") == '':
+            include_uncompliant = True
+
+    if include_uncompliant:
+        limit = 50  # won't need to filter any out
     else:
-        compliant_only = False
-
-
-    if compliant_only:
         limit = 1000
-    else:
-        limit = 50
+
     topic_hits = Topic.query.filter(Topic.topic == topic_query).order_by(Topic.num_articles_3years.desc()).limit(limit)
     our_journals = BqOurJournalsIssnl.query.filter(BqOurJournalsIssnl.issnl.in_([t.issnl for t in topic_hits])).all()
     responses = []
     for this_journal in our_journals:
-        if (not compliant_only) or (compliant_only and this_journal.is_compliant(funder, institution)):
+        if include_uncompliant or this_journal.is_compliant(funder, institution):
             response = this_journal.to_dict_journal_row(funder, institution)
             responses.append(response)
     responses = sorted(responses, key=lambda k: k['num_articles_since_2018'], reverse=True)[:50]
@@ -260,17 +260,17 @@ def topic_get(topic_query):
 def search_journals_get(journal_query):
     funder = request.args.get("funder", None)
     institution = request.args.get("institution", None)
-    if "compliant-only" in request.args:
-        compliant_only = str2bool(request.args.get("compliant-only", "true"))
-        if request.args.get("compliant-only") == '':
-            compliant_only = True
-    else:
-        compliant_only = False
 
-    if compliant_only:
-        limit = 1000
+    include_uncompliant = False
+    if "include-uncompliant" in request.args:
+        include_uncompliant = str2bool(request.args.get("include-uncompliant", "true"))
+        if request.args.get("include-uncompliant") == '':
+            include_uncompliant = True
+
+    if include_uncompliant:
+        limit = 50  # won't need to filter any out
     else:
-        limit = 50
+        limit = 1000
 
     response = []
 
@@ -296,7 +296,7 @@ def search_journals_get(journal_query):
     # print our_journals
     responses = []
     for this_journal in our_journals:
-        if (not compliant_only) or (compliant_only and this_journal.is_compliant(funder, institution)):
+        if include_uncompliant or this_journal.is_compliant(funder, institution):
             response = this_journal.to_dict_journal_row(funder, institution)
             matching_score_row = [row for row in rows if row[0]==this_journal.issnl][0]
             response["fulltext_rank"] = matching_score_row[1]
