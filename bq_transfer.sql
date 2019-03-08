@@ -15,10 +15,16 @@ country text);
 create table bq_org_name_by_num_papers (
 org_name text,
 grid_id text,
+country text,
+country_code text,
+continent text,
 num_papers numeric)
+
+# heroku run python bq_transfer.py --pg bq_org_name_by_num_papers --bq doiboost.num_dois_by_org_view
 
 create index bq_org_name_by_num_papers_tsvector_idx on bq_org_name_by_num_papers using gin(to_tsvector('english', org_name))
 CREATE INDEX bq_org_name_by_num_papers_trgm_idx ON bq_org_name_by_num_papers USING gin (org_name gin_trgm_ops);
+CREATE INDEX bq_org_name_by_num_papers_country_idx ON bq_org_name_by_num_papers(country);
 
 # heroku run python bq_transfer.py --pg bq_our_journals_issnl --bq journals.our_journals_issnl_view
 drop table bq_our_journals_issnl

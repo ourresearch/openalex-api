@@ -17,6 +17,8 @@ class BqOurJournalsIssnl(db.Model):
     sjr_best_quartile	 =  db.Column(db.Text)
     h_index	 =  db.Column(db.Numeric)
     country	 =  db.Column(db.Text)
+    publisher_country_code = db.Column(db.Text)
+    publisher_continent = db.Column(db.Text)
     society_or_institution	 =  db.Column(db.Text)
     publisher	 =  db.Column(db.Text)
     categories	 =  db.Column(db.Text)
@@ -117,6 +119,23 @@ class BqOurJournalsIssnl(db.Model):
         return funder_dict["compliant"]
 
     def transformative_agreement_applies(self, institution_id, transformative_agreement):
+        if not institution_id:
+            return False
+
+        covers_institution = False
+
+        if transformative_agreement["grid_id"] and transformative_agreement["grid_id"] == institution_id:
+            covers_institution = True
+        elif transformative_agreement["country"]:
+            if transformative_agreement["country"] == institution_id.country:
+                covers_institution = True
+
+        if covers_institution:
+            if transformative_agreement["issn"] and transformative_agreement["issn"] == self.issnl:
+                return True
+            if transformative_agreement["publisher"] and self.publisher.lower() in transformative_agreement["publisher"].lower():
+                return True
+
         return False
 
     def get_policy_dict(self, funder_id=None, institution_id=None):
@@ -134,19 +153,30 @@ class BqOurJournalsIssnl(db.Model):
 
         if policy == "plan-s":
             policy_dict["compliant"] = False
+
+            ##### gold oa
             if self.is_gold_oa:
                 policy_dict["compliant"] = True
                 policy_dict["reason"] = ["gold-oa"]
+
+            #### mirror journals
             if self.title and self.title.lower().endswith(" x"):
                     policy_dict["compliant"] = False
                     policy_dict["reason"] = ["mirror-journal"]
+
+            #### funder specific policies
+            # if NEJM and gates, is compliant
             if funder_id==100000865 and self.issnl=="0028-4793":
                     policy_dict["compliant"] = True
                     policy_dict["reason"] = ["funder-specific-agreement"]
+
+            #### transformative agreements
+            # if max plank and wiley, is compliant
             if institution_id == "grid.4372.2":
                 if self.publisher and "wiley" in self.publisher.lower():
                     policy_dict["compliant"] = True
                     policy_dict["reason"] += ["transformative-agreement"]
+
             for transformative_agreement in transformative_agreements:
                 if self.transformative_agreement_applies(institution_id, transformative_agreement):
                     policy_dict["compliant"] = True
@@ -169,6 +199,8 @@ class BqOurJournalsIssnl(db.Model):
             "society_or_institution": self.society_or_institution,
             "publisher": self.publisher,
             "country": self.country,
+            "country_code": self.publisher_country_code,
+            "continent": self.publisher_contient,
             "num_articles_since_2018": self.num_articles_since_2018,
             "h_index": self.h_index,
             "sjr": self.sjr,
