@@ -1,3 +1,6 @@
+# source unclear
+# modified to add policy
+
 funder_names = [
     {
         "name": "Wellcome Trust",
@@ -25,6 +28,13 @@ funder_names = [
         "policy": "plan-s",
         "country": "Netherlands",
         "country_iso": "NL"
+    },
+    {
+        "id": 100000865,
+        "country": "United States",
+        "country_iso": "US",
+        "name": "Bill and Melinda Gates Foundation",
+        "policy": "plan-s"
     }
 
 ]

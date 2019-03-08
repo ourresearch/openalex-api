@@ -5,6 +5,7 @@ from sqlalchemy import sql
 from app import db
 from topic import Topic
 from data.funders import funder_names
+from data.transformative_agreements import transformative_agreements
 
 THRESHOLD_PROP_CC_BY_SINCE_2018 = .90
 
@@ -115,6 +116,9 @@ class BqOurJournalsIssnl(db.Model):
         funder_dict = self.get_policy_dict(funder, institution)
         return funder_dict["compliant"]
 
+    def transformative_agreement(self, institution_id, transformative_agreement):
+        pass
+
     def get_policy_dict(self, funder_id=None, institution_id=None):
         if not funder_id or funder_id == "null":
             policy = "unspecified"
@@ -133,13 +137,22 @@ class BqOurJournalsIssnl(db.Model):
             if self.is_gold_oa:
                 policy_dict["compliant"] = True
                 policy_dict["reason"] = ["gold-oa"]
+            if self.title and self.title.lower().endswith(" x"):
+                    policy_dict["compliant"] = False
+                    policy_dict["reason"] = ["mirror-journal"]
+            if funder_id==100000865 and self.issnl=="0028-4793":
+                    policy_dict["compliant"] = True
+                    policy_dict["reason"] = ["funder-specific-agreement"]
             if institution_id == "grid.4372.2":
                 if self.publisher and "wiley" in self.publisher.lower():
                     policy_dict["compliant"] = True
                     policy_dict["reason"] += ["transformative-agreement"]
-            if self.title and self.title.lower().endswith(" x"):
-                    policy_dict["compliant"] = False
-                    policy_dict["reason"] = ["mirror-journal"]
+            for transformative_agreement in transformative_agreements:
+                if self.transformative_agreement_applies(institution_id, transformative_agreement):
+                    policy_dict["compliant"] = True
+                    policy_dict["reason"] += ["transformative-agreement"]
+                    policy_dict["details"] = transformative_agreement
+
 
         return policy_dict
 

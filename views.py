@@ -191,6 +191,31 @@ def journal_title_search(q):
     return jsonify({ "list": ret, "count": len(ret)})
 
 
+@app.route("/institution/<id>", methods=["GET"])
+def institution_lookup(id):
+    command = """select org_name
+        from bq_org_name_by_num_papers
+        where grid_id = '{grid_id}'
+    """.format(grid_id=id)
+    res = db.session.connection().execute(sql.text(command))
+    row = res.first()
+
+    name = None
+    if row:
+        name = row[0]
+
+    return jsonify({"id": id, "name": name})
+
+@app.route("/funder/<id>", methods=["GET"])
+def funder_lookup(id):
+
+    matches = [funder for funder in funder_names if str(funder["id"]) == str(id)]
+    name = None
+    if matches:
+        name = matches[0]["name"]
+
+    return jsonify({"id": id, "name": name})
+
 
 @app.route("/autocomplete/institutions/name/<q>", methods=["GET"])
 def institutions_name_search(q):
