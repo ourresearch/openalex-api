@@ -144,6 +144,10 @@ class BqOurJournalsIssnl(db.Model):
 
 
     def to_dict_journal_row(self, funder=None, institution=None):
+        try:
+            recent_articles = [u"https://doi.org/{}".format(doi) for doi in re.findall(r'\"(10.*?)\"', self.five_dois)]
+        except:
+            recent_articles = []
         response = {
             "id": self.issnl,
             "name": self.title,
@@ -154,7 +158,7 @@ class BqOurJournalsIssnl(db.Model):
             "h_index": self.h_index,
             "sjr": self.sjr,
             "sjr_best_quartile": self.sjr_best_quartile,
-            "recent_articles": [u"https://doi.org/{}".format(doi) for doi in re.findall(r'\"(10.*?)\"', self.five_dois)],
+            "recent_articles": recent_articles,
             "newest_published_date": self.newest_published_date,
             "oldest_published_date": self.oldest_published_date,
             "policy_compliance": self.get_policy_dict(funder, institution)
