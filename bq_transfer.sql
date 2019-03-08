@@ -21,9 +21,11 @@ create index bq_org_name_by_num_papers_tsvector_idx on bq_org_name_by_num_papers
 CREATE INDEX bq_org_name_by_num_papers_trgm_idx ON bq_org_name_by_num_papers USING gin (org_name gin_trgm_ops);
 
 # heroku run python bq_transfer.py --pg bq_our_journals_issnl --bq journals.our_journals_issnl_view
+drop table bq_our_journals_issnl
 create table bq_our_journals_issnl (
-issnl	text primary key,
-title	text,	
+-- issnl	text primary key,
+issnl	text,
+title	text,
 sjr	numeric,	
 sjr_best_quartile	text,	
 h_index	numeric,	
@@ -39,7 +41,10 @@ num_articles_since_2018	numeric,
 num_cc_by_since_2018	numeric,	
 prop_cc_by_since_2018	numeric,	
 prop_oa_since_2018	numeric,	
-num_oa_since_2018	numeric,	
+num_oa_since_2018	numeric,
+five_dois text,
+newest_published_date text,
+oldest_published_date text,
 has_apcs	text,	
 apc_url	text,	
 apc_fee	numeric,	

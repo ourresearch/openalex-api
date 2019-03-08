@@ -28,6 +28,9 @@ class BqOurJournalsIssnl(db.Model):
     prop_cc_by_since_2018	 =  db.Column(db.Numeric)
     prop_oa_since_2018	 =  db.Column(db.Numeric)
     num_oa_since_2018	 =  db.Column(db.Numeric)
+    five_dois	 =  db.Column(db.Text)
+    newest_published_date	 =  db.Column(db.Text)
+    oldest_published_date	 =  db.Column(db.Text)
     has_apcs	 =  db.Column(db.Text)
     apc_url	 =  db.Column(db.Text)
     apc_fee	 =  db.Column(db.Numeric)
@@ -112,7 +115,7 @@ class BqOurJournalsIssnl(db.Model):
         return funder_dict["compliant"]
 
     def get_policy_dict(self, funder_id=None, institution_id=None):
-        if not funder_id or funder_id == "unsupported":
+        if not funder_id or funder_id == "null":
             policy = "unspecified"
         else:
             # default
@@ -151,6 +154,9 @@ class BqOurJournalsIssnl(db.Model):
             "h_index": self.h_index,
             "sjr": self.sjr,
             "sjr_best_quartile": self.sjr_best_quartile,
+            "recent_articles": [u"https://doi.org/{}".format(doi) for doi in re.findall(r'\"(10.*?)\"', self.five_dois)],
+            "newest_published_date": self.newest_published_date,
+            "oldest_published_date": self.oldest_published_date,
             "policy_compliance": self.get_policy_dict(funder, institution)
         }
         return response
