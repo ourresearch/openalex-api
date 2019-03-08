@@ -16,6 +16,7 @@ class BqOurJournalsIssnl(db.Model):
     sjr_best_quartile	 =  db.Column(db.Text)
     h_index	 =  db.Column(db.Numeric)
     country	 =  db.Column(db.Text)
+    society_or_institution	 =  db.Column(db.Text)
     publisher	 =  db.Column(db.Text)
     categories	 =  db.Column(db.Text)
     num_articles	 =  db.Column(db.Numeric)
@@ -152,6 +153,7 @@ class BqOurJournalsIssnl(db.Model):
             "id": self.issnl,
             "name": self.title,
             "topics": self.topic_names,
+            "society_or_institution": self.society_or_institution,
             "publisher": self.publisher,
             "country": self.country,
             "num_articles_since_2018": self.num_articles_since_2018,
