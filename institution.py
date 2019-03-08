@@ -14,7 +14,7 @@ class Institution(db.Model):
     def to_dict(self):
         response = {
             "id": self.grid_id,
-            "org_name": self.org_name,
+            "name": self.org_name,
             "country": self.country,
             "country_code": self.country_code,
             "continent": self.continent,
