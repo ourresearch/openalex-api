@@ -9,7 +9,7 @@ from data.transformative_agreements import transformative_agreements
 
 THRESHOLD_PROP_CC_BY_SINCE_2018 = .90
 
-class BqOurJournalsIssnl(db.Model):
+class Journal(db.Model):
     __tablename__ = 'bq_our_journals_issnl'
     issnl  =  db.Column(db.Text, primary_key=True)
     title	 =  db.Column(db.Text)
@@ -108,7 +108,7 @@ class BqOurJournalsIssnl(db.Model):
         rows = res.fetchall()
 
         issnls = [row[0] for row in rows]
-        our_journals = BqOurJournalsIssnl.query.filter(BqOurJournalsIssnl.issnl.in_(issnls)).all()
+        our_journals = Journal.query.filter(Journal.issnl.in_(issnls)).all()
 
         our_journals.sort(key=lambda this_object: abs(self.sjr - (this_object.sjr or 0)), reverse=False)
 
@@ -124,17 +124,17 @@ class BqOurJournalsIssnl(db.Model):
 
         covers_institution = False
 
-        if transformative_agreement["grid_id"] and transformative_agreement["grid_id"] == institution_id:
-            covers_institution = True
-        elif transformative_agreement["country"]:
-            if transformative_agreement["country"] == institution_id.country:
-                covers_institution = True
-
-        if covers_institution:
-            if transformative_agreement["issn"] and transformative_agreement["issn"] == self.issnl:
-                return True
-            if transformative_agreement["publisher"] and self.publisher.lower() in transformative_agreement["publisher"].lower():
-                return True
+        # if transformative_agreement["grid_id"] and transformative_agreement["grid_id"] == institution_id:
+        #     covers_institution = True
+        # elif transformative_agreement["country"]:
+        #     if transformative_agreement["country"] == institution_id.country:
+        #         covers_institution = True
+        #
+        # if covers_institution:
+        #     if transformative_agreement["issn"] and transformative_agreement["issn"] == self.issnl:
+        #         return True
+        #     if transformative_agreement["publisher"] and self.publisher.lower() in transformative_agreement["publisher"].lower():
+        #         return True
 
         return False
 

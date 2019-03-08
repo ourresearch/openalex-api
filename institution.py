@@ -1,20 +1,23 @@
-import requests
-import re
-from sqlalchemy import sql
 
 from app import db
-from topic import Topic
-from data.funders import funder_names
-from data.transformative_agreements import transformative_agreements
 
-THRESHOLD_PROP_CC_BY_SINCE_2018 = .90
 
-class BqOurJournalsIssnl(db.Model):
-    __tablename__ = 'bq_our_journals_issnl'
-    issnl  =  db.Column(db.Text, primary_key=True)
-    title	 =  db.Column(db.Text)
-    sjr	 =  db.Column(db.Numeric)
-    sjr_best_quartile	 =  db.Column(db.Text)
-    h_index	 =  db.Column(db.Numeric)
-    country	 =  db.Column(db.Text)
+class Institution(db.Model):
+    __tablename__ = 'bq_institutions'
+    grid_id = db.Column(db.Text, primary_key=True)
+    org_name = db.Column(db.Text)
+    country = db.Column(db.Text)
+    country_code = db.Column(db.Text)
+    continent = db.Column(db.Text)
+    num_papers = db.Column(db.Numeric)
 
+    def to_dict(self):
+        response = {
+            "id": self.grid_id,
+            "org_name": self.org_name,
+            "country": self.country,
+            "country_code": self.country_code,
+            "continent": self.continent,
+            "num_papers": self.num_papers,
+        }
+        return response

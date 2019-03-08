@@ -20,8 +20,9 @@ from app import logger
 from sqlalchemy import sql
 
 from data.funders import funder_names
-from our_journals import BqOurJournalsIssnl
+from journal import Journal
 from topic import Topic
+from institution import Institution
 from util import str2bool
 
 
@@ -193,18 +194,9 @@ def journal_title_search(q):
 
 @app.route("/institution/<id>", methods=["GET"])
 def institution_lookup(id):
-    command = """select org_name
-        from bq_org_name_by_num_papers
-        where grid_id = '{grid_id}'
-    """.format(grid_id=id)
-    res = db.session.connection().execute(sql.text(command))
-    row = res.first()
+    my_institution = Institution.query.filter(Institution.grid_id == id).first()
+    return jsonify(my_institution.to_dict())
 
-    name = None
-    if row:
-        name = row[0]
-
-    return jsonify({"id": id, "name": name})
 
 @app.route("/funder/<id>", methods=["GET"])
 def funder_lookup(id):
@@ -218,16 +210,21 @@ def funder_lookup(id):
 
 
 @app.route("/autocomplete/institutions/name/<q>", methods=["GET"])
-def institutions_name_search(q):
+def institutions_name_autocomplete(q):
     ret = []
     command = """select grid_id, num_papers, org_name
-        from bq_org_name_by_num_papers
+        from bq_institutions
         where org_name ilike '%{str}%'
         order by num_papers desc
         limit 10
     """.format(str=q)
     res = db.session.connection().execute(sql.text(command))
     rows = res.fetchall()
+    grid_ids = []
+
+    # institutions = Institution.query.filter(Institution.grid_id.ilike(u'%{}%'.format(q)).order_by(Institution.num_papers).desc().limit(10)
+    # return jsonify(my_institution.to_dict())
+
     for row in rows:
         ret.append({
             "id": row[0],
@@ -249,7 +246,7 @@ def funders_name_search(q):
 def journal_issnl_get(issnl_query):
     funder = request.args.get("funder", None)
     institution = request.args.get("institution", None)
-    my_journal = BqOurJournalsIssnl.query.filter(BqOurJournalsIssnl.issnl == issnl_query).first()
+    my_journal = Journal.query.filter(Journal.issnl == issnl_query).first()
     return jsonify(my_journal.to_dict_full(funder, institution))
 
 
@@ -270,7 +267,7 @@ def topic_get(topic_query):
         limit = 1000
 
     topic_hits = Topic.query.filter(Topic.topic == topic_query).order_by(Topic.num_articles_3years.desc()).limit(limit)
-    our_journals = BqOurJournalsIssnl.query.filter(BqOurJournalsIssnl.issnl.in_([t.issnl for t in topic_hits])).all()
+    our_journals = Journal.query.filter(Journal.issnl.in_([t.issnl for t in topic_hits])).all()
     responses = []
     for this_journal in our_journals:
         if include_uncompliant or this_journal.is_compliant(funder, institution):
@@ -317,7 +314,7 @@ def search_journals_get(journal_query):
     rows = res.fetchall()
 
     issnls = [row[0] for row in rows]
-    our_journals = BqOurJournalsIssnl.query.filter(BqOurJournalsIssnl.issnl.in_(issnls)).all()
+    our_journals = Journal.query.filter(Journal.issnl.in_(issnls)).all()
     # print our_journals
     responses = []
     for this_journal in our_journals:
