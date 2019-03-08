@@ -116,8 +116,8 @@ class BqOurJournalsIssnl(db.Model):
         funder_dict = self.get_policy_dict(funder, institution)
         return funder_dict["compliant"]
 
-    def transformative_agreement(self, institution_id, transformative_agreement):
-        pass
+    def transformative_agreement_applies(self, institution_id, transformative_agreement):
+        return False
 
     def get_policy_dict(self, funder_id=None, institution_id=None):
         if not funder_id or funder_id == "null":
