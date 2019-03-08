@@ -34,6 +34,7 @@ funder_names = [
         "country": "United States",
         "country_iso": "US",
         "name": "Bill and Melinda Gates Foundation",
+        "alternate_names": "Bill and Melinda Gates Foundation",
         "policy": "plan-s"
     }
 
