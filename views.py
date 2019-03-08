@@ -211,27 +211,8 @@ def funder_lookup(id):
 
 @app.route("/autocomplete/institutions/name/<q>", methods=["GET"])
 def institutions_name_autocomplete(q):
-    ret = []
-    command = """select grid_id, num_papers, org_name
-        from bq_institutions
-        where org_name ilike '%{str}%'
-        order by num_papers desc
-        limit 10
-    """.format(str=q)
-    res = db.session.connection().execute(sql.text(command))
-    rows = res.fetchall()
-    grid_ids = []
-
-    # institutions = Institution.query.filter(Institution.grid_id.ilike(u'%{}%'.format(q)).order_by(Institution.num_papers).desc().limit(10)
-    # return jsonify(my_institution.to_dict())
-
-    for row in rows:
-        ret.append({
-            "id": row[0],
-            "num_articles": row[1],
-            "name": row[2]
-        })
-    return jsonify({"list": ret, "count": len(ret)})
+    institutions = Institution.query.filter(Institution.org_name.ilike(u'%{}%'.format(q))).order_by(Institution.num_papers.desc()).limit(10).all()
+    return jsonify({"list": [inst.to_dict() for inst in institutions], "count": len(institutions)})
 
 
 @app.route("/autocomplete/funders/name/<q>", methods=["GET"])
