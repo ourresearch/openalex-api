@@ -200,7 +200,7 @@ class BqOurJournalsIssnl(db.Model):
             "publisher": self.publisher,
             "country": self.country,
             "country_code": self.publisher_country_code,
-            "continent": self.publisher_contient,
+            "continent": self.publisher_continent,
             "num_articles_since_2018": self.num_articles_since_2018,
             "h_index": self.h_index,
             "sjr": self.sjr,
