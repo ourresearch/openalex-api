@@ -195,7 +195,7 @@ class Journal(db.Model):
         response = {
             "id": self.issnl,
             "name": self.title,
-            "topics": self.topic_names,
+            "topics": [t.to_dict() for t in self.topics],
             "society_or_institution": self.society_or_institution,
             "publisher": self.publisher,
             "country": self.country,
