@@ -177,11 +177,11 @@ class Journal(db.Model):
                     policy_dict["compliant"] = True
                     policy_dict["reason"] += ["transformative-agreement"]
 
-            for transformative_agreement in transformative_agreements:
-                if self.transformative_agreement_applies(institution_id, transformative_agreement):
-                    policy_dict["compliant"] = True
-                    policy_dict["reason"] += ["transformative-agreement"]
-                    policy_dict["details"] = transformative_agreement
+            # for transformative_agreement in transformative_agreements:
+            #     if self.transformative_agreement_applies(institution_id, transformative_agreement):
+            #         policy_dict["compliant"] = True
+            #         policy_dict["reason"] += ["transformative-agreement"]
+            #         policy_dict["details"] = transformative_agreement
 
         return policy_dict
 
