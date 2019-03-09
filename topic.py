@@ -1,5 +1,3 @@
-import requests
-import re
 from app import db
 
 class Topic(db.Model):
@@ -12,3 +10,5 @@ class Topic(db.Model):
     def to_dict(self):
         response = [self.topic, self.quadrant]
         return response
+
+

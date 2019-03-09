@@ -5,7 +5,7 @@ from sqlalchemy import sql
 from app import db
 from topic import Topic
 from data.funders import funder_names
-from data.transformative_agreements import transformative_agreements
+from transformative_agreement import TransformativeAgreement
 
 THRESHOLD_PROP_CC_BY_SINCE_2018 = .90
 
@@ -182,7 +182,6 @@ class Journal(db.Model):
                     policy_dict["compliant"] = True
                     policy_dict["reason"] += ["transformative-agreement"]
                     policy_dict["details"] = transformative_agreement
-
 
         return policy_dict
 

@@ -18,6 +18,6 @@ class Institution(db.Model):
             "country": self.country,
             "country_code": self.country_code,
             "continent": self.continent,
-            "num_papers": self.num_papers,
+            "num_papers": self.num_papers
         }
         return response

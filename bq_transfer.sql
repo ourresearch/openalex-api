@@ -25,6 +25,8 @@ num_papers numeric);
 create index bq_institutions_tsvector_idx on bq_institutions using gin(to_tsvector('english', org_name));
 CREATE INDEX bq_institutions_trgm_idx ON bq_institutions USING gin (org_name gin_trgm_ops);
 CREATE INDEX bq_institutions_country_idx ON bq_institutions(country);
+CREATE INDEX bq_institutions_country_code_idx ON bq_institutions(country_code);
+CREATE INDEX bq_institutions_grid_id_idx ON bq_institutions(grid_id);
 
 # heroku run python bq_transfer.py --pg bq_our_journals_issnl --bq journals.our_journals_issnl_view
 drop table bq_our_journals_issnl
@@ -90,3 +92,29 @@ num_articles_3years	numeric,
 topic	text,
 quadrant	numeric
 )
+
+# heroku run python bq_transfer.py --pg bq_transformative_agreement_issnl_matches --bq journals.transformative_agreement_issnl_matches_view
+create table bq_transformative_agreement_issnl_matches
+(id text,
+issnl text)
+
+CREATE INDEX bq_transformative_agreement_issnl_matches_id_idx ON bq_transformative_agreement_issnl_matches(id);
+CREATE INDEX bq_transformative_agreement_issnl_matches_issnl_idx ON bq_transformative_agreement_issnl_matches(issnl);
+
+# heroku run python bq_transfer.py --pg bq_transformative_agreement --bq journals.transformative_agreement
+create table bq_transformative_agreement (
+id text primary key,
+publisher_or_journal	text,
+publisher_string	text,
+issnl	text,
+subscriber	text,
+country_code	text,
+grid_id	text,
+start_date	text,
+end_date	text,
+notes	text,
+link	text,
+dummy_needed_for_bq_import	numeric
+)
+
+CREATE INDEX bq_transformative_agreement_id_idx ON bq_transformative_agreement(id);

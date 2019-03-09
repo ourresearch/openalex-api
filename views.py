@@ -23,6 +23,7 @@ from data.funders import funder_names
 from journal import Journal
 from topic import Topic
 from institution import Institution
+from transformative_agreement import TransformativeAgreement
 from util import str2bool
 
 
@@ -190,6 +191,17 @@ def journal_title_search(q):
             "score": row[5],
         })
     return jsonify({ "list": ret, "count": len(ret)})
+
+
+@app.route("/transformative-agreements", methods=["GET"])
+def transformative_agreements_get():
+    transformative_agreements = TransformativeAgreement.query.all()
+    return jsonify({"list": [ta.to_dict() for ta in transformative_agreements], "count": len(transformative_agreements)})
+
+@app.route("/transformative-agreement/<id>", methods=["GET"])
+def transformative_agreement_lookup(id):
+    my_ta = TransformativeAgreement.query.get(id)
+    return jsonify(my_ta.to_dict())
 
 
 @app.route("/institution/<id>", methods=["GET"])
