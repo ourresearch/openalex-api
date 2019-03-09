@@ -172,16 +172,22 @@ class Journal(db.Model):
 
             #### transformative agreements
             # if max plank and wiley, is compliant
-            if institution_id == "grid.4372.2":
-                if self.publisher and "wiley" in self.publisher.lower():
-                    policy_dict["compliant"] = True
-                    policy_dict["reason"] += ["transformative-agreement"]
+            if institution_id and "grid" in institution_id:
+                all_transformative_agreements = TransformativeAgreement.query.all()
+                for my_ta in all_transformative_agreements:
+                    if my_ta.applies(self.issnl, institution_id):
+                        policy_dict["compliant"] = True
+                        policy_dict["reason"] += ["transformative-agreement"]
+                        policy_dict["details"] = my_ta.id
+            #
+            # if institution_id == "grid.4372.2":
+            #     if self.publisher and "wiley" in self.publisher.lower():
+            #         policy_dict["compliant"] = True
+            #         policy_dict["reason"] += ["transformative-agreement"]
 
             # for transformative_agreement in transformative_agreements:
             #     if self.transformative_agreement_applies(institution_id, transformative_agreement):
-            #         policy_dict["compliant"] = True
-            #         policy_dict["reason"] += ["transformative-agreement"]
-            #         policy_dict["details"] = transformative_agreement
+
 
         return policy_dict
 

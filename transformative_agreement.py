@@ -4,7 +4,7 @@ from institution import Institution
 class TransformativeAgreementIssnlMatches(db.Model):
     __tablename__ = 'bq_transformative_agreement_issnl_matches'
     id = db.Column(db.Text, db.ForeignKey("bq_transformative_agreement.id"), primary_key=True)
-    issnl = db.Column(db.Text, db.ForeignKey("bq_our_journals_issnl.issnl"), primary_key=True)
+    issnl = db.Column(db.Text, primary_key=True)
 
     def to_dict(self):
         response = [self.id, self.issnl]
@@ -31,19 +31,37 @@ class TransformativeAgreement(db.Model):
         cascade="all"
     )
 
+
     @property
-    def issnls_list(self):
-        return [obj.issnl for obj in self.issnl_matches]
+    def journals_list(self):
+        from journal import Journal
+
+        issnls =  [obj.issnl for obj in self.issnl_matches]
+        journals = Journal.query.filter(Journal.issnl.in_(issnls)).all()
+        journal_dicts = [{"id": j.issnl, "name": j.title} for j in journals]
+        return journal_dicts
+
 
     @property
     def institutions_list(self):
+        institutions = []
         if self.grid_id:
-            return [self.grid_id]
-        if self.country_code:
+            institutions = Institution.query.filter(Institution.grid_id==self.grid_id).all()
+        elif self.country_code:
             institutions = Institution.query.filter(Institution.country_code==self.country_code).all()
-            institution_ids = [inst.grid_id for inst in institutions]
-            return institution_ids
-        return []
+        institution_dicts = [{"id": inst.grid_id, "name": inst.org_name} for inst in institutions]
+        return institution_dicts
+
+    def applies(self, issnl, grid_id):
+        return False
+
+        # if not self.journals_list or not self.institutions_list:
+        #     return False
+        # if issnl not in self.journals_list:
+        #     return False
+        # if grid_id not in self.institutions_list:
+        #     return False
+        return True
 
     def to_dict(self):
         between_publisher = None
@@ -66,7 +84,7 @@ class TransformativeAgreement(db.Model):
             "notes": self.notes,
             "link": self.link,
             "matches": {
-                "issnls": self.issnls_list,
+                "journals": self.journals_list,
                 "institutions": self.institutions_list
             }
         }
