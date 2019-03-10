@@ -1,4 +1,4 @@
-import requests
+import random
 import re
 from sqlalchemy import sql
 
@@ -97,7 +97,12 @@ class Journal(db.Model):
         return self.prop_cc_by_since_2018 >= THRESHOLD_PROP_CC_BY_SINCE_2018
 
     def get_similar_journals(self):
-        topic_string = ",".join(["'{}'".format(t) for t in self.topic_names])
+        # use this to try all topics
+        # topic_string = ",".join(["'{}'".format(t) for t in self.topic_names])
+        # use this to just match on first topic
+        first_topic = self.topic_names[0]
+        topic_string = ",".join(["'{}'".format(t) for t in [first_topic]])
+
         command = """select issnl from bq_our_journals_issnl
                 where issnl != '{my_issnl}'
                 and issnl in (select issnl from bq_scimago_issnl_topics where topic in ({my_topics}))
@@ -107,7 +112,11 @@ class Journal(db.Model):
         res = db.session.connection().execute(sql.text(command))
         rows = res.fetchall()
 
-        issnls = [row[0] for row in rows]
+
+        broad_oa_journals = ["1932-6203", "2041-1723", "2045-2322"] #plos one, nature communications, scientific reports
+        if "Medicine" in u",".join(["'{}'".format(t) for t in self.topic_names]):
+            broad_oa_journals += ["2167-8359", "2046-1402"]  # peerj, f1000research
+        issnls = [row[0] for row in rows] + random.sample(broad_oa_journals, 1)
         our_journals = Journal.query.filter(Journal.issnl.in_(issnls)).all()
 
         our_journals.sort(key=lambda this_object: abs(self.sjr - (this_object.sjr or 0)), reverse=False)
