@@ -1,3 +1,4 @@
+from sqlalchemy import orm
 from app import db
 from institution import Institution
 
@@ -37,7 +38,7 @@ class TransformativeAgreement(db.Model):
         from journal import Journal
 
         issnls =  [obj.issnl for obj in self.issnl_matches]
-        journals = Journal.query.filter(Journal.issnl.in_(issnls)).all()
+        journals = Journal.query.filter(Journal.issnl.in_(issnls)).options(orm.noload("*")).all()
         journal_dicts = [{"id": j.issnl, "name": j.title} for j in journals]
         return journal_dicts
 
@@ -46,21 +47,19 @@ class TransformativeAgreement(db.Model):
     def institutions_list(self):
         institutions = []
         if self.grid_id:
-            institutions = Institution.query.filter(Institution.grid_id==self.grid_id).all()
+            institutions = Institution.query.filter(Institution.grid_id==self.grid_id).options(orm.noload("*")).all()
         elif self.country_code:
-            institutions = Institution.query.filter(Institution.country_code==self.country_code).all()
+            institutions = Institution.query.filter(Institution.country_code==self.country_code).options(orm.noload("*")).all()
         institution_dicts = [{"id": inst.grid_id, "name": inst.org_name} for inst in institutions]
         return institution_dicts
 
     def applies(self, issnl, grid_id):
-        return False
-
-        # if not self.journals_list or not self.institutions_list:
-        #     return False
-        # if issnl not in self.journals_list:
-        #     return False
-        # if grid_id not in self.institutions_list:
-        #     return False
+        if (not self.issnl_matches and not self.issnl) or not self.institutions_list:
+            return False
+        if issnl not in [match.issnl for match in self.issnl_matches] + [self.issnl]:
+            return False
+        if grid_id not in [inst["id"] for inst in self.institutions_list]:
+            return False
         return True
 
     def to_dict(self):

@@ -37,7 +37,8 @@ title	text,
 sjr	numeric,	
 sjr_best_quartile	text,	
 h_index	numeric,	
-country	text,	
+cites_per_article	numeric,
+country	text,
 publisher	text,	
 categories	text,	
 num_articles	numeric,	
@@ -84,6 +85,7 @@ publishing_rights_url	text
 )
 
 CREATE INDEX bq_our_journals_issnl_title_trgm_idx ON bq_our_journals_issnl USING gin (title gin_trgm_ops);
+CREATE INDEX bq_our_journals_issnl_idx ON bq_our_journals_issnl(issnl);
 
 # heroku run python bq_transfer.py --pg bq_scimago_issnl_topics --bq journals.scimago_issnl_topics_view
 create table bq_scimago_issnl_topics (

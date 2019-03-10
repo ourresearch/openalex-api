@@ -16,6 +16,7 @@ class Journal(db.Model):
     sjr	 =  db.Column(db.Numeric)
     sjr_best_quartile	 =  db.Column(db.Text)
     h_index	 =  db.Column(db.Numeric)
+    # cites_per_article	 =  db.Column(db.Numeric)
     country	 =  db.Column(db.Text)
     publisher_country_code = db.Column(db.Text)
     publisher_continent = db.Column(db.Text)
@@ -181,14 +182,13 @@ class Journal(db.Model):
                     policy_dict["reason"] = ["funder-specific-agreement"]
 
             #### transformative agreements
-            # if max plank and wiley, is compliant
             if institution_id and "grid" in institution_id:
                 all_transformative_agreements = TransformativeAgreement.query.all()
                 for my_ta in all_transformative_agreements:
                     if my_ta.applies(self.issnl, institution_id):
                         policy_dict["compliant"] = True
                         policy_dict["reason"] += ["transformative-agreement"]
-                        policy_dict["details"] = my_ta.id
+                        policy_dict["transformative_agreement_id"] = my_ta.id
             #
             # if institution_id == "grid.4372.2":
             #     if self.publisher and "wiley" in self.publisher.lower():
@@ -218,6 +218,7 @@ class Journal(db.Model):
             "continent": self.publisher_continent,
             "num_articles_since_2018": self.num_articles_since_2018,
             "h_index": self.h_index,
+            # "cites_per_article": self.cites_per_article,
             "sjr": self.sjr,
             "sjr_best_quartile": self.sjr_best_quartile,
             "recent_articles": recent_articles,
