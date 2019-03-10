@@ -177,7 +177,7 @@ class Journal(db.Model):
 
             #### funder specific policies
             # if NEJM and gates, is compliant
-            if funder_id==100000865 and self.issnl=="0028-4793":
+            if funder_id=="100000865" and self.issnl=="0028-4793":
                     policy_dict["compliant"] = True
                     policy_dict["reason"] = ["funder-specific-agreement"]
 
