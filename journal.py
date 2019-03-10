@@ -109,7 +109,7 @@ class Journal(db.Model):
                 and issnl in (select issnl from bq_scimago_issnl_topics where topic in ({my_topics}))
                 and prop_cc_by_since_2018 >= {thresh}
                 order by (abs(sjr - {my_sjr})) asc
-                limit 5""".format(my_issnl=self.issnl, my_sjr=self.sjr, my_topics=topic_string, thresh=THRESHOLD_PROP_CC_BY_SINCE_2018)
+                limit 4""".format(my_issnl=self.issnl, my_sjr=self.sjr, my_topics=topic_string, thresh=THRESHOLD_PROP_CC_BY_SINCE_2018)
         res = db.session.connection().execute(sql.text(command))
         rows = res.fetchall()
 
@@ -120,6 +120,7 @@ class Journal(db.Model):
         broad_oa_journal_issns = ["1932-6203", "2041-1723", "2045-2322"] #plos one, nature communications, scientific reports
         if "medicine" in u",".join(["'{}'".format(t.lower()) for t in self.topic_names]):
             broad_oa_journal_issns += ["2167-8359", "2046-1402"]  # peerj, f1000research
+        broad_oa_journal_issns = [issn for issn in broad_oa_journal_issns if issn not in issnls]
         broad_oa_journals = Journal.query.filter(Journal.issnl.in_(broad_oa_journal_issns)).all()
         our_journals += random.sample(broad_oa_journals, 5 - len(our_journals))
 
