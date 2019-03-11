@@ -16,7 +16,7 @@ class Journal(db.Model):
     sjr	 =  db.Column(db.Numeric)
     sjr_best_quartile	 =  db.Column(db.Text)
     h_index	 =  db.Column(db.Numeric)
-    # cites_per_article	 =  db.Column(db.Numeric)
+    cites_per_article	 =  db.Column(db.Numeric)
     country	 =  db.Column(db.Text)
     publisher_country_code = db.Column(db.Text)
     publisher_continent = db.Column(db.Text)
@@ -219,7 +219,7 @@ class Journal(db.Model):
             "continent": self.publisher_continent,
             "num_articles_since_2018": self.num_articles_since_2018,
             "h_index": self.h_index,
-            # "cites_per_article": self.cites_per_article,
+            "cites_per_article": self.cites_per_article,
             "sjr": self.sjr,
             "sjr_best_quartile": self.sjr_best_quartile,
             "recent_articles": recent_articles,
