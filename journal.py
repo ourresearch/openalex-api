@@ -219,7 +219,7 @@ class Journal(db.Model):
             "continent": self.publisher_continent,
             "num_articles_since_2018": self.num_articles_since_2018,
             "h_index": self.h_index,
-            "cites_per_article": self.cites_per_article,
+            "cites_per_article": self.cites_per_article / 100,  # is actually x100 in db
             "sjr": self.sjr,
             "sjr_best_quartile": self.sjr_best_quartile,
             "recent_articles": recent_articles,
