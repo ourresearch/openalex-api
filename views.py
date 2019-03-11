@@ -237,16 +237,25 @@ def funders_name_search(q):
 
 @app.route("/journal/<issnl_query>", methods=["GET"])
 def journal_issnl_get(issnl_query):
-    funder = request.args.get("funder", None)
-    institution = request.args.get("institution", None)
+    funder_id = request.args.get("funder", None)
+    institution_id = request.args.get("institution", None)
+    if institution_id and "grid" in institution_id:
+        institution = Institution.query.get(institution_id)
+    else:
+        institution = None
+
     my_journal = Journal.query.filter(Journal.issnl == issnl_query).first()
-    return jsonify(my_journal.to_dict_full(funder, institution))
+    return jsonify(my_journal.to_dict_full(funder_id, institution))
 
 
 @app.route("/topic/<topic_query>", methods=["GET"])
 def topic_get(topic_query):
-    funder = request.args.get("funder", None)
-    institution = request.args.get("institution", None)
+    funder_id = request.args.get("funder", None)
+    institution_id = request.args.get("institution", None)
+    if institution_id and "grid" in institution_id:
+        institution = Institution.query.get(institution_id)
+    else:
+        institution = None
 
     include_uncompliant = False
     if "include-uncompliant" in request.args:
@@ -263,8 +272,8 @@ def topic_get(topic_query):
     our_journals = Journal.query.filter(Journal.issnl.in_([t.issnl for t in topic_hits])).all()
     responses = []
     for this_journal in our_journals:
-        if include_uncompliant or this_journal.is_compliant(funder, institution):
-            response = this_journal.to_dict_journal_row(funder, institution)
+        if include_uncompliant or this_journal.is_compliant(funder_id, institution):
+            response = this_journal.to_dict_journal_row(funder_id, institution)
             responses.append(response)
     responses = sorted(responses, key=lambda k: k['num_articles_since_2018'], reverse=True)[:50]
     return jsonify({ "list": responses, "count": len(responses)})
@@ -273,8 +282,12 @@ def topic_get(topic_query):
 
 @app.route("/search/journals/<journal_query>", methods=["GET"])
 def search_journals_get(journal_query):
-    funder = request.args.get("funder", None)
-    institution = request.args.get("institution", None)
+    funder_id = request.args.get("funder", None)
+    institution_id = request.args.get("institution", None)
+    if institution_id and "grid" in institution_id:
+        institution = Institution.query.get(institution_id)
+    else:
+        institution = None
 
     include_uncompliant = False
     if "include-uncompliant" in request.args:
@@ -311,8 +324,8 @@ def search_journals_get(journal_query):
     # print our_journals
     responses = []
     for this_journal in our_journals:
-        if include_uncompliant or this_journal.is_compliant(funder, institution):
-            response = this_journal.to_dict_journal_row(funder, institution)
+        if include_uncompliant or this_journal.is_compliant(funder_id, institution):
+            response = this_journal.to_dict_journal_row(funder_id, institution)
             matching_score_row = [row for row in rows if row[0]==this_journal.issnl][0]
             response["fulltext_rank"] = matching_score_row[1]
             response["score"] = matching_score_row[2]

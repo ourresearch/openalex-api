@@ -53,12 +53,13 @@ class TransformativeAgreement(db.Model):
         institution_dicts = [{"id": inst.grid_id, "name": inst.org_name} for inst in institutions]
         return institution_dicts
 
-    def applies(self, issnl, grid_id):
-        if (not self.issnl_matches and not self.issnl) or not self.institutions_list:
+    def applies(self, issnl, to_this_institution):
+        if (self.grid_id and self.grid_id != to_this_institution.grid_id):
             return False
+        if self.country_code:
+            if self.country_code != to_this_institution.country_code:
+                return False
         if issnl not in [match.issnl for match in self.issnl_matches] + [self.issnl]:
-            return False
-        if grid_id not in [inst["id"] for inst in self.institutions_list]:
             return False
         return True
 

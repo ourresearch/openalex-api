@@ -6,8 +6,10 @@ from app import db
 from topic import Topic
 from data.funders import funder_names
 from transformative_agreement import TransformativeAgreement
+from institution import Institution
 
 THRESHOLD_PROP_CC_BY_SINCE_2018 = .90
+all_transformative_agreements = TransformativeAgreement.query.all()
 
 class Journal(db.Model):
     __tablename__ = 'bq_our_journals_issnl'
@@ -126,8 +128,8 @@ class Journal(db.Model):
 
         return our_journals
 
-    def is_compliant(self, funder=None, institution=None):
-        funder_dict = self.get_policy_dict(funder, institution)
+    def is_compliant(self, funder_id=None, institution=None):
+        funder_dict = self.get_policy_dict(funder_id, institution)
         return funder_dict["compliant"]
 
     def transformative_agreement_applies(self, institution_id, transformative_agreement):
@@ -150,7 +152,11 @@ class Journal(db.Model):
 
         return False
 
-    def get_policy_dict(self, funder_id=None, institution_id=None):
+    def get_policy_dict(self, funder_id=None, institution=None):
+        if institution:
+            institution_id = institution.grid_id
+        else:
+            institution_id = None
         if not funder_id or funder_id == "null":
             policy = "unspecified"
         else:
@@ -183,10 +189,9 @@ class Journal(db.Model):
                     policy_dict["reason"] = ["funder-specific-agreement"]
 
             #### transformative agreements
-            if institution_id and "grid" in institution_id:
-                all_transformative_agreements = TransformativeAgreement.query.all()
+            if institution:
                 for my_ta in all_transformative_agreements:
-                    if my_ta.applies(self.issnl, institution_id):
+                    if my_ta.applies(self.issnl, institution):
                         policy_dict["compliant"] = True
                         policy_dict["reason"] += ["transformative-agreement"]
                         policy_dict["transformative_agreement_id"] = my_ta.id
@@ -203,7 +208,7 @@ class Journal(db.Model):
         return policy_dict
 
 
-    def to_dict_journal_row(self, funder=None, institution=None):
+    def to_dict_journal_row(self, funder_id=None, institution=None):
         try:
             recent_articles = [u"https://doi.org/{}".format(doi) for doi in re.findall(r'\"(10.*?)\"', self.five_dois)]
         except:
@@ -225,13 +230,13 @@ class Journal(db.Model):
             "recent_articles": recent_articles,
             "newest_published_date": self.newest_published_date,
             "oldest_published_date": self.oldest_published_date,
-            "policy_compliance": self.get_policy_dict(funder, institution)
+            "policy_compliance": self.get_policy_dict(funder_id, institution)
         }
         return response
 
 
-    def to_dict_full(self, funder=None, institution=None):
-        response = self.to_dict_journal_row(funder, institution)
+    def to_dict_full(self, funder_id=None, institution=None):
+        response = self.to_dict_journal_row(funder_id, institution)
         open_dict = {}
         if self.is_plan_s_compliant:
             open_fields =  """num_cc_by
@@ -275,6 +280,6 @@ class Journal(db.Model):
                 clean_field = field.strip()
                 open_dict[clean_field] = getattr(self, clean_field)
         response["oa_details"] = open_dict
-        response["similar_journals"] = [j.to_dict_journal_row(funder, institution) for j in self.get_similar_journals()]
+        response["similar_journals"] = [j.to_dict_journal_row(funder_id, institution) for j in self.get_similar_journals()]
 
         return response
