@@ -196,7 +196,7 @@ def journal_title_search(q):
 @app.route("/transformative-agreements", methods=["GET"])
 def transformative_agreements_get():
     transformative_agreements = TransformativeAgreement.query.all()
-    return jsonify({"list": [ta.to_dict() for ta in transformative_agreements], "count": len(transformative_agreements)})
+    return jsonify({"list": [ta.to_dict_short() for ta in transformative_agreements], "count": len(transformative_agreements)})
 
 @app.route("/transformative-agreement/<id>", methods=["GET"])
 def transformative_agreement_lookup(id):

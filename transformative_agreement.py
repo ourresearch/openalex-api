@@ -70,6 +70,7 @@ class TransformativeAgreement(db.Model):
         elif self.publisher_string:
             between_publisher = {"type": "publisher", "id": self.publisher_string}
 
+
         between_institution = None
         if self.grid_id:
             between_institution = {"type": "institution", "id": self.grid_id}
@@ -94,3 +95,20 @@ class TransformativeAgreement(db.Model):
             "subscriber": self.subscriber
         }
         return response
+
+
+
+    def to_dict_short(self):
+        ret = self.to_dict()
+        del ret["matches"]["journals"]
+        del ret["matches"]["institutions"]
+        return ret
+
+
+
+
+
+
+
+
+
