@@ -83,9 +83,14 @@ class TransformativeAgreement(db.Model):
             "end_date": self.end_date,
             "notes": self.notes,
             "link": self.link,
+
             "matches": {
                 "journals": self.journals_list,
                 "institutions": self.institutions_list
-            }
+            },
+
+            # j adding these to make it easier to print out something in the frontend
+            "content_owner": self.publisher_or_journal,
+            "subscriber": self.subscriber
         }
         return response
