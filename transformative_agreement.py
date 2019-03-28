@@ -25,6 +25,7 @@ class TransformativeAgreement(db.Model):
     end_date = db.Column(db.Text)
     notes = db.Column(db.Text)
     link = db.Column(db.Text)
+    esac_id = db.Column(db.Text)
 
     issnl_matches = db.relationship(
         'TransformativeAgreementIssnlMatches',
@@ -84,6 +85,7 @@ class TransformativeAgreement(db.Model):
             "end_date": self.end_date,
             "notes": self.notes,
             "link": self.link,
+            "esac_id": self.esac_id,
 
             "matches": {
                 "journals": self.journals_list,
