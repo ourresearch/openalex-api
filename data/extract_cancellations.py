@@ -11,6 +11,7 @@ v.4:no.3(2005:Dec.)-v.7:no.1(2009:Jan.).
 v.2(2001)-v.8:no.3(2007:May/June).
 v.28(1996)-v.33:no.4(2001:Nov./Dec.).
 v.3:no.2(2008)-v.6(2011).
+v.1-2(2013)-
 
 '''
 
@@ -30,31 +31,57 @@ dates = {
 }
 
 
-def journal_with_dates(journal_row):
-    all_issns = (journal_row[0] + ";" + journal_row[1]).split(";")
-    all_issns = "|".join([x for x in all_issns if x])
+def extract_date(str):
+    if not str:
+        return ""
 
-
-
-    date_halves = journal_row[3].split("-")
-
-    date_start = ""
+    # extract start date
+    ret = ""
     regex = r"\d\d\d\d:\w\w\w|\d\d\d\d"
-    m = re.search(regex, date_halves[0])
+    m = re.search(regex, str)
     if m:
         my_date = m.group()
         my_date = my_date.lower()
         my_date = my_date.replace(":", "-")
         for month_string, month_iso in dates.iteritems():
             my_date = my_date.replace(month_string, month_iso)
-        date_start = my_date
+        ret = my_date
 
-
-    ret = [
-        all_issns,
-        date_start
-    ]
     return ret
+
+
+
+def split_dates(str):
+    segments = str.split("-")
+    date_segments =  [x for x in segments if re.search("\d\d\d\d", x)]
+
+    if len(date_segments) == 0:
+        return ["", ""]
+    elif len(date_segments) == 1:
+        return date_segments + [""]
+    else:
+        return date_segments
+
+
+
+
+
+
+
+
+def journal_with_dates(journal_row):
+    all_issns = (journal_row[0] + ";" + journal_row[1]).split(";")
+    all_issns = "|".join([x for x in all_issns if x])
+
+    date_halves = split_dates(journal_row[3])
+    start_date = extract_date(date_halves[0])
+    end_date = extract_date(date_halves[1])
+
+    return [
+        all_issns,
+        start_date,
+        end_date
+    ]
 
 
 def get_and_store():
@@ -74,8 +101,11 @@ def get_and_store():
     with open('cancellations-output.csv', mode='w') as f:
         writer = csv.writer(f)
         for row in output_rows:
-            writer.writerow(row)
+            # writer.writerow(row)
 
+            # normalize. multiple rows per journal, but just one row per ISSN
+            for issn in row[0].split("|"):
+                writer.writerow([issn, row[1], row[2]])
 
 
 if __name__ == "__main__":
