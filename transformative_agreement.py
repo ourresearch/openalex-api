@@ -29,6 +29,7 @@ class TransformativeAgreement(db.Model):
     end_date = db.Column(db.Text)
     notes = db.Column(db.Text)
     link = db.Column(db.Text)
+    esac_id = db.Column(db.Text)
 
     issnl_matches = db.relationship(
         'TransformativeAgreementIssnlMatches',
@@ -74,6 +75,7 @@ class TransformativeAgreement(db.Model):
         elif self.publisher_string:
             between_publisher = {"type": "publisher", "id": self.publisher_string}
 
+
         between_institution = None
         if self.grid_id:
             between_institution = {"type": "institution", "id": self.grid_id}
@@ -87,9 +89,32 @@ class TransformativeAgreement(db.Model):
             "end_date": self.end_date,
             "notes": self.notes,
             "link": self.link,
+            "esac_id": self.esac_id,
+
             "matches": {
                 "journals": self.journals_list,
                 "institutions": self.institutions_list
-            }
+            },
+
+            # j adding these to make it easier to print out something in the frontend
+            "content_owner": self.publisher_or_journal,
+            "subscriber": self.subscriber
         }
         return response
+
+
+
+    def to_dict_short(self):
+        ret = self.to_dict()
+        del ret["matches"]["journals"]
+        del ret["matches"]["institutions"]
+        return ret
+
+
+
+
+
+
+
+
+
