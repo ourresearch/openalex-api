@@ -4,6 +4,8 @@ from institution import Institution
 
 class TransformativeAgreementIssnlMatches(db.Model):
     __tablename__ = 'bq_transformative_agreement_issnl_matches'
+    __bind_key__ = "unpaywall_db"
+
     id = db.Column(db.Text, db.ForeignKey("bq_transformative_agreement.id"), primary_key=True)
     issnl = db.Column(db.Text, primary_key=True)
 
@@ -14,6 +16,8 @@ class TransformativeAgreementIssnlMatches(db.Model):
 
 class TransformativeAgreement(db.Model):
     __tablename__ = 'bq_transformative_agreement'
+    __bind_key__ = "unpaywall_db"
+
     id = db.Column(db.Text, primary_key=True)
     publisher_or_journal = db.Column(db.Text)
     publisher_string = db.Column(db.Text)

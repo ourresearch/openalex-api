@@ -63,9 +63,16 @@ app = Flask(__name__)
 
 # database stuff
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = True  # as instructed, to suppress warning
-app.config["SQLALCHEMY_DATABASE_URI"] = os.getenv("DATABASE_URL")
+
 app.config['SQLALCHEMY_ECHO'] = (os.getenv("SQLALCHEMY_ECHO", False) == "True")
 # app.config['SQLALCHEMY_ECHO'] = True
+
+app.config["SQLALCHEMY_DATABASE_URI"] = os.getenv("DATABASE_URL")  # don't use this though, default is unclear, use binds
+app.config["SQLALCHEMY_BINDS"] = {
+    "unpaywall_db": os.getenv("DATABASE_URL_UNPAYWALL"),
+    "paperbuzz_db": os.getenv("DATABASE_URL_PAPERBUZZ"),
+    "pubmed_db": os.getenv("DATABASE_URL_MEDOC")
+}
 
 # from http://stackoverflow.com/a/12417346/596939
 class NullPoolSQLAlchemy(SQLAlchemy):

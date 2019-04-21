@@ -4,6 +4,8 @@ from app import db
 
 class Institution(db.Model):
     __tablename__ = 'bq_institutions'
+    __bind_key__ = "unpaywall_db"
+
     grid_id = db.Column(db.Text, primary_key=True)
     org_name = db.Column(db.Text)
     country = db.Column(db.Text)

@@ -13,6 +13,8 @@ all_transformative_agreements = TransformativeAgreement.query.all()
 
 class Journal(db.Model):
     __tablename__ = 'bq_our_journals_issnl'
+    __bind_key__ = "unpaywall_db"
+
     issnl  =  db.Column(db.Text, primary_key=True)
     title	 =  db.Column(db.Text)
     sjr	 =  db.Column(db.Numeric)

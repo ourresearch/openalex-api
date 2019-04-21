@@ -335,6 +335,37 @@ def search_journals_get(journal_query):
 
     return jsonify({ "list": responses, "count": len(responses)})
 
+@app.route("/unpaywall-journals/subscriptions", methods=["GET"])
+def unpaywall_journals_get():
+    responses = []
+
+    command = """select issns[1] as issnl, cdl_journals.journal_name, from_date, num_dois, num_oa, oa_rate, issns
+                    from cdl_journals, cdl_journal_oa_rate
+                    where cdl_journals.journal_no = cdl_journal_oa_rate.journal_no
+                """
+    res = db.session.connection().execute(sql.text(command), bind=db.get_engine(app, 'unpaywall_db'))
+    rows = res.fetchall()
+
+    for row in rows:
+        to_dict = {
+            "issnl": row[0],
+            "issns": row[6],
+            "journal_name": row[1],
+            "publisher": "Elsevier",
+            "subscription_start_date": row[2],
+            "num_dois": row[3],
+            "num_oa": row[4],
+            "proportion_oa": row[5],
+            "proportion_green": row[5] * 0.33,
+            "proportion_hybrid": row[5] * 0.25,
+            "proportion_bronze": row[5] * 0.5
+        }
+        responses.append(to_dict)
+
+    responses = sorted(responses, key=lambda k: k['num_dois'], reverse=True)
+
+    return jsonify({ "list": responses, "count": len(responses)})
+
 
 
 if __name__ == "__main__":
