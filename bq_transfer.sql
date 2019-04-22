@@ -1,3 +1,12 @@
+CREATE TEXT SEARCH DICTIONARY only_stop_words (
+    Template = pg_catalog.simple,
+    Stopwords = english
+);
+CREATE TEXT SEARCH CONFIGURATION public.only_stop_words ( COPY = pg_catalog.simple );
+ALTER TEXT SEARCH CONFIGURATION public.only_stop_words ALTER MAPPING FOR asciiword WITH only_stop_words;
+select *
+
+
 create table bq_journals (
 issn text,
 journal_name text,
