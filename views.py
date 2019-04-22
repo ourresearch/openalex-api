@@ -376,14 +376,13 @@ def unpaywall_journals_autocomplete_journals(q):
         query_for_search += ':*'
 
     command = """select issnl, journal_name, from_date, num_dois, num_oa, oa_rate, issns,
+                ts_rank_cd(to_tsvector('only_stop_words', journal_name), query, 1) as text_rank,
                 num_dois + 10000 * ts_rank_cd(to_tsvector('only_stop_words', journal_name), query, 1) as score
-            
             from cdl_subscription_summary_mv, to_tsquery('only_stop_words', '{query_for_search}') query
             where to_tsvector('only_stop_words', journal_name) @@ query
             order by num_dois + 10000 * ts_rank_cd(to_tsvector('only_stop_words', journal_name), query, 1) desc
             limit 10
     """.format(query_for_search=query_for_search)
-    print command
     res = db.session.connection().execute(sql.text(command), bind=db.get_engine(app, 'unpaywall_db'))
     rows = res.fetchall()
 
@@ -391,7 +390,6 @@ def unpaywall_journals_autocomplete_journals(q):
     for row in rows:
         to_dict = {
             "issnl": row[0],
-            "issns": row[6],
             "journal_name": row[1],
             "publisher": "Elsevier",
             "subscription_start_date": row[2],
@@ -401,11 +399,13 @@ def unpaywall_journals_autocomplete_journals(q):
             "proportion_green": row[5] * 0.33,
             "proportion_hybrid": row[5] * 0.25,
             "proportion_bronze": row[5] * 0.5,
-            "score": row[7]
+            "issns": row[6],
+            "text_rank": row[7],
+            "score": row[8]
         }
         responses.append(to_dict)
 
-    responses = sorted(responses, key=lambda k: k['num_dois'], reverse=True)
+    responses = sorted(responses, key=lambda k: k['text_rank'], reverse=True)  # or could use score
 
     return jsonify({ "list": responses, "count": len(responses)})
 
