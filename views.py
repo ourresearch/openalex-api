@@ -446,6 +446,11 @@ def unpaywall_journals_issn(q):
     return jsonify({ "response": to_dict})
 
 
+@app.route("/unpaywall-journals/doi/<path:doi>", methods=["GET"])
+def unpaywall_journals_doi(doi):
+    unpaywall_url = u"https://api.unpaywall.org/v2/{}?email=team+rickscafe@impactstory.org".format(doi)
+    return redirect(unpaywall_url, 302)  # temporary
+
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
