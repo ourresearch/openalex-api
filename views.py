@@ -339,7 +339,7 @@ def search_journals_get(journal_query):
 def unpaywall_journals_subscriptions_get():
     responses = []
 
-    command = """select issnl, journal_name, from_date, num_dois, num_oa, oa_rate, issns
+    command = """select issnl, journal_name, from_date, num_dois, num_oa, oa_rate, issns, num_dois as score
                     from cdl_subscription_summary_mv
                 """
     res = db.session.connection().execute(sql.text(command), bind=db.get_engine(app, 'unpaywall_db'))
@@ -348,7 +348,6 @@ def unpaywall_journals_subscriptions_get():
     for row in rows:
         to_dict = {
             "issnl": row[0],
-            "issns": row[6],
             "journal_name": row[1],
             "publisher": "Elsevier",
             "subscription_start_date": row[2],
@@ -357,11 +356,14 @@ def unpaywall_journals_subscriptions_get():
             "proportion_oa": row[5],
             "proportion_green": row[5] * 0.33,
             "proportion_hybrid": row[5] * 0.25,
-            "proportion_bronze": row[5] * 0.5
+            "proportion_bronze": row[5] * 0.5,
+            "issns": row[6],
+            "score": row[7]
+
         }
         responses.append(to_dict)
 
-    responses = sorted(responses, key=lambda k: k['num_dois'], reverse=True)
+    responses = sorted(responses, key=lambda k: k['score'], reverse=True)
 
     return jsonify({ "list": responses, "count": len(responses)})
 
@@ -408,6 +410,42 @@ def unpaywall_journals_autocomplete_journals(q):
     responses = sorted(responses, key=lambda k: k['text_rank'], reverse=True)  # or could use score
 
     return jsonify({ "list": responses, "count": len(responses)})
+
+@app.route("/unpaywall-journals/journals/issn/<q>", methods=["GET"])
+def unpaywall_journals_issn(q):
+    ret = []
+
+    query_for_search = q
+
+    command = """select issnl, journal_name, from_date, num_dois, num_oa, oa_rate, issns, num_dois as score
+            from cdl_subscription_summary_mv
+            where array['{query_for_search}'] <@ issns
+            order by score desc
+            limit 10
+    """.format(query_for_search=query_for_search)
+    res = db.session.connection().execute(sql.text(command), bind=db.get_engine(app, 'unpaywall_db'))
+
+    row = res.first()  # just get one
+
+    to_dict = {
+        "issnl": row[0],
+        "journal_name": row[1],
+        "publisher": "Elsevier",
+        "subscription_start_date": row[2],
+        "num_dois": row[3],
+        "num_oa": row[4],
+        "proportion_oa": row[5],
+        "proportion_green": row[5] * 0.33,
+        "proportion_hybrid": row[5] * 0.25,
+        "proportion_bronze": row[5] * 0.5,
+        "issns": row[6],
+        "score": row[7]
+    }
+
+
+    return jsonify({ "response": to_dict})
+
+
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
