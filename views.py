@@ -339,8 +339,12 @@ def search_journals_get(journal_query):
 def unpaywall_journals_subscriptions_get():
     responses = []
 
-    command = """select issnl, journal_name, from_date, num_dois, num_oa, oa_rate, issns, num_dois as score
-                    from cdl_subscription_summary_mv
+    command = """select cdl_subscription_summary_mv.issnl, journal_name, from_date, cdl_subscription_summary_mv.num_dois, num_oa, oa_rate, issns,
+                cdl_subscription_summary_mv.num_dois  as score,
+                proportion_is_oa, proportion_has_green, proportion_has_hybrid, proportion_has_bronze
+            from cdl_subscription_summary_mv, cdl_subscription_oa_counts_mv
+            where cdl_subscription_summary_mv.issnl = cdl_subscription_oa_counts_mv.issnl
+            order by cdl_subscription_summary_mv.num_dois desc
                 """
     res = db.session.connection().execute(sql.text(command), bind=db.get_engine(app, 'unpaywall_db'))
     rows = res.fetchall()
@@ -353,10 +357,10 @@ def unpaywall_journals_subscriptions_get():
             "subscription_start_date": row[2],
             "num_dois": row[3],
             "num_oa": row[4],
-            "proportion_oa": row[5],
-            "proportion_green": row[5] * 0.33,
-            "proportion_hybrid": row[5] * 0.25,
-            "proportion_bronze": row[5] * 0.5,
+            "proportion_oa": row[8],
+            "proportion_green": row[9],
+            "proportion_hybrid": row[10],
+            "proportion_bronze": row[11],
             "issns": row[6],
             "score": row[7]
 
@@ -377,14 +381,17 @@ def unpaywall_journals_autocomplete_journals(q):
         query_for_search = re.sub(r'\s+', ' & ', query_for_search)
         query_for_search += ':*'
 
-    command = """select issnl, journal_name, from_date, num_dois, num_oa, oa_rate, issns,
+    command = """select cdl_subscription_summary_mv.issnl, journal_name, from_date, cdl_subscription_summary_mv.num_dois, num_oa, oa_rate, issns,
                 ts_rank_cd(to_tsvector('only_stop_words', journal_name), query, 1) as text_rank,
-                num_dois + 10000 * ts_rank_cd(to_tsvector('only_stop_words', journal_name), query, 1) as score
-            from cdl_subscription_summary_mv, to_tsquery('only_stop_words', '{query_for_search}') query
+                cdl_subscription_summary_mv.num_dois + 10000 * ts_rank_cd(to_tsvector('only_stop_words', journal_name), query, 1) as score,
+                proportion_is_oa, proportion_has_green, proportion_has_hybrid, proportion_has_bronze
+            from cdl_subscription_summary_mv, to_tsquery('only_stop_words', '{query_for_search}') query, cdl_subscription_oa_counts_mv
             where to_tsvector('only_stop_words', journal_name) @@ query
-            order by num_dois + 10000 * ts_rank_cd(to_tsvector('only_stop_words', journal_name), query, 1) desc
+            and cdl_subscription_summary_mv.issnl = cdl_subscription_oa_counts_mv.issnl
+            order by cdl_subscription_summary_mv.num_dois + 10000 * ts_rank_cd(to_tsvector('only_stop_words', journal_name), query, 1) desc
             limit 10
     """.format(query_for_search=query_for_search)
+    print command
     res = db.session.connection().execute(sql.text(command), bind=db.get_engine(app, 'unpaywall_db'))
     rows = res.fetchall()
 
@@ -397,10 +404,10 @@ def unpaywall_journals_autocomplete_journals(q):
             "subscription_start_date": row[2],
             "num_dois": row[3],
             "num_oa": row[4],
-            "proportion_oa": row[5],
-            "proportion_green": row[5] * 0.33,
-            "proportion_hybrid": row[5] * 0.25,
-            "proportion_bronze": row[5] * 0.5,
+            "proportion_oa": row[9],
+            "proportion_green": row[10],
+            "proportion_hybrid": row[11],
+            "proportion_bronze": row[12],
             "issns": row[6],
             "text_rank": row[7],
             "score": row[8]
