@@ -424,11 +424,15 @@ def unpaywall_journals_issn(q):
 
     query_for_search = q
 
-    command = """select issnl, journal_name, from_date, num_dois, num_oa, oa_rate, issns, num_dois as score
-            from cdl_subscription_summary_mv
-            where array['{query_for_search}'] <@ issns
-            order by score desc
-            limit 10
+    command = """
+        select cdl_subscription_summary_mv.issnl, journal_name, from_date, cdl_subscription_summary_mv.num_dois, num_oa, oa_rate, issns,
+                        cdl_subscription_summary_mv.num_dois  as score,
+                        proportion_is_oa, proportion_has_green, proportion_has_hybrid, proportion_has_bronze
+                    from cdl_subscription_summary_mv, cdl_subscription_oa_counts_mv
+                    where cdl_subscription_summary_mv.issnl = cdl_subscription_oa_counts_mv.issnl
+                    and array['{query_for_search}'] <@ issns
+                order by score desc
+                limit 10
     """.format(query_for_search=query_for_search)
     res = db.session.connection().execute(sql.text(command), bind=db.get_engine(app, 'unpaywall_db'))
 
@@ -441,10 +445,10 @@ def unpaywall_journals_issn(q):
         "subscription_start_date": row[2],
         "num_dois": row[3],
         "num_oa": row[4],
-        "proportion_oa": row[5],
-        "proportion_green": row[5] * 0.33,
-        "proportion_hybrid": row[5] * 0.25,
-        "proportion_bronze": row[5] * 0.5,
+        "proportion_oa": row[8],
+        "proportion_green": row[9],
+        "proportion_hybrid": row[10],
+        "proportion_bronze": row[11],
         "issns": row[6],
         "score": row[7]
     }
