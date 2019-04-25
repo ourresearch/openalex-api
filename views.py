@@ -336,7 +336,7 @@ def search_journals_get(journal_query):
 
     return jsonify({ "list": responses, "count": len(responses)})
 
-@app.route("/unpaywall-journals/subscriptions", methods=["GET"])
+@app.route("/unpaywall-metrics/subscriptions", methods=["GET"])
 def unpaywall_journals_subscriptions_get():
     responses = []
 
@@ -373,7 +373,7 @@ def unpaywall_journals_subscriptions_get():
     return jsonify({ "list": responses, "count": len(responses)})
 
 
-@app.route("/unpaywall-journals/autocomplete/journals/name/<q>", methods=["GET"])
+@app.route("/unpaywall-metrics/subscriptions/name/<q>", methods=["GET"])
 def unpaywall_journals_autocomplete_journals(q):
     ret = []
 
@@ -419,7 +419,7 @@ def unpaywall_journals_autocomplete_journals(q):
 
     return jsonify({ "list": responses, "count": len(responses)})
 
-@app.route("/unpaywall-journals/journals/issn/<q>", methods=["GET"])
+@app.route("/unpaywall-metrics/subscription/issn/<q>", methods=["GET"])
 def unpaywall_journals_issn(q):
     ret = []
 
@@ -454,10 +454,10 @@ def unpaywall_journals_issn(q):
         "score": row[7]
     }
 
-
     return jsonify({ "response": to_dict})
 
-@app.route("/unpaywall-journals/articles/issn/<q>", methods=["GET"])
+
+@app.route("/unpaywall-metrics/articles/issn/<q>", methods=["GET"])
 def unpaywall_articles_issn(q):
 
     query_for_search = q
@@ -479,7 +479,7 @@ def unpaywall_articles_issn(q):
 
 
 
-@app.route("/unpaywall-journals/articles/title/<path:title_raw>", methods=["GET"])
+@app.route("/unpaywall-metrics/articles/title/<path:title_raw>", methods=["GET"])
 def unpaywall_articles_title(title_raw):
 
     # query_for_search = re.sub(r'[!\'()|&]', ' ', title_raw).strip()
@@ -519,7 +519,7 @@ def unpaywall_articles_title(title_raw):
     return jsonify({ "list": responses, "count": len(responses)})
 
 
-@app.route("/unpaywall-journals/articles/doi/<path:doi>", methods=["GET"])
+@app.route("/unpaywall-metrics/article/doi/<path:doi>", methods=["GET"])
 def unpaywall_articles_doi(doi):
     unpaywall_url = u"https://api.unpaywall.org/v2/{}?email=team+rickscafe@impactstory.org".format(doi)
     return redirect(unpaywall_url, 302)  # temporary
