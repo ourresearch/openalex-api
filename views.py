@@ -456,6 +456,26 @@ def unpaywall_journals_issn(q):
 
     return jsonify({ "response": to_dict})
 
+@app.route("/unpaywall-journals/articles/issn/<q>", methods=["GET"])
+def unpaywall_articles_issn(q):
+    ret = []
+
+    query_for_search = q
+
+    command = """
+                select pub.response_jsonb from 
+        pub, cdl_dois_with_attributes_mv, cdl_subscription_summary_mv
+        where cdl_dois_with_attributes_mv.issnl = cdl_subscription_summary_mv.issnl
+        and pub.id=cdl_dois_with_attributes_mv.id
+        --where issnl='2352-0124' 
+        and array['{query_for_search}'] <@ cdl_subscription_summary_mv.issns
+        """.format(query_for_search=query_for_search)
+    res = db.session.connection().execute(sql.text(command), bind=db.get_engine(app, 'unpaywall_db'))
+    rows = res.fetchall()
+    responses = [row[0] for row in rows]
+
+    return jsonify({ "list": responses, "count": len(responses)})
+
 
 @app.route("/unpaywall-journals/doi/<path:doi>", methods=["GET"])
 def unpaywall_journals_doi(doi):
