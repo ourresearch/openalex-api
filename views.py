@@ -25,6 +25,7 @@ from topic import Topic
 from institution import Institution
 from transformative_agreement import TransformativeAgreement
 from util import str2bool
+from util import normalize_title
 
 
 def json_dumper(obj):
@@ -458,7 +459,6 @@ def unpaywall_journals_issn(q):
 
 @app.route("/unpaywall-journals/articles/issn/<q>", methods=["GET"])
 def unpaywall_articles_issn(q):
-    ret = []
 
     query_for_search = q
 
@@ -477,8 +477,50 @@ def unpaywall_articles_issn(q):
     return jsonify({ "list": responses, "count": len(responses)})
 
 
-@app.route("/unpaywall-journals/doi/<path:doi>", methods=["GET"])
-def unpaywall_journals_doi(doi):
+
+
+@app.route("/unpaywall-journals/articles/title/<path:title_raw>", methods=["GET"])
+def unpaywall_articles_title(title_raw):
+
+    # query_for_search = re.sub(r'[!\'()|&]', ' ', title_raw).strip()
+    # if query_for_search:
+    #     query_for_search = re.sub(r'\s+', ' & ', query_for_search)
+    #     query_for_search += ':*'
+
+    # command = """
+    #             select pub.response_jsonb
+    #     from pub, cdl_dois_with_attributes_mv, to_tsquery('only_stop_words', '{query_for_search}') query
+    #     where pub.id=cdl_dois_with_attributes_mv.id
+    #     and to_tsvector('english', article_title) @@ query
+    #     order by ts_rank_cd(to_tsvector('english', article_title), query, 1) desc
+    #     limit 50
+    #     """.format(query_for_search=query_for_search)
+
+    # query_for_search = normalize_title(title_raw)
+
+
+    query_for_search = title_raw
+
+    command = """
+                select pub.response_jsonb  
+        from pub, cdl_dois_with_attributes_mv
+        where pub.id=cdl_dois_with_attributes_mv.id
+        -- and pub.normalized_title like '%{query_for_search}%'
+        and cdl_dois_with_attributes_mv.article_title ilike '%{query_for_search}%'
+        limit 50
+        """.format(query_for_search=query_for_search)
+
+    print command
+
+    res = db.session.connection().execute(sql.text(command), bind=db.get_engine(app, 'unpaywall_db'))
+    rows = res.fetchall()
+    responses = [row[0] for row in rows]
+
+    return jsonify({ "list": responses, "count": len(responses)})
+
+
+@app.route("/unpaywall-journals/articles/doi/<path:doi>", methods=["GET"])
+def unpaywall_articles_doi(doi):
     unpaywall_url = u"https://api.unpaywall.org/v2/{}?email=team+rickscafe@impactstory.org".format(doi)
     return redirect(unpaywall_url, 302)  # temporary
 
