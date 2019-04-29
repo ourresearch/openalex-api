@@ -342,7 +342,7 @@ def unpaywall_journals_subscriptions_get():
 
     command = """select cdl_subscription_summary_mv.issnl, journal_name, from_date, cdl_subscription_summary_mv.num_dois, num_oa, oa_rate, issns,
                 cdl_subscription_summary_mv.num_dois  as score,
-                proportion_is_oa, proportion_has_green, proportion_has_hybrid, proportion_has_bronze
+                proportion_is_oa, proportion_repository_hosted, proportion_publisher_hosted
             from cdl_subscription_summary_mv, cdl_subscription_oa_counts_mv
             where cdl_subscription_summary_mv.issnl = cdl_subscription_oa_counts_mv.issnl
             order by cdl_subscription_summary_mv.num_dois desc
@@ -359,9 +359,8 @@ def unpaywall_journals_subscriptions_get():
             "num_dois": row[3],
             "num_oa": row[4],
             "proportion_oa": row[8],
-            "proportion_green": row[9],
-            "proportion_hybrid": row[10],
-            "proportion_bronze": row[11],
+            "proportion_repository_hosted": row[9],
+            "proportion_publisher_hosted": row[10],
             "issns": row[6],
             "score": row[7]
 
@@ -371,7 +370,6 @@ def unpaywall_journals_subscriptions_get():
     responses = sorted(responses, key=lambda k: k['score'], reverse=True)
 
     return jsonify({ "list": responses, "count": len(responses)})
-
 
 @app.route("/unpaywall-metrics/subscriptions/name/<q>", methods=["GET"])
 def unpaywall_journals_autocomplete_journals(q):
@@ -385,7 +383,7 @@ def unpaywall_journals_autocomplete_journals(q):
     command = """select cdl_subscription_summary_mv.issnl, journal_name, from_date, cdl_subscription_summary_mv.num_dois, num_oa, oa_rate, issns,
                 ts_rank_cd(to_tsvector('only_stop_words', journal_name), query, 1) as text_rank,
                 cdl_subscription_summary_mv.num_dois + 10000 * ts_rank_cd(to_tsvector('only_stop_words', journal_name), query, 1) as score,
-                proportion_is_oa, proportion_has_green, proportion_has_hybrid, proportion_has_bronze
+                proportion_is_oa, proportion_repository_hosted, proportion_publisher_hosted
             from cdl_subscription_summary_mv, to_tsquery('only_stop_words', '{query_for_search}') query, cdl_subscription_oa_counts_mv
             where to_tsvector('only_stop_words', journal_name) @@ query
             and cdl_subscription_summary_mv.issnl = cdl_subscription_oa_counts_mv.issnl
@@ -406,9 +404,8 @@ def unpaywall_journals_autocomplete_journals(q):
             "num_dois": row[3],
             "num_oa": row[4],
             "proportion_oa": row[9],
-            "proportion_green": row[10],
-            "proportion_hybrid": row[11],
-            "proportion_bronze": row[12],
+            "proportion_repository_hosted": row[10],
+            "proportion_publisher_hosted": row[11],
             "issns": row[6],
             "text_rank": row[7],
             "score": row[8]
@@ -428,7 +425,7 @@ def unpaywall_journals_issn(q):
     command = """
         select cdl_subscription_summary_mv.issnl, journal_name, from_date, cdl_subscription_summary_mv.num_dois, num_oa, oa_rate, issns,
                         cdl_subscription_summary_mv.num_dois  as score,
-                        proportion_is_oa, proportion_has_green, proportion_has_hybrid, proportion_has_bronze
+                        proportion_is_oa, proportion_repository_hosted, proportion_publisher_hosted
                     from cdl_subscription_summary_mv, cdl_subscription_oa_counts_mv
                     where cdl_subscription_summary_mv.issnl = cdl_subscription_oa_counts_mv.issnl
                     and array['{query_for_search}'] <@ issns
@@ -447,9 +444,8 @@ def unpaywall_journals_issn(q):
         "num_dois": row[3],
         "num_oa": row[4],
         "proportion_oa": row[8],
-        "proportion_green": row[9],
-        "proportion_hybrid": row[10],
-        "proportion_bronze": row[11],
+        "proportion_repository_hosted": row[9],
+        "proportion_publisher_hosted": row[10],
         "issns": row[6],
         "score": row[7]
     }
