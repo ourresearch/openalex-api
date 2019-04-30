@@ -498,15 +498,13 @@ def unpaywall_articles_title(title_raw):
     query_for_search = title_raw
 
     command = """
-                select pub.response_jsonb  
+        select pub.response_jsonb  
         from pub, cdl_dois_with_attributes_mv
         where pub.id=cdl_dois_with_attributes_mv.id
         -- and pub.normalized_title like '%{query_for_search}%'
         and cdl_dois_with_attributes_mv.article_title ilike '%{query_for_search}%'
         limit 50
         """.format(query_for_search=query_for_search)
-
-    print command
 
     res = db.session.connection().execute(sql.text(command), bind=db.get_engine(app, 'unpaywall_db'))
     rows = res.fetchall()
@@ -517,8 +515,23 @@ def unpaywall_articles_title(title_raw):
 
 @app.route("/unpaywall-metrics/article/doi/<path:doi>", methods=["GET"])
 def unpaywall_articles_doi(doi):
-    unpaywall_url = u"https://api.unpaywall.org/v2/{}?email=team+rickscafe@impactstory.org".format(doi)
-    return redirect(unpaywall_url, 302)  # temporary
+    query_for_search = doi
+
+    # should only return 1
+    command = """
+        select pub.response_jsonb  
+        from pub
+        where pub.id='{query_for_search}'
+        limit 50
+        """.format(query_for_search=query_for_search)
+
+    res = db.session.connection().execute(sql.text(command), bind=db.get_engine(app, 'unpaywall_db'))
+    rows = res.fetchall()
+    responses = [row[0] for row in rows]
+
+    return jsonify({ "list": responses, "count": len(responses)})
+
+
 
 
 if __name__ == "__main__":
