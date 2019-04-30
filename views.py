@@ -26,6 +26,7 @@ from institution import Institution
 from transformative_agreement import TransformativeAgreement
 from util import str2bool
 from util import normalize_title
+from util import clean_doi
 
 
 def json_dumper(obj):
@@ -515,13 +516,14 @@ def unpaywall_articles_title(title_raw):
 
 @app.route("/unpaywall-metrics/article/doi/<path:doi>", methods=["GET"])
 def unpaywall_articles_doi(doi):
-    query_for_search = doi
+    query_for_search = clean_doi(doi)
 
     # should only return 1
     command = """
         select pub.response_jsonb  
-        from pub
+        from pub, cdl_dois_with_attributes_mv
         where pub.id='{query_for_search}'
+        and pub.id=cdl_dois_with_attributes_mv.id        
         limit 50
         """.format(query_for_search=query_for_search)
 
