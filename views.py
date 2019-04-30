@@ -475,26 +475,45 @@ def unpaywall_articles_issn(q):
 
 
 
+@app.route("/unpaywall-metrics/articles", methods=["GET"])
+def unpaywall_metrics_articles_paged():
+
+    # page starts at 1 not 0
+    if request.args.get("page"):
+        page = int(request.args.get("page"))
+    else:
+        page = 1
+
+    if request.args.get("pagesize"):
+        pagesize = int(request.args.get("pagesize"))
+    else:
+        pagesize = 50
+    if pagesize > 1000:
+        abort_json(400, u"pagesize too large; max 1000")
+
+    offset = (page - 1) * pagesize
+
+    command = """
+        select pub.response_jsonb from pub where id in
+            (
+            select id from cdl_dois_with_attributes_mv
+            where cdl_dois_with_attributes_mv.published_date is not null
+            order by cdl_dois_with_attributes_mv.published_date desc 
+            limit {pagesize}
+            offset {offset}
+            )
+        """.format(pagesize=pagesize, offset=offset)
+
+    res = db.session.connection().execute(sql.text(command), bind=db.get_engine(app, 'unpaywall_db'))
+    rows = res.fetchall()
+    responses = [row[0] for row in rows]
+
+    return jsonify({"page": page, "list": responses, "count": len(responses)})
+
+
 
 @app.route("/unpaywall-metrics/articles/title/<path:title_raw>", methods=["GET"])
 def unpaywall_articles_title(title_raw):
-
-    # query_for_search = re.sub(r'[!\'()|&]', ' ', title_raw).strip()
-    # if query_for_search:
-    #     query_for_search = re.sub(r'\s+', ' & ', query_for_search)
-    #     query_for_search += ':*'
-
-    # command = """
-    #             select pub.response_jsonb
-    #     from pub, cdl_dois_with_attributes_mv, to_tsquery('only_stop_words', '{query_for_search}') query
-    #     where pub.id=cdl_dois_with_attributes_mv.id
-    #     and to_tsvector('english', article_title) @@ query
-    #     order by ts_rank_cd(to_tsvector('english', article_title), query, 1) desc
-    #     limit 50
-    #     """.format(query_for_search=query_for_search)
-
-    # query_for_search = normalize_title(title_raw)
-
 
     query_for_search = title_raw
 
@@ -502,7 +521,6 @@ def unpaywall_articles_title(title_raw):
         select pub.response_jsonb  
         from pub, cdl_dois_with_attributes_mv
         where pub.id=cdl_dois_with_attributes_mv.id
-        -- and pub.normalized_title like '%{query_for_search}%'
         and cdl_dois_with_attributes_mv.article_title ilike '%{query_for_search}%'
         limit 50
         """.format(query_for_search=query_for_search)
