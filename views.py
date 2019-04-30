@@ -487,7 +487,7 @@ def unpaywall_metrics_articles_paged():
     if request.args.get("pagesize"):
         pagesize = int(request.args.get("pagesize"))
     else:
-        pagesize = 50
+        pagesize = 100
     if pagesize > 1000:
         abort_json(400, u"pagesize too large; max 1000")
 
@@ -522,7 +522,7 @@ def unpaywall_articles_title(title_raw):
         from pub, cdl_dois_with_attributes_mv
         where pub.id=cdl_dois_with_attributes_mv.id
         and cdl_dois_with_attributes_mv.article_title ilike '%{query_for_search}%'
-        limit 50
+        limit 100
         """.format(query_for_search=query_for_search)
 
     res = db.session.connection().execute(sql.text(command), bind=db.get_engine(app, 'unpaywall_db'))
