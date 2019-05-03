@@ -104,7 +104,7 @@ topic	text,
 quadrant	numeric
 )
 
-# heroku run python bq_transfer.py --pg bq_transformative_agreement_issnl_matches --bq journals.transformative_agreement_issnl_matches_view
+# heroku run python bq_transfer.py --pg bq_transformative_agreement_issnl_matches --bq transformative_agreements.transformative_agreement_issnl_matches_view
 create table bq_transformative_agreement_issnl_matches
 (id text,
 issnl text)
@@ -112,7 +112,7 @@ issnl text)
 CREATE INDEX bq_transformative_agreement_issnl_matches_id_idx ON bq_transformative_agreement_issnl_matches(id);
 CREATE INDEX bq_transformative_agreement_issnl_matches_issnl_idx ON bq_transformative_agreement_issnl_matches(issnl);
 
-# heroku run python bq_transfer.py --pg bq_transformative_agreement --bq journals.transformative_agreement
+# heroku run python bq_transfer.py --pg bq_transformative_agreement --bq transformative_agreements.transformative_agreement
 create table bq_transformative_agreement (
 id text primary key,
 publisher_or_journal	text,

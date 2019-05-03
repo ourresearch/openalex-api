@@ -19,7 +19,9 @@ def call_issn_api(query_text):
 
     response_data = None
 
-    url_template = u"https://portal.issn.org/resource/ISSN-L/{}?format=json"
+    # has to be issn rather than issn-l endpoint because issnl doesn't have the best title
+    # see for example Physical Review D https://portal.issn.org/resource/ISSN/2470-0010?format=json
+    url_template = u"https://portal.issn.org/resource/ISSN/{}?format=json"
 
     url = url_template.format(query_text)
     print url
