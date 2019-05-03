@@ -19,7 +19,7 @@ def call_issn_api(query_text):
 
     response_data = None
 
-    url_template = u"https://portal.issn.org/resource/ISSN/{}?format=json"
+    url_template = u"https://portal.issn.org/resource/ISSN-L/{}?format=json"
 
     url = url_template.format(query_text)
     print url

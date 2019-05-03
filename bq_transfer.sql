@@ -129,3 +129,13 @@ dummy_needed_for_bq_import	numeric
 )
 
 CREATE INDEX bq_transformative_agreement_id_idx ON bq_transformative_agreement(id);
+
+
+
+
+create index cdl_dois_with_attributes_mv_new_issns_idx on cdl_dois_with_attributes_mv (issns)
+create index cdl_dois_with_attributes_mv_new_issnl_idx on cdl_dois_with_attributes_mv (issnl)
+create index cdl_dois_with_attributes_mv_new_id_idx on cdl_dois_with_attributes_mv (id)
+create index cdl_dois_with_attributes_mv_new_gin_tsvector_idx on cdl_dois_with_attributes_mv using gin(to_tsvector('english', article_title))
+CREATE INDEX cdl_dois_with_attributes_mv_new_gin_trgm_idx ON cdl_dois_with_attributes_mv USING gin (article_title gin_trgm_ops);
+
