@@ -182,6 +182,26 @@ def is_pmc(url):
     return u"ncbi.nlm.nih.gov/pmc" in url or u"europepmc.org/articles/" in url
 
 
+def is_doi(text):
+    if not text:
+        return False
+
+    try_to_clean_doi = clean_doi(text, return_none_if_error=True)
+    if try_to_clean_doi:
+        return True
+    return False
+
+def is_issn(text):
+    if not text:
+        return False
+
+    p = re.compile("[\dx]{4}-[\dx]{4}")
+    matches = re.findall(p, text.lower())
+    if len(matches) > 0:
+        return True
+    return False
+
+
 def is_doi_url(url):
     if not url:
         return False

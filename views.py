@@ -27,7 +27,8 @@ from transformative_agreement import TransformativeAgreement
 from util import str2bool
 from util import normalize_title
 from util import clean_doi
-
+from util import is_doi
+from util import is_issn
 
 def json_dumper(obj):
     """
@@ -487,22 +488,37 @@ def unpaywall_metrics_articles_paged():
     if request.args.get("pagesize"):
         pagesize = int(request.args.get("pagesize"))
     else:
-        pagesize = 100
+        pagesize = 20
     if pagesize > 1000:
         abort_json(400, u"pagesize too large; max 1000")
 
     offset = (page - 1) * pagesize
+
+    text_filter = ""
+    if request.args.get("q"):
+        text_query = request.args.get("q", None)
+        if text_query:
+            if is_issn(text_query):
+                text_filter = u" and issnl = '{}' ".format(text_query)
+            elif is_doi(text_query):
+                text_filter = u" and id = '{}' ".format(clean_doi(text_query))
+            else:
+                text_filter = u" and article_title ilike '%{}%' ".format(text_query)
+
+    oa_filter = ""
 
     command = """
         select pub.response_jsonb from pub where id in
             (
             select id from cdl_dois_with_attributes_mv
             where cdl_dois_with_attributes_mv.published_date is not null
+            {text_filter}
+            {oa_filter}
             order by cdl_dois_with_attributes_mv.published_date desc 
             limit {pagesize}
             offset {offset}
             )
-        """.format(pagesize=pagesize, offset=offset)
+        """.format(pagesize=pagesize, offset=offset, text_filter=text_filter, oa_filter=oa_filter)
 
     res = db.session.connection().execute(sql.text(command), bind=db.get_engine(app, 'unpaywall_db'))
     rows = res.fetchall()
@@ -542,7 +558,7 @@ def unpaywall_articles_doi(doi):
         from pub, cdl_dois_with_attributes_mv
         where pub.id='{query_for_search}'
         and pub.id=cdl_dois_with_attributes_mv.id        
-        limit 50
+        limit 1
         """.format(query_for_search=query_for_search)
 
     res = db.session.connection().execute(sql.text(command), bind=db.get_engine(app, 'unpaywall_db'))
