@@ -506,8 +506,14 @@ def unpaywall_metrics_articles_paged():
                 text_filter = u" and article_title ilike '%{}%' ".format(text_query)
 
     oa_filter = ""
-    if request.args.get("oa_host"):
-        text_query = request.args.get("oa_host", None)
+    if request.args.get("oa_host", None):
+        oa_host_text = request.args.get("oa_host", None)
+        if oa_host_text == "publisher":
+            oa_filter = u" and has_bronze or has_hybrid "
+        elif oa_host_text == "repository":
+            oa_filter = u" and has_green "
+        elif oa_host_text == "any":
+            oa_filter = u" and is_oa "
 
     command = """
         select pub.response_jsonb from pub where id in
@@ -516,7 +522,8 @@ def unpaywall_metrics_articles_paged():
             where cdl_dois_with_attributes_mv.published_date is not null
             {text_filter}
             {oa_filter}
-            order by cdl_dois_with_attributes_mv.published_date desc 
+            and published_date is not null
+            order by published_date desc 
             limit {pagesize}
             offset {offset}
             )
