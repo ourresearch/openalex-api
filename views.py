@@ -495,7 +495,7 @@ def unpaywall_metrics_articles_paged():
     offset = (page - 1) * pagesize
 
     text_filter = ""
-    if request.args.get("q"):
+    if request.args.get("q", None):
         text_query = request.args.get("q", None)
         if text_query:
             if is_issn(text_query):
@@ -506,6 +506,8 @@ def unpaywall_metrics_articles_paged():
                 text_filter = u" and article_title ilike '%{}%' ".format(text_query)
 
     oa_filter = ""
+    if request.args.get("oa_host"):
+        text_query = request.args.get("oa_host", None)
 
     command = """
         select pub.response_jsonb from pub where id in
