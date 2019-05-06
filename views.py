@@ -504,6 +504,49 @@ def unpaywall_metrics_breakdown():
     }
     return jsonify(response)
 
+def build_oa_filter():
+    oa_filter = ""
+    if request.args.get("oa_host", None):
+        oa_host_text = request.args.get("oa_host", None)
+        if oa_host_text == "publisher":
+            oa_filter = u" and has_bronze or has_hybrid "
+        elif oa_host_text == "repository":
+            oa_filter = u" and has_green "
+        elif oa_host_text == "any":
+            oa_filter = u" and is_oa "
+    return oa_filter
+
+def build_text_filter():
+    text_filter = ""
+    if request.args.get("q", None):
+        text_query = request.args.get("q", None)
+        if text_query:
+            if is_issn(text_query):
+                text_filter = u" and issnl = '{}' ".format(text_query)
+            elif is_doi(text_query):
+                text_filter = u" and id = '{}' ".format(clean_doi(text_query))
+            else:
+                text_filter = u" and article_title ilike '%{}%' ".format(text_query)
+    return text_filter
+
+
+@app.route("/unpaywall-metrics/articles/count", methods=["GET"])
+def unpaywall_metrics_articles_count():
+
+    command = """
+            select count(id) from cdl_dois_with_attributes_mv
+            where cdl_dois_with_attributes_mv.published_date is not null
+            {text_filter}
+            {oa_filter}
+            and published_date is not null
+        """.format(text_filter=build_text_filter(),
+                   oa_filter=build_oa_filter())
+
+    res = db.session.connection().execute(sql.text(command), bind=db.get_engine(app, 'unpaywall_db'))
+    row = res.first()
+
+    return jsonify({"count": row[0]})
+
 
 @app.route("/unpaywall-metrics/articles", methods=["GET"])
 def unpaywall_metrics_articles_paged():
@@ -523,27 +566,6 @@ def unpaywall_metrics_articles_paged():
 
     offset = (page - 1) * pagesize
 
-    text_filter = ""
-    if request.args.get("q", None):
-        text_query = request.args.get("q", None)
-        if text_query:
-            if is_issn(text_query):
-                text_filter = u" and issnl = '{}' ".format(text_query)
-            elif is_doi(text_query):
-                text_filter = u" and id = '{}' ".format(clean_doi(text_query))
-            else:
-                text_filter = u" and article_title ilike '%{}%' ".format(text_query)
-
-    oa_filter = ""
-    if request.args.get("oa_host", None):
-        oa_host_text = request.args.get("oa_host", None)
-        if oa_host_text == "publisher":
-            oa_filter = u" and has_bronze or has_hybrid "
-        elif oa_host_text == "repository":
-            oa_filter = u" and has_green "
-        elif oa_host_text == "any":
-            oa_filter = u" and is_oa "
-
     command = """
         select pub.response_jsonb from pub where id in
             (
@@ -556,13 +578,16 @@ def unpaywall_metrics_articles_paged():
             limit {pagesize}
             offset {offset}
             )
-        """.format(pagesize=pagesize, offset=offset, text_filter=text_filter, oa_filter=oa_filter)
+        """.format(pagesize=pagesize,
+                   offset=offset,
+                   text_filter=build_text_filter(),
+                   oa_filter=build_oa_filter())
 
     res = db.session.connection().execute(sql.text(command), bind=db.get_engine(app, 'unpaywall_db'))
     rows = res.fetchall()
     responses = [row[0] for row in rows]
 
-    return jsonify({"page": page, "list": responses, "count": len(responses)})
+    return jsonify({"page": page, "list": responses})
 
 
 
@@ -583,7 +608,7 @@ def unpaywall_articles_title(title_raw):
     rows = res.fetchall()
     responses = [row[0] for row in rows]
 
-    return jsonify({ "list": responses, "count": len(responses)})
+    return jsonify({ "list": responses})
 
 
 @app.route("/unpaywall-metrics/article/doi/<path:doi>", methods=["GET"])
@@ -603,7 +628,7 @@ def unpaywall_articles_doi(doi):
     rows = res.fetchall()
     responses = [row[0] for row in rows]
 
-    return jsonify({ "list": responses, "count": len(responses)})
+    return jsonify({ "list": responses})
 
 
 
