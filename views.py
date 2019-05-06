@@ -5,12 +5,16 @@ from flask import abort
 from flask import render_template
 from flask import jsonify
 from flask import g
+from flask import Response
+
 
 import json
 import os
 import sys
 import re
 from time import time
+import boto
+
 
 
 from app import app
@@ -572,6 +576,29 @@ def unpaywall_metrics_articles_paged():
 
 
 
+
+@app.route("/unpaywall-metrics/articles.csv.gz", methods=["GET"])
+def unpaywall_metrics_articles_csv_gz():
+    filename = "cdl_articles.csv.gz"
+
+    s3 = boto.connect_s3()
+    bucket_name = "unpaywall-subscription-canceller"
+    bucket = s3.get_bucket(bucket_name)
+    key = bucket.lookup(filename)
+
+    # streaming response, see https://stackoverflow.com/q/41311589/596939
+    return Response(key, mimetype="application/gzip")
+
+@app.route("/unpaywall-metrics/subscriptions.csv", methods=["GET"])
+def unpaywall_metrics_subscriptions_csv():
+    filename = "cdl_subscriptions.csv"
+
+    s3 = boto.connect_s3()
+    bucket_name = "unpaywall-subscription-canceller"
+    bucket = s3.get_bucket(bucket_name)
+    key = bucket.lookup(filename)
+
+    return Response(key, mimetype="text/csv")
 
 
 if __name__ == "__main__":
