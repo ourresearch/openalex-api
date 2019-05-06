@@ -491,11 +491,11 @@ def build_oa_filter():
     if request.args.get("oa_host", None):
         oa_host_text = request.args.get("oa_host", None)
         if oa_host_text == "publisher":
-            oa_filter = u" and has_bronze or has_hybrid "
+            oa_filter = u" and oa_status in ('hybrid', 'bronze', 'gold') "
         elif oa_host_text == "repository":
             oa_filter = u" and has_green "
         elif oa_host_text == "any":
-            oa_filter = u" and is_oa "
+            oa_filter = u" and oa_status != 'closed' "
     return oa_filter
 
 def build_text_filter():
@@ -523,6 +523,7 @@ def unpaywall_metrics_articles_count():
         """.format(text_filter=build_text_filter(),
                    oa_filter=build_oa_filter())
 
+    # print command
     res = db.session.connection().execute(sql.text(command), bind=db.get_engine(app, 'unpaywall_db'))
     row = res.first()
 
