@@ -489,10 +489,10 @@ def unpaywall_metrics_breakdown():
 def build_oa_filter():
     oa_filter = ""
     if request.args.get("oa_host", None):
-        oa_host_text = request.args.get("oa_host", None)
-        if oa_host_text == "publisher":
+        oa_host_text = request.args.get("oa_host", "")
+        if "publisher" in oa_host_text:
             oa_filter = u" and oa_status in ('hybrid', 'bronze', 'gold') "
-        elif oa_host_text == "repository":
+        elif "repository" in oa_host_text:
             oa_filter = u" and has_green "
         elif oa_host_text == "any":
             oa_filter = u" and oa_status != 'closed' "
@@ -552,10 +552,9 @@ def unpaywall_metrics_articles_paged():
         select pub.response_jsonb from pub where id in
             (
             select id from cdl_dois_with_attributes_mv
-            where cdl_dois_with_attributes_mv.published_date is not null
+            where published_date is not null
             {text_filter}
             {oa_filter}
-            and published_date is not null
             order by published_date desc 
             limit {pagesize}
             offset {offset}
