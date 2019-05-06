@@ -456,25 +456,6 @@ def unpaywall_journals_issn(q):
     return jsonify({ "response": to_dict})
 
 
-@app.route("/unpaywall-metrics/articles/issn/<q>", methods=["GET"])
-def unpaywall_articles_issn(q):
-
-    query_for_search = q
-
-    command = """
-                select pub.response_jsonb from 
-        pub, cdl_dois_with_attributes_mv, cdl_subscription_summary_mv
-        where cdl_dois_with_attributes_mv.issnl = cdl_subscription_summary_mv.issnl
-        and pub.id=cdl_dois_with_attributes_mv.id
-        --where issnl='2352-0124' 
-        and array['{query_for_search}'] <@ cdl_subscription_summary_mv.issns
-        """.format(query_for_search=query_for_search)
-    res = db.session.connection().execute(sql.text(command), bind=db.get_engine(app, 'unpaywall_db'))
-    rows = res.fetchall()
-    responses = [row[0] for row in rows]
-
-    return jsonify({ "list": responses, "count": len(responses)})
-
 
 @app.route("/unpaywall-metrics/breakdown", methods=["GET"])
 def unpaywall_metrics_breakdown():
@@ -486,6 +467,7 @@ def unpaywall_metrics_breakdown():
     count(id) FILTER (where (not has_green) and oa_status in ('hybrid', 'bronze', 'gold')) as num_not_repo_and_has_publisher,
     count(id) as num_total
    FROM cdl_dois_with_attributes_mv
+  where published_date is not null 
    """
     article_query_rows = db.engine.execute(sql.text(q)).fetchall()
     article_numbers = article_query_rows[0]
@@ -535,10 +517,9 @@ def unpaywall_metrics_articles_count():
 
     command = """
             select count(id) from cdl_dois_with_attributes_mv
-            where cdl_dois_with_attributes_mv.published_date is not null
+            where published_date is not null
             {text_filter}
             {oa_filter}
-            and published_date is not null
         """.format(text_filter=build_text_filter(),
                    oa_filter=build_oa_filter())
 
@@ -589,46 +570,6 @@ def unpaywall_metrics_articles_paged():
 
     return jsonify({"page": page, "list": responses})
 
-
-
-@app.route("/unpaywall-metrics/articles/title/<path:title_raw>", methods=["GET"])
-def unpaywall_articles_title(title_raw):
-
-    query_for_search = title_raw
-
-    command = """
-        select pub.response_jsonb  
-        from pub, cdl_dois_with_attributes_mv
-        where pub.id=cdl_dois_with_attributes_mv.id
-        and cdl_dois_with_attributes_mv.article_title ilike '%{query_for_search}%'
-        limit 100
-        """.format(query_for_search=query_for_search)
-
-    res = db.session.connection().execute(sql.text(command), bind=db.get_engine(app, 'unpaywall_db'))
-    rows = res.fetchall()
-    responses = [row[0] for row in rows]
-
-    return jsonify({ "list": responses})
-
-
-@app.route("/unpaywall-metrics/article/doi/<path:doi>", methods=["GET"])
-def unpaywall_articles_doi(doi):
-    query_for_search = clean_doi(doi)
-
-    # should only return 1
-    command = """
-        select pub.response_jsonb  
-        from pub, cdl_dois_with_attributes_mv
-        where pub.id='{query_for_search}'
-        and pub.id=cdl_dois_with_attributes_mv.id        
-        limit 1
-        """.format(query_for_search=query_for_search)
-
-    res = db.session.connection().execute(sql.text(command), bind=db.get_engine(app, 'unpaywall_db'))
-    rows = res.fetchall()
-    responses = [row[0] for row in rows]
-
-    return jsonify({ "list": responses})
 
 
 
