@@ -512,8 +512,7 @@ def build_text_filter():
     return text_filter
 
 
-@app.route("/unpaywall-metrics/articles/count", methods=["GET"])
-def unpaywall_metrics_articles_count():
+def get_total_count():
 
     command = """
             select count(id) from cdl_dois_with_attributes_mv
@@ -527,7 +526,7 @@ def unpaywall_metrics_articles_count():
     res = db.session.connection().execute(sql.text(command), bind=db.get_engine(app, 'unpaywall_db'))
     row = res.first()
 
-    return jsonify({"count": row[0]})
+    return row[0]
 
 
 @app.route("/unpaywall-metrics/articles", methods=["GET"])
@@ -564,11 +563,12 @@ def unpaywall_metrics_articles_paged():
                    text_filter=build_text_filter(),
                    oa_filter=build_oa_filter())
 
+    print command
     res = db.session.connection().execute(sql.text(command), bind=db.get_engine(app, 'unpaywall_db'))
     rows = res.fetchall()
     responses = [row[0] for row in rows]
 
-    return jsonify({"page": page, "list": responses})
+    return jsonify({"page": page, "list": responses, "total_count": get_total_count()})
 
 
 
