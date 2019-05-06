@@ -29,6 +29,7 @@ from util import normalize_title
 from util import clean_doi
 from util import is_doi
 from util import is_issn
+from util import get_sql_answers
 
 def json_dumper(obj):
     """
@@ -474,6 +475,28 @@ def unpaywall_articles_issn(q):
 
     return jsonify({ "list": responses, "count": len(responses)})
 
+
+@app.route("/unpaywall-metrics/breakdown", methods=["GET"])
+def unpaywall_metrics_breakdown():
+    q = """
+     SELECT 
+    count(cdl_dois_with_attributes_mv.id) FILTER (where oa_status = 'closed') as num_closed,
+    count(cdl_dois_with_attributes_mv.id) FILTER (where has_green and oa_status in ('hybrid', 'bronze', 'gold')) 
+    as num_has_repo_and_has_publisher,
+    count(cdl_dois_with_attributes_mv.id) FILTER (where has_green and not oa_status in ('hybrid', 'bronze', 'gold')) 
+    as num_has_repo_and_not_publisher,
+    count(cdl_dois_with_attributes_mv.id) FILTER (where (not has_green) and oa_status in ('hybrid', 'bronze', 'gold')) 
+    as num_not_repo_and_has_publisher
+   FROM cdl_dois_with_attributes_mv
+   """
+    rows = db.engine.execute(sql.text(q)).fetchall()
+    response = {
+        "num_closed": rows[0][0],
+        "num_has_repo_and_has_publisher": rows[0][1],
+        "num_has_repo_and_not_publisher": rows[0][2],
+        "num_not_repo_and_has_publisher": rows[0][3]
+    }
+    return jsonify(response)
 
 
 @app.route("/unpaywall-metrics/articles", methods=["GET"])
