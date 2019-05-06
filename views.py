@@ -29,7 +29,7 @@ from util import normalize_title
 from util import clean_doi
 from util import is_doi
 from util import is_issn
-from util import get_sql_answers
+from util import get_sql_answer
 
 def json_dumper(obj):
     """
@@ -480,21 +480,27 @@ def unpaywall_articles_issn(q):
 def unpaywall_metrics_breakdown():
     q = """
      SELECT 
-    count(cdl_dois_with_attributes_mv.id) FILTER (where oa_status = 'closed') as num_closed,
-    count(cdl_dois_with_attributes_mv.id) FILTER (where has_green and oa_status in ('hybrid', 'bronze', 'gold')) 
-    as num_has_repo_and_has_publisher,
-    count(cdl_dois_with_attributes_mv.id) FILTER (where has_green and not oa_status in ('hybrid', 'bronze', 'gold')) 
-    as num_has_repo_and_not_publisher,
-    count(cdl_dois_with_attributes_mv.id) FILTER (where (not has_green) and oa_status in ('hybrid', 'bronze', 'gold')) 
-    as num_not_repo_and_has_publisher
+    count(id) FILTER (where oa_status = 'closed') as num_closed,
+    count(id) FILTER (where has_green and oa_status in ('hybrid', 'bronze', 'gold')) as num_has_repo_and_has_publisher,
+    count(id) FILTER (where has_green and not oa_status in ('hybrid', 'bronze', 'gold')) as num_has_repo_and_not_publisher,
+    count(id) FILTER (where (not has_green) and oa_status in ('hybrid', 'bronze', 'gold')) as num_not_repo_and_has_publisher,
+    count(id) as num_total
    FROM cdl_dois_with_attributes_mv
    """
-    rows = db.engine.execute(sql.text(q)).fetchall()
+    article_query_rows = db.engine.execute(sql.text(q)).fetchall()
+    article_numbers = article_query_rows[0]
+    q = "select count(*) from cdl_journals"
+    num_journals = get_sql_answer(db, q)
+
     response = {
-        "num_closed": rows[0][0],
-        "num_has_repository_hosted_and_has_publisher_hosted": rows[0][1],
-        "num_has_repository_hosted_and_not_publisher_hosted": rows[0][2],
-        "num_not_repository_hosted_and_has_publisher_hosted": rows[0][3]
+        "article_breakdown": {
+            "num_closed": article_numbers[0],
+            "num_has_repository_hosted_and_has_publisher_hosted": article_numbers[1],
+            "num_has_repository_hosted_and_not_publisher_hosted": article_numbers[2],
+            "num_not_repository_hosted_and_has_publisher_hosted": article_numbers[3]
+        },
+        "num_articles_total": article_numbers[4],
+        "num_journals_total": num_journals,
     }
     return jsonify(response)
 
