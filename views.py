@@ -492,9 +492,9 @@ def unpaywall_metrics_breakdown():
     rows = db.engine.execute(sql.text(q)).fetchall()
     response = {
         "num_closed": rows[0][0],
-        "num_has_repo_and_has_publisher": rows[0][1],
-        "num_has_repo_and_not_publisher": rows[0][2],
-        "num_not_repo_and_has_publisher": rows[0][3]
+        "num_has_repository_hosted_and_has_publisher_hosted": rows[0][1],
+        "num_has_repository_hosted_and_not_publisher_hosted": rows[0][2],
+        "num_not_repository_hosted_and_has_publisher_hosted": rows[0][3]
     }
     return jsonify(response)
 
