@@ -343,7 +343,7 @@ def search_journals_get(journal_query):
 
     return jsonify({ "list": responses, "count": len(responses)})
 
-@app.route("/unpaywall-metrics/subscriptions", methods=["GET"])
+@app.route("/subscriptions", methods=["GET"])
 def unpaywall_journals_subscriptions_get():
     responses = []
 
@@ -378,7 +378,7 @@ def unpaywall_journals_subscriptions_get():
 
     return jsonify({ "list": responses, "count": len(responses)})
 
-@app.route("/unpaywall-metrics/subscriptions/name/<q>", methods=["GET"])
+@app.route("/subscriptions/name/<q>", methods=["GET"])
 def unpaywall_journals_autocomplete_journals(q):
     ret = []
 
@@ -423,7 +423,7 @@ def unpaywall_journals_autocomplete_journals(q):
 
     return jsonify({ "list": responses, "count": len(responses)})
 
-@app.route("/unpaywall-metrics/subscription/issn/<q>", methods=["GET"])
+@app.route("/subscription/issn/<q>", methods=["GET"])
 def unpaywall_journals_issn(q):
     ret = []
 
@@ -461,7 +461,7 @@ def unpaywall_journals_issn(q):
 
 
 
-@app.route("/unpaywall-metrics/breakdown", methods=["GET"])
+@app.route("/breakdown", methods=["GET"])
 def unpaywall_metrics_breakdown():
     q = """
      SELECT 
@@ -533,7 +533,7 @@ def get_total_count():
     return row[0]
 
 
-@app.route("/unpaywall-metrics/articles", methods=["GET"])
+@app.route("/articles", methods=["GET"])
 def unpaywall_metrics_articles_paged():
 
     # page starts at 1 not 0
@@ -577,7 +577,7 @@ def unpaywall_metrics_articles_paged():
 
 
 
-@app.route("/unpaywall-metrics/articles.csv.gz", methods=["GET"])
+@app.route("/articles.csv.gz", methods=["GET"])
 def unpaywall_metrics_articles_csv_gz():
     filename = "cdl_articles.csv.gz"
 
@@ -589,7 +589,7 @@ def unpaywall_metrics_articles_csv_gz():
     # streaming response, see https://stackoverflow.com/q/41311589/596939
     return Response(key, mimetype="application/gzip")
 
-@app.route("/unpaywall-metrics/subscriptions.csv", methods=["GET"])
+@app.route("/subscriptions.csv", methods=["GET"])
 def unpaywall_metrics_subscriptions_csv():
     filename = "cdl_subscriptions.csv"
 
