@@ -87,10 +87,12 @@ def from_bq_to_local_file(temp_data_filename, bq_tablename, header=True):
         query,
         # Location must match that of the dataset(s) referenced in the query.
         location='US')  # API request - starts the query
-
+    print "after running query"
     rows = list(query_job)
+    print "got rows"
 
     with open(temp_data_filename, 'wb') as f:
+        print "in data file writing"
         # delimiter workaround from https://stackoverflow.com/questions/43048618/csv-reader-refuses-tab-delimiter?noredirect=1&lq=1#comment73182042_43048618
         writer = unicodecsv.DictWriter(f, fieldnames=fieldnames, delimiter=str(u'\t').encode('utf-8'))
         if header:
