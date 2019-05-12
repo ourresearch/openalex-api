@@ -71,12 +71,15 @@ def to_bq_from_local_file(temp_data_filename, bq_tablename, columns_to_export, a
 
 def from_bq_to_local_file(temp_data_filename, bq_tablename, header=True):
 
+    print "here"
     setup_bigquery_creds()
+    print "after creds"
     client = bigquery.Client()
     (dataset_id, table_id) = bq_tablename.split(".")
     dataset_ref = client.dataset(dataset_id)
     table_ref = dataset_ref.table(table_id)
     table = client.get_table(table_ref)
+    print "got table"
     fieldnames = [schema.name for schema in table.schema]
 
     query = ('SELECT * FROM `unpaywall-bhd.{}` '.format(bq_tablename))
@@ -238,6 +241,7 @@ def from_bq_overwrite_data(db_tablename, bq_tablename):
 # heroku run python bq_transfer.py --pg bq_journals --bq unpaywall.journals
 # heroku run python bq_transfer.py --pg bq_grid_base --bq grid.grid_base
 # heroku run python bq_transfer.py --pg bq_org_name_by_num_papers_trgm_idx --bq doiboost.num_dois_by_org_view
+# heroku run python bq_transfer.py --pg bq_pubmed_doi_unpaywall --bq pubmed.pubmed_doi_unpaywall_view
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Run stuff.")
@@ -252,5 +256,10 @@ if __name__ == "__main__":
 # bq show --schema --format=prettyjson pmh.page_new > schema.json; bq --location=US load --noreplace --source_format=CSV --skip_leading_rows=1 --max_bad_records=1000 --allow_quoted_newlines pmh.page_new gs://unpaywall-grid/pmh/page_new_recent_20190112.csv ./schema.json
 # bq show --schema --format=prettyjson pmh.pmh_record > schema.json; bq --location=US load --noreplace --source_format=CSV --skip_leading_rows=1 --max_bad_records=1000 --allow_quoted_newlines pmh.pmh_record gs://unpaywall-grid/pmh/pmh_record_recent_new.csv ./schema.json
 # bq show --schema --format=prettyjson unpaywall.unpaywall > schema.json; bq --location=US load --noreplace --source_format=CSV --skip_leading_rows=1 --max_bad_records=1000 --allow_quoted_newlines --field_delimiter=þ unpaywall.unpaywall_raw gs://unpaywall-grid/unpaywall/changed*.jsonl ./schema.json
+
+# bq show --schema --format=prettyjson mag.paper_author_affiliations_raw > schema.json; bq --location=US load --noreplace --source_format=CSV --skip_leading_rows=0 --quote="" --max_bad_records=1000 --allow_quoted_newlines --field_delimiter=þ mag.paper_author_affiliations_raw gs://unpaywall-grid/mag/PaperAuthorAffiliations.txt ./schema.json
+# bq show --schema --format=prettyjson mag.papers_raw > schema.json; bq --location=US load --noreplace --source_format=CSV --skip_leading_rows=0 --quote="" --max_bad_records=1000 --allow_quoted_newlines --field_delimiter=þ mag.papers_raw gs://unpaywall-grid/mag/Papers.txt ./schema.json
+# bq show --schema --format=prettyjson mag.authors_raw > schema.json; bq --location=US load --noreplace --source_format=CSV --skip_leading_rows=0 --quote="" --max_bad_records=1000 --allow_quoted_newlines --field_delimiter=þ mag.authors_raw gs://unpaywall-grid/mag/Authors.txt ./schema.json
+
 
 
