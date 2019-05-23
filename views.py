@@ -14,6 +14,7 @@ import sys
 import re
 from time import time
 import boto
+from util import read_csv_file
 
 
 
@@ -470,7 +471,7 @@ def unpaywall_metrics_breakdown():
     count(id) FILTER (where has_green and not oa_status in ('hybrid', 'bronze', 'gold')) as num_has_repo_and_not_publisher,
     count(id) FILTER (where (not has_green) and oa_status in ('hybrid', 'bronze', 'gold')) as num_not_repo_and_has_publisher,
     count(id) as num_total
-   FROM cdl_dois_with_attributes_mv
+   FROM subscription_dois_with_attributes_mv
   where published_date is not null 
    """
     article_query_rows = db.engine.execute(sql.text(q)).fetchall()
@@ -519,7 +520,7 @@ def build_text_filter():
 def get_total_count():
 
     command = """
-            select count(id) from cdl_dois_with_attributes_mv
+            select count(id) from subscription_dois_with_attributes_mv
             where published_date is not null
             {text_filter}
             {oa_filter}
@@ -554,7 +555,7 @@ def unpaywall_metrics_articles_paged():
     command = """
         select pub.response_jsonb from pub where id in
             (
-            select id from cdl_dois_with_attributes_mv
+            select id from subscription_dois_with_attributes_mv
             where published_date is not null
             {text_filter}
             {oa_filter}
@@ -588,6 +589,49 @@ def unpaywall_metrics_articles_csv_gz():
 
     # streaming response, see https://stackoverflow.com/q/41311589/596939
     return Response(key, mimetype="application/gzip")
+
+@app.route("/oa_by_country", methods=["GET"])
+def oa_by_country_get():
+    rows = read_csv_file("data/oa_by_country.csv")
+    print rows[0:2]
+    response = []
+    for row in rows:
+        oa_list = []
+        oa_colours = ["bronze", "green", "gold", "hybrid"]  #order is alphabetical, and matters for lookup
+        oa_list = [{
+            "oa_types": oa_colours,
+            "out_of": int(row["num_distinct_articles"]),
+            "value": int(row["is_oa"]),
+            "year": int(row["year"])
+        }, {
+            "oa_types": [],
+            "out_of": int(row["num_distinct_articles"]),
+            "value": int(row["num_distinct_articles"]) - int(row["is_oa"]),
+            "year": int(row["year"])
+        }]
+
+        for (column_name, column_value) in row.iteritems():
+            column_name_parts = column_name.split("_")
+            if set(column_name_parts).issubset(set(oa_colours)):
+                print column_name_parts
+                oa_list.append({
+                    "oa_types": column_name_parts,
+                    "out_of": int(row["num_distinct_articles"]),
+                    "value": int(column_value),
+                    "year": int(row["year"])
+                    })
+
+        my_dict = {
+            "country": row["country"],
+            "country_iso2": row["country_iso2"],
+            "country_iso3": row["country_iso3"],
+            "oa": oa_list
+        }
+        response.append(my_dict)
+    return jsonify({"response": response})
+
+
+
 
 @app.route("/subscriptions.csv", methods=["GET"])
 def unpaywall_metrics_subscriptions_csv():

@@ -18,6 +18,7 @@ from sqlalchemy import sql
 from sqlalchemy import exc
 from subprocess import call
 from requests.adapters import HTTPAdapter
+import csv
 
 def str2bool(v):
   return v.lower() in ("yes", "true", "t", "1")
@@ -34,6 +35,12 @@ class DelayedAdapter(HTTPAdapter):
         # logger.info(u"   HTTPAdapter.send for {} took {} seconds".format(request.url, elapsed(start_time, 2)))
         return response
 
+def read_csv_file(filename):
+    print filename
+    with open(filename, "r") as csv_file:
+        my_reader = csv.DictReader(csv_file)
+        rows = [row for row in my_reader]
+    return rows
 
 # from http://stackoverflow.com/a/3233356/596939
 def update_recursive_sum(d, u):
