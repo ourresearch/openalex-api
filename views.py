@@ -629,6 +629,7 @@ def oa_by_country_get():
                 if set(column_name_parts) == set(oa_filter_list):
                     my_dict = {
                         "country": row["country"],
+                        "continent": row["continent"],
                         "country_iso2": row["country_iso2"],
                         "country_iso3": row["country_iso3"],
                         "num_distinct_articles": out_of_over_years[row["country"]],
