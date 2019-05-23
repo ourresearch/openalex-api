@@ -593,7 +593,6 @@ def unpaywall_metrics_articles_csv_gz():
 @app.route("/oa_by_country", methods=["GET"])
 def oa_by_country_get():
     rows = read_csv_file("data/oa_by_country.csv")
-    print rows[0:2]
     response = []
     for row in rows:
         oa_list = []
@@ -613,7 +612,6 @@ def oa_by_country_get():
         for (column_name, column_value) in row.iteritems():
             column_name_parts = column_name.split("_")
             if set(column_name_parts).issubset(set(oa_colours)):
-                print column_name_parts
                 oa_list.append({
                     "oa_types": column_name_parts,
                     "out_of": int(row["num_distinct_articles"]),
