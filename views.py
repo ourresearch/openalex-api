@@ -7,7 +7,6 @@ from flask import jsonify
 from flask import g
 from flask import Response
 
-
 import json
 import os
 import sys
@@ -15,6 +14,7 @@ import re
 from time import time
 import boto
 from util import read_csv_file
+from collections import defaultdict
 
 
 
@@ -590,42 +590,54 @@ def unpaywall_metrics_articles_csv_gz():
     # streaming response, see https://stackoverflow.com/q/41311589/596939
     return Response(key, mimetype="application/gzip")
 
-@app.route("/oa_by_country", methods=["GET"])
+@app.route("/metrics/countries", methods=["GET"])
 def oa_by_country_get():
+
+    if not request.args.get("since"):
+        abort_json(400, u"needs 'since' arg for year")
+    if not request.args.get("oa"):
+        abort_json(400, u"needs 'oa' arg for oa types")
+
+    since_year = int(request.args.get("since"))
+    oa_filter_list = [w.strip() for w in request.args.get("oa").lower().split(",")]
+
     rows = read_csv_file("data/oa_by_country.csv")
-    response = []
+    response = {}
+    out_of_over_years = defaultdict(int)
+    value_over_years = defaultdict(int)
+    oa_histogram = defaultdict(list)
+
+    # force naming for is_oa from loaded data
+    fixed_rows = []
     for row in rows:
-        oa_list = []
-        oa_colours = ["bronze", "green", "gold", "hybrid"]  #order is alphabetical, and matters for lookup
-        oa_list = [{
-            "oa_types": oa_colours,
-            "out_of": int(row["num_distinct_articles"]),
-            "value": int(row["is_oa"]),
-            "year": int(row["year"])
-        }, {
-            "oa_types": [],
-            "out_of": int(row["num_distinct_articles"]),
-            "value": int(row["num_distinct_articles"]) - int(row["is_oa"]),
-            "year": int(row["year"])
-        }]
+        row["bronze_green_gold_hybrid"] = row["is_oa"]
+        fixed_rows.append(row)
 
-        for (column_name, column_value) in row.iteritems():
-            column_name_parts = column_name.split("_")
-            if set(column_name_parts).issubset(set(oa_colours)):
-                oa_list.append({
-                    "oa_types": column_name_parts,
-                    "out_of": int(row["num_distinct_articles"]),
-                    "value": int(column_value),
-                    "year": int(row["year"])
-                    })
+    for row in fixed_rows:
+        if int(row["year"]) >= since_year and int(row["year"]) < 2019:
+            for (column_name, column_value) in row.iteritems():
+                column_name_parts = sorted([w.lower() for w in column_name.split("_")])
+                if set(column_name_parts) == set(oa_filter_list):
+                    oa_histogram[row["country"]] += [(int(row["year"]), int(column_value))]
+                    value_over_years[row["country"]] += int(column_value)
+                    out_of_over_years[row["country"]] += int(row["num_distinct_articles"])
 
-        my_dict = {
-            "country": row["country"],
-            "country_iso2": row["country_iso2"],
-            "country_iso3": row["country_iso3"],
-            "oa": oa_list
-        }
-        response.append(my_dict)
+    for row in fixed_rows:
+        if since_year==int(row["year"]):
+            for (column_name, column_value) in row.iteritems():
+                column_name_parts = sorted([w.lower() for w in column_name.split("_")])
+                if set(column_name_parts) == set(oa_filter_list):
+                    my_dict = {
+                        "country": row["country"],
+                        "country_iso2": row["country_iso2"],
+                        "country_iso3": row["country_iso3"],
+                        "num_distinct_articles": out_of_over_years[row["country"]],
+                        "num_oa": value_over_years[row["country"]],
+                        "since": int(row["year"]),
+                        "oa_types": column_name_parts,
+                        "num_oa_histogram": oa_histogram[row["country"]]
+                    }
+                    response[row["country"]] = my_dict
     return jsonify({"response": response})
 
 
