@@ -590,18 +590,16 @@ def unpaywall_metrics_articles_csv_gz():
     # streaming response, see https://stackoverflow.com/q/41311589/596939
     return Response(key, mimetype="application/gzip")
 
-@app.route("/metrics/countries", methods=["GET"])
-def oa_by_country_get():
 
-    if not request.args.get("since"):
-        abort_json(400, u"needs 'since' arg for year")
-    if not request.args.get("oa"):
-        abort_json(400, u"needs 'oa' arg for oa types")
+def get_oa_from_file(my_key, filename):
+    since_year = int(request.args.get("since", "2009"))
 
-    since_year = int(request.args.get("since"))
-    oa_filter_list = [w.strip() for w in request.args.get("oa").lower().split(",")]
+    oa_request = request.args.get("oa", "na")
+    if oa_request in ("all", "any"):
+        oa_request = "bronze,green,gold,hybrid"
+    oa_filter_list = [w.strip() for w in oa_request.lower().split(",")]
 
-    rows = read_csv_file("data/oa_by_country.csv")
+    rows = read_csv_file(filename)
     response = {}
     out_of_over_years = defaultdict(int)
     value_over_years = defaultdict(int)
@@ -611,34 +609,65 @@ def oa_by_country_get():
     fixed_rows = []
     for row in rows:
         row["bronze_green_gold_hybrid"] = row["is_oa"]
+        row["na"] = row["num_distinct_articles"]
+        row["closed"] = int(row["num_distinct_articles"]) - int(row["is_oa"])
         fixed_rows.append(row)
 
     for row in fixed_rows:
+        if my_key:
+            lookup = row[my_key]
+        else:
+            lookup = "worldwide"
         if int(row["year"]) >= since_year and int(row["year"]) < 2019:
             for (column_name, column_value) in row.iteritems():
                 column_name_parts = sorted([w.lower() for w in column_name.split("_")])
                 if set(column_name_parts) == set(oa_filter_list):
-                    oa_histogram[row["country"]] += [(int(row["year"]), int(column_value))]
-                    value_over_years[row["country"]] += int(column_value)
-                    out_of_over_years[row["country"]] += int(row["num_distinct_articles"])
+                    oa_histogram[lookup] += [(int(row["year"]), int(column_value))]
+                    value_over_years[lookup] += int(column_value)
+                    out_of_over_years[lookup] += int(row["num_distinct_articles"])
 
     for row in fixed_rows:
+        if my_key:
+            lookup = row[my_key]
+        else:
+            lookup = "worldwide"
         if since_year==int(row["year"]):
             for (column_name, column_value) in row.iteritems():
                 column_name_parts = sorted([w.lower() for w in column_name.split("_")])
                 if set(column_name_parts) == set(oa_filter_list):
                     my_dict = {
-                        "country": row["country"],
-                        "continent": row["continent"],
-                        "country_iso2": row["country_iso2"],
-                        "country_iso3": row["country_iso3"],
-                        "num_distinct_articles": out_of_over_years[row["country"]],
-                        "num_oa": value_over_years[row["country"]],
+                        "num_distinct_articles": out_of_over_years[lookup],
+                        "num_oa": value_over_years[lookup],
                         "since": int(row["year"]),
                         "oa_types": column_name_parts,
-                        "num_oa_histogram": oa_histogram[row["country"]]
+                        "num_oa_histogram": oa_histogram[lookup]
                     }
-                    response[row["country"]] = my_dict
+                    if my_key == "country":
+                        my_dict["country"] = row["country"]
+                        my_dict["country_iso2"] = row["country_iso2"]
+                        my_dict["country_iso2"] = row["country_iso2"]
+                    if my_key in ("country", "continent"):
+                        my_dict["continent"] = row["continent"]
+                    response[lookup] = my_dict
+
+    return response
+
+
+@app.route("/metrics/worldwide", methods=["GET"])
+def metrics_oa_worldwide_get():
+    response = get_oa_from_file(None, "data/oa_worldwide.csv")
+    return jsonify({"response": response})
+
+
+@app.route("/metrics/continents", methods=["GET"])
+def metrics_oa_by_continent_get():
+    response = get_oa_from_file("continent", "data/oa_by_continent.csv")
+    return jsonify({"response": response})
+
+@app.route("/metrics/countries", methods=["GET"])
+def metrics_oa_by_country_get():
+
+    response = get_oa_from_file("country", "data/oa_by_country.csv")
     return jsonify({"response": response})
 
 
