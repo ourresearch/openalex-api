@@ -643,6 +643,9 @@ def get_oa_from_file(my_key, filename):
                     if global_response:
                         distinct_articles_proportion_global = float(out_of_over_years[lookup]) / global_response["global"]["num_distinct_articles"]
                     my_dict = {
+                        "name": lookup,
+                        "name_iso2": row.get("country_iso2", None),
+                        "name_iso3": row.get("country_iso3", None),
                         "num_distinct_articles": out_of_over_years[lookup],
                         "num_distinct_articles_proportion_of_global": round(distinct_articles_proportion_global, 5),
                         "num_oa": value_over_years[lookup],
@@ -650,10 +653,6 @@ def get_oa_from_file(my_key, filename):
                         "oa_types": column_name_parts,
                         "num_oa_histogram": oa_histogram[lookup]
                     }
-                    if my_key == "country":
-                        my_dict["name"] = lookup
-                        my_dict["name_iso2"] = row.get("country_iso2", None)
-                        my_dict["name_iso2"] = row.get("country_iso2", None)
                     response[lookup] = my_dict
 
     return response
