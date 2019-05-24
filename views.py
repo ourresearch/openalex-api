@@ -617,7 +617,7 @@ def get_oa_from_file(my_key, filename):
         if my_key:
             lookup = row[my_key]
         else:
-            lookup = "worldwide"
+            lookup = "global"
         if int(row["year"]) >= since_year and int(row["year"]) < 2019:
             for (column_name, column_value) in row.iteritems():
                 column_name_parts = sorted([w.lower() for w in column_name.split("_")])
@@ -630,7 +630,7 @@ def get_oa_from_file(my_key, filename):
         if my_key:
             lookup = row[my_key]
         else:
-            lookup = "worldwide"
+            lookup = "global"
         if since_year==int(row["year"]):
             for (column_name, column_value) in row.iteritems():
                 column_name_parts = sorted([w.lower() for w in column_name.split("_")])
@@ -653,9 +653,20 @@ def get_oa_from_file(my_key, filename):
     return response
 
 
-@app.route("/metrics/worldwide", methods=["GET"])
-def metrics_oa_worldwide_get():
-    response = get_oa_from_file(None, "data/oa_worldwide.csv")
+@app.route("/metrics/geo", methods=["GET"])
+def metrics_oa_geo():
+    groupby = request.args.get("groupby", "country")
+    if groupby=="country":
+        return metrics_oa_by_country_get()
+    if groupby=="continent":
+        return metrics_oa_by_continent_get()
+    if groupby=="global":
+        return metrics_oa_global_get()
+
+
+@app.route("/metrics/global", methods=["GET"])
+def metrics_oa_global_get():
+    response = get_oa_from_file(None, "data/oa_global.csv")
     return jsonify({"response": response})
 
 

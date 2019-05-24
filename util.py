@@ -36,7 +36,6 @@ class DelayedAdapter(HTTPAdapter):
         return response
 
 def read_csv_file(filename):
-    print filename
     with open(filename, "r") as csv_file:
         my_reader = csv.DictReader(csv_file)
         rows = [row for row in my_reader]
