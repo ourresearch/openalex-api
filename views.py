@@ -599,6 +599,10 @@ def get_oa_from_file(my_key, filename):
         oa_request = "bronze,green,gold,hybrid"
     oa_filter_list = [w.strip() for w in oa_request.lower().split(",")]
 
+    global_response = None
+    if my_key:
+        global_response = get_oa_from_file(None, "data/oa_global.csv")
+
     rows = read_csv_file(filename)
     response = {}
     out_of_over_years = defaultdict(int)
@@ -635,19 +639,21 @@ def get_oa_from_file(my_key, filename):
             for (column_name, column_value) in row.iteritems():
                 column_name_parts = sorted([w.lower() for w in column_name.split("_")])
                 if set(column_name_parts) == set(oa_filter_list):
+                    distinct_articles_proportion_global = 1
+                    if global_response:
+                        distinct_articles_proportion_global = float(out_of_over_years[lookup]) / global_response["global"]["num_distinct_articles"]
                     my_dict = {
                         "num_distinct_articles": out_of_over_years[lookup],
+                        "num_distinct_articles_proportion_of_global": round(distinct_articles_proportion_global, 5),
                         "num_oa": value_over_years[lookup],
                         "since": int(row["year"]),
                         "oa_types": column_name_parts,
                         "num_oa_histogram": oa_histogram[lookup]
                     }
                     if my_key == "country":
-                        my_dict["country"] = row["country"]
-                        my_dict["country_iso2"] = row["country_iso2"]
-                        my_dict["country_iso2"] = row["country_iso2"]
-                    if my_key in ("country", "continent"):
-                        my_dict["continent"] = row["continent"]
+                        my_dict["name"] = lookup
+                        my_dict["name_iso2"] = row.get("country_iso2", None)
+                        my_dict["name_iso2"] = row.get("country_iso2", None)
                     response[lookup] = my_dict
 
     return response
@@ -657,30 +663,12 @@ def get_oa_from_file(my_key, filename):
 def metrics_oa_geo():
     groupby = request.args.get("groupby", "country")
     if groupby=="country":
-        return metrics_oa_by_country_get()
+        response = get_oa_from_file("country", "data/oa_by_country.csv")
     if groupby=="continent":
-        return metrics_oa_by_continent_get()
+        response = get_oa_from_file("continent", "data/oa_by_continent.csv")
     if groupby=="global":
-        return metrics_oa_global_get()
-
-
-@app.route("/metrics/global", methods=["GET"])
-def metrics_oa_global_get():
-    response = get_oa_from_file(None, "data/oa_global.csv")
+        response = get_oa_from_file(None, "data/oa_global.csv")
     return jsonify({"response": response})
-
-
-@app.route("/metrics/continents", methods=["GET"])
-def metrics_oa_by_continent_get():
-    response = get_oa_from_file("continent", "data/oa_by_continent.csv")
-    return jsonify({"response": response})
-
-@app.route("/metrics/countries", methods=["GET"])
-def metrics_oa_by_country_get():
-
-    response = get_oa_from_file("country", "data/oa_by_country.csv")
-    return jsonify({"response": response})
-
 
 
 
