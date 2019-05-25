@@ -626,7 +626,12 @@ def get_oa_from_file(my_key, filename):
             for (column_name, column_value) in row.iteritems():
                 column_name_parts = sorted([w.lower() for w in column_name.split("_")])
                 if set(column_name_parts) == set(oa_filter_list):
-                    oa_histogram[lookup] += [(int(row["year"]), int(column_value))]
+                    oa_histogram[lookup] += [(int(row["year"]),
+                                              round(float(column_value)/int(row["num_distinct_articles"]), 5)
+                                             # ,float(column_value)
+                                             # ,int(row["num_distinct_articles"])
+                                              )
+                                             ]
                     value_over_years[lookup] += int(column_value)
                     out_of_over_years[lookup] += int(row["num_distinct_articles"])
 
@@ -641,17 +646,21 @@ def get_oa_from_file(my_key, filename):
                 if set(column_name_parts) == set(oa_filter_list):
                     distinct_articles_proportion_global = 1
                     if global_response:
-                        distinct_articles_proportion_global = float(out_of_over_years[lookup]) / global_response["global"]["num_distinct_articles"]
+                        distinct_articles_proportion_global = float(out_of_over_years[lookup]) / global_response["global"]["articles"]["num_total"]
+                    sorted_histogram = sorted(oa_histogram[lookup], key=lambda x: x[0], reverse=False)
                     my_dict = {
                         "name": lookup,
                         "name_iso2": row.get("country_iso2", None),
                         "name_iso3": row.get("country_iso3", None),
-                        "num_distinct_articles": out_of_over_years[lookup],
-                        "num_distinct_articles_proportion_of_global": round(distinct_articles_proportion_global, 5),
-                        "num_oa": value_over_years[lookup],
                         "since": int(row["year"]),
                         "oa_types": column_name_parts,
-                        "num_oa_histogram": oa_histogram[lookup]
+                        "articles": {
+                            "num_total": out_of_over_years[lookup],
+                            "prop_global": round(distinct_articles_proportion_global, 5),
+                            "num_oa": value_over_years[lookup],
+                            "prop_oa": round(float(value_over_years[lookup])/out_of_over_years[lookup], 5),
+                            "prop_oa_by_year": sorted_histogram
+                        }
                     }
                     response[lookup] = my_dict
 
