@@ -70,6 +70,7 @@ app.config['SQLALCHEMY_ECHO'] = (os.getenv("SQLALCHEMY_ECHO", False) == "True")
 app.config["SQLALCHEMY_DATABASE_URI"] = os.getenv("DATABASE_URL")  # don't use this though, default is unclear, use binds
 app.config["SQLALCHEMY_BINDS"] = {
     "unpaywall_db": os.getenv("DATABASE_URL_UNPAYWALL"),
+    "redshift_db": os.getenv("DATABASE_URL_REDSHIFT"),
     "paperbuzz_db": os.getenv("DATABASE_URL_PAPERBUZZ"),
     "pubmed_db": os.getenv("DATABASE_URL_MEDOC")
 }

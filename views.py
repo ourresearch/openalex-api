@@ -14,6 +14,7 @@ import re
 from time import time
 import boto
 from util import read_csv_file
+from util import elapsed
 from collections import defaultdict
 
 
@@ -677,6 +678,17 @@ def metrics_oa_geo():
     if groupby=="global":
         response = get_oa_from_file(None, "data/oa_global.csv")
     return jsonify({"response": response})
+
+@app.route("/hiheather", methods=["GET"])
+def hiheather_get():
+    import geo
+    start_time = time()
+    objects = geo.OAMonitorUnpaywallByCountry.query.all()
+    print "to get data:", elapsed(start_time)
+    start_time = time()
+    result = [r.to_dict() for r in objects]
+    print "to get dicts:", elapsed(start_time)
+    return jsonify({"response": result})
 
 
 
