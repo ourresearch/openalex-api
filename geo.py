@@ -4,16 +4,21 @@ from util import elapsed
 from collections import defaultdict
 from sqlalchemy.orm import deferred
 from sqlalchemy.orm import undefer
+from sqlalchemy.orm import synonym
+from sqlalchemy.ext.hybrid import hybrid_property
+from sqlalchemy.orm import column_property
 
 from app import db
 
 def get_oa_column(oa_filter_list):
-    for attr in OAMonitorUnpaywallByCountry.__table__.columns:
+
+    all_columns = OAMonitorUnpaywallByCountry.__table__.columns
+    for attr in all_columns:
         attr_name = attr.name
         attr_name_parts = sorted([w.lower() for w in attr_name.split("_")])
         if set(oa_filter_list) == set(attr_name_parts):
             return attr_name
-    return None
+    return u"_".join(oa_filter_list)
 
 def get_geo_rows(groupby, oa_filter_list):
     undefer_column = get_oa_column(oa_filter_list)
@@ -101,6 +106,7 @@ def get_oa_from_redshift(my_key):
 
 class GeoRowMixin(object):
 
+
     @property
     def country_iso2_display(self):
         if hasattr(self, "country_iso2"):
@@ -133,17 +139,14 @@ class GeoRowMixin(object):
     def year_int(self):
         return int(self.year)
 
-    @property
+    @hybrid_property
     def bronze_green_gold_hybrid(self):
         return self.is_oa
 
-    @property
+    @hybrid_property
     def na(self):
         return self.num_distinct_articles
 
-    @property
-    def closed(self):
-        return self.num_distinct_articles
 
     def __repr__(self):
         return u"{} ({}, {})".format(self.__class__.__name__, self.lookup, self.year_int)
