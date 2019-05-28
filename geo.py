@@ -18,7 +18,7 @@ def get_oa_column(oa_filter_list):
         attr_name_parts = sorted([w.lower() for w in attr_name.split("_")])
         if set(oa_filter_list) == set(attr_name_parts):
             return attr_name
-    return u"_".join(oa_filter_list)
+    return u"_".join(sorted(oa_filter_list))
 
 def get_geo_rows(groupby, oa_filter_list):
     undefer_column = get_oa_column(oa_filter_list)
