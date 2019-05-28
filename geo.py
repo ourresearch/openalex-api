@@ -140,7 +140,7 @@ class GeoRowMixin(object):
         return int(self.year)
 
     @hybrid_property
-    def bronze_green_gold_hybrid(self):
+    def bronze_gold_green_hybrid(self):
         return self.is_oa
 
     @hybrid_property
