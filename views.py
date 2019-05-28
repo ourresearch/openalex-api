@@ -17,7 +17,7 @@ from util import read_csv_file
 from util import elapsed
 from collections import defaultdict
 from sqlalchemy import sql
-
+from sqlalchemy import orm
 
 from app import app
 from app import db
@@ -26,7 +26,8 @@ from data.funders import funder_names
 from journal import Journal
 from topic import Topic
 from institution import Institution
-import geo
+from geo import get_geo_rows
+from geo import get_oa_from_redshift
 from transformative_agreement import TransformativeAgreement
 from util import str2bool
 from util import normalize_title
@@ -590,154 +591,7 @@ def unpaywall_metrics_articles_csv_gz():
     return Response(key, mimetype="application/gzip")
 
 
-def get_oa_from_file(my_key, filename):
-    since_year = int(request.args.get("since", "2009"))
 
-    oa_request = request.args.get("oa", "na")
-    if oa_request in ("all", "any"):
-        oa_request = "bronze,green,gold,hybrid"
-    oa_filter_list = [w.strip() for w in oa_request.lower().split(",")]
-
-    global_response = None
-    if my_key:
-        global_response = get_oa_from_file(None, "data/oa_global.csv")
-
-    rows = read_csv_file(filename)
-    response = {}
-    out_of_over_years = defaultdict(int)
-    value_over_years = defaultdict(int)
-    oa_histogram = defaultdict(list)
-
-    # force naming for is_oa from loaded data
-    fixed_rows = []
-    for row in rows:
-        row["bronze_green_gold_hybrid"] = row["is_oa"]
-        row["na"] = row["num_distinct_articles"]
-        row["closed"] = int(row["num_distinct_articles"]) - int(row["is_oa"])
-        fixed_rows.append(row)
-
-    for row in fixed_rows:
-        if my_key:
-            lookup = row[my_key]
-        else:
-            lookup = "global"
-        if int(row["year"]) >= since_year and int(row["year"]) < 2019:
-            for (column_name, column_value) in row.iteritems():
-                column_name_parts = sorted([w.lower() for w in column_name.split("_")])
-                if set(column_name_parts) == set(oa_filter_list):
-                    oa_histogram[lookup] += [(int(row["year"]),
-                                              round(float(column_value)/int(row["num_distinct_articles"]), 5)
-                                             # ,float(column_value)
-                                             # ,int(row["num_distinct_articles"])
-                                              )
-                                             ]
-                    value_over_years[lookup] += int(column_value)
-                    out_of_over_years[lookup] += int(row["num_distinct_articles"])
-
-    for row in fixed_rows:
-        if my_key:
-            lookup = row[my_key]
-        else:
-            lookup = "global"
-        if since_year==int(row["year"]):
-            for (column_name, column_value) in row.iteritems():
-                column_name_parts = sorted([w.lower() for w in column_name.split("_")])
-                if set(column_name_parts) == set(oa_filter_list):
-                    distinct_articles_proportion_global = 1
-                    if global_response:
-                        distinct_articles_proportion_global = float(out_of_over_years[lookup]) / global_response["global"]["articles"]["num_total"]
-                    sorted_histogram = sorted(oa_histogram[lookup], key=lambda x: x[0], reverse=False)
-                    my_dict = {
-                        "name": lookup,
-                        "name_iso2": row.get("country_iso2", None),
-                        "name_iso3": row.get("country_iso3", None),
-                        "since": int(row["year"]),
-                        "oa_types": column_name_parts,
-                        "articles": {
-                            "num_total": out_of_over_years[lookup],
-                            "prop_global": round(distinct_articles_proportion_global, 5),
-                            "num_oa": value_over_years[lookup],
-                            "prop_oa": round(float(value_over_years[lookup])/out_of_over_years[lookup], 5),
-                            "prop_oa_by_year": sorted_histogram
-                        }
-                    }
-                    response[lookup] = my_dict
-
-    return response
-
-
-def get_oa_from_redshift(my_key):
-    since_year = int(request.args.get("since", "2009"))
-
-    oa_request = request.args.get("oa", "na")
-    if oa_request in ("all", "any"):
-        oa_request = "bronze,green,gold,hybrid"
-    oa_filter_list = [w.strip() for w in oa_request.lower().split(",")]
-
-    global_response = None
-    if my_key and my_key != "global":
-        global_response = get_oa_from_redshift("global")
-    else:
-        my_key = "global"
-
-    if my_key == "country":
-        objects = geo.OAMonitorUnpaywallByCountry.query.all()
-    elif my_key == "subcontinent":
-        objects = geo.OAMonitorUnpaywallBySubcontinent.query.all()
-    elif my_key == "continent":
-        objects = geo.OAMonitorUnpaywallByContinent.query.all()
-    else:
-        objects = geo.OAMonitorUnpaywallWorldwide.query.all()
-
-    response = {}
-    out_of_over_years = defaultdict(int)
-    value_over_years = defaultdict(int)
-    oa_histogram = defaultdict(list)
-
-    for obj in objects:
-        if obj.year_int >= since_year and obj.year_int < 2019:
-            for column_name in dir(obj):
-                column_name_parts = sorted([w.lower() for w in column_name.split("_")])
-                if set(column_name_parts) == set(oa_filter_list):
-                    column_value = getattr(obj, column_name)
-                    oa_histogram[obj.lookup] += [(obj.year_int,
-                                              round(float(column_value)/int(obj.num_distinct_articles), 5)
-                                             # ,float(column_value)
-                                             # ,int(row["num_distinct_articles"])
-                                              )
-                                             ]
-                    value_over_years[obj.lookup] += int(column_value)
-                    out_of_over_years[obj.lookup] += int(obj.num_distinct_articles)
-
-    for obj in objects:
-        if since_year==obj.year_int and obj.lookup:
-            for column_name in dir(obj):
-                column_name_parts = sorted([w.lower() for w in column_name.split("_")])
-                if set(column_name_parts) == set(oa_filter_list):
-                    column_value = getattr(obj, column_name)
-                    distinct_articles_proportion_global = 1
-                    if global_response:
-                        distinct_articles_proportion_global = float(out_of_over_years[obj.lookup]) / global_response["global"]["articles"]["num_total"]
-                    sorted_histogram = sorted(oa_histogram[obj.lookup], key=lambda x: x[0], reverse=False)
-                    my_dict = {
-                        "name": obj.lookup,
-                        "name_iso2": obj.country_iso2_display,
-                        "name_iso3": obj.country_iso3_display,
-                        "continent": obj.continent_display,
-                        "subcontinent": obj.subcontinent_display,
-                        "since": obj.year_int,
-                        "oa_types": column_name_parts,
-                        "articles": {
-                            "num_total": out_of_over_years[obj.lookup],
-                            "prop_global": round(distinct_articles_proportion_global, 5),
-                            "num_oa": value_over_years[obj.lookup],
-                            "prop_oa": round(float(value_over_years[obj.lookup])/out_of_over_years[obj.lookup], 5),
-                            "prop_oa_by_year": sorted_histogram
-                        }
-                    }
-                    response[obj.lookup] = my_dict
-
-    return response
 
 
 @app.route("/metrics/geo", methods=["GET"])
@@ -753,14 +607,14 @@ def metrics_oa_geo():
 
     groupby = request.args.get("groupby", "country")
     if groupby=="country":
-        response = get_oa_from_redshift("country")
+        (response, timing) = get_oa_from_redshift("country")
     if groupby=="subcontinent":
-        response = get_oa_from_redshift("subcontinent")
+        (response, timing) = get_oa_from_redshift("subcontinent")
     if groupby=="continent":
-        response = get_oa_from_redshift("continent")
+        (response, timing) = get_oa_from_redshift("continent")
     if groupby=="global":
-        response = get_oa_from_redshift("global")
-    return jsonify({"response": response})
+        (response, timing) = get_oa_from_redshift("global")
+    return jsonify({"response": response, "_timing": timing})
 
 
 

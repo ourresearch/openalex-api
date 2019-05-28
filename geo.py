@@ -1,6 +1,105 @@
+from flask import request
+from time import time
+from util import elapsed
+from collections import defaultdict
+from sqlalchemy.orm import deferred
+from sqlalchemy.orm import undefer
+
 from app import db
 
-class MyMixin(object):
+def get_oa_column(oa_filter_list):
+    for attr in OAMonitorUnpaywallByCountry.__table__.columns:
+        attr_name = attr.name
+        attr_name_parts = sorted([w.lower() for w in attr_name.split("_")])
+        if set(oa_filter_list) == set(attr_name_parts):
+            return attr_name
+    return None
+
+def get_geo_rows(groupby, oa_filter_list):
+    undefer_column = get_oa_column(oa_filter_list)
+    if groupby == "country":
+        objects = OAMonitorUnpaywallByCountry.query.options(undefer(undefer_column)).all()
+    elif groupby == "subcontinent":
+        objects = OAMonitorUnpaywallBySubcontinent.query.options(undefer(undefer_column)).all()
+    elif groupby == "continent":
+        objects = OAMonitorUnpaywallByContinent.query.options(undefer(undefer_column)).all()
+    else:
+        objects = OAMonitorUnpaywallWorldwide.query.options(undefer(undefer_column)).all()
+    return objects
+
+
+def get_oa_from_redshift(my_key):
+    timing = {}
+    start_time = time()
+
+    since_year = int(request.args.get("since", "2009"))
+
+    oa_request = request.args.get("oa", "na")
+    if oa_request in ("all", "any"):
+        oa_request = "bronze,green,gold,hybrid"
+    oa_filter_list = [w.strip() for w in oa_request.lower().split(",")]
+    timing["0. prep_elapsed"] = elapsed(start_time)
+
+    global_response = None
+    if my_key and my_key != "global":
+        (global_response, global_timing) = get_oa_from_redshift("global")
+        timing["0.5. get_global"] = global_timing
+    else:
+        my_key = "global"
+
+    this_start = time()
+    objects = get_geo_rows(my_key, oa_filter_list)
+    timing["1. get_geo_rows"] = elapsed(this_start)
+    this_start = time()
+
+    response = {}
+    out_of_over_years = defaultdict(int)
+    value_over_years = defaultdict(int)
+    oa_histogram = defaultdict(list)
+    oa_data_column = get_oa_column(oa_filter_list)
+
+    for obj in objects:
+        if obj.year_int >= since_year and obj.year_int < 2019:
+            column_value = getattr(obj, oa_data_column)
+            oa_histogram[obj.lookup] += [(obj.year_int,
+                                      round(float(column_value)/int(obj.num_distinct_articles), 5))]
+            value_over_years[obj.lookup] += int(column_value)
+            out_of_over_years[obj.lookup] += int(obj.num_distinct_articles)
+
+    timing["2. first_loop"] = elapsed(this_start)
+    this_start = time()
+
+    for obj in objects:
+        if since_year==obj.year_int and obj.lookup:
+            column_value = getattr(obj, oa_data_column)
+            distinct_articles_proportion_global = 1
+            if global_response:
+                distinct_articles_proportion_global = float(out_of_over_years[obj.lookup]) / global_response["global"]["articles"]["num_total"]
+            sorted_histogram = sorted(oa_histogram[obj.lookup], key=lambda x: x[0], reverse=False)
+            my_dict = {
+                "name": obj.lookup,
+                "name_iso2": obj.country_iso2_display,
+                "name_iso3": obj.country_iso3_display,
+                "continent": obj.continent_display,
+                "subcontinent": obj.subcontinent_display,
+                "since": obj.year_int,
+                "oa_types": oa_filter_list,
+                "articles": {
+                    "num_total": out_of_over_years[obj.lookup],
+                    "prop_global": round(distinct_articles_proportion_global, 5),
+                    "num_oa": value_over_years[obj.lookup],
+                    "prop_oa": round(float(value_over_years[obj.lookup])/out_of_over_years[obj.lookup], 5),
+                    "prop_oa_by_year": sorted_histogram
+                }
+            }
+            response[obj.lookup] = my_dict
+
+    timing["3. second_loop"] = elapsed(this_start)
+
+    return (response, timing)
+
+
+class GeoRowMixin(object):
 
     @property
     def country_iso2_display(self):
@@ -50,7 +149,7 @@ class MyMixin(object):
         return u"{} ({}, {})".format(self.__class__.__name__, self.lookup, self.year_int)
 
 
-class OAMonitorUnpaywallByCountry(db.Model, MyMixin):
+class OAMonitorUnpaywallByCountry(db.Model, GeoRowMixin):
     __tablename__ = 'oamonitor_unpaywall_by_country'
     __bind_key__ = "redshift_db"
 
@@ -61,21 +160,21 @@ class OAMonitorUnpaywallByCountry(db.Model, MyMixin):
     continent = db.Column(db.Text)
     year = db.Column(db.Text, primary_key=True)
     num_distinct_articles = db.Column(db.Numeric)
-    is_oa = db.Column(db.Numeric)
-    bronze = db.Column(db.Numeric)
-    green = db.Column(db.Numeric)
-    gold = db.Column(db.Numeric)
-    hybrid = db.Column(db.Numeric)
-    bronze_green = db.Column(db.Numeric)
-    bronze_gold = db.Column(db.Numeric)
-    bronze_hybrid = db.Column(db.Numeric)
-    green_gold = db.Column(db.Numeric)
-    green_hybrid = db.Column(db.Numeric)
-    gold_hybrid = db.Column(db.Numeric)
-    bronze_green_gold = db.Column(db.Numeric)
-    bronze_green_hybrid = db.Column(db.Numeric)
-    bronze_gold_hybrid = db.Column(db.Numeric)
-    green_gold_hybrid = db.Column(db.Numeric)
+    is_oa = deferred(db.Column(db.Numeric))
+    bronze = deferred(db.Column(db.Numeric))
+    green = deferred(db.Column(db.Numeric))
+    gold = deferred(db.Column(db.Numeric))
+    hybrid = deferred(db.Column(db.Numeric))
+    bronze_green = deferred(db.Column(db.Numeric))
+    bronze_gold = deferred(db.Column(db.Numeric))
+    bronze_hybrid = deferred(db.Column(db.Numeric))
+    green_gold = deferred(db.Column(db.Numeric))
+    green_hybrid = deferred(db.Column(db.Numeric))
+    gold_hybrid = deferred(db.Column(db.Numeric))
+    bronze_green_gold = deferred(db.Column(db.Numeric))
+    bronze_green_hybrid = deferred(db.Column(db.Numeric))
+    bronze_gold_hybrid = deferred(db.Column(db.Numeric))
+    green_gold_hybrid = deferred(db.Column(db.Numeric))
 
     @property
     def lookup(self):
@@ -87,7 +186,7 @@ class OAMonitorUnpaywallByCountry(db.Model, MyMixin):
             "year": self.year
         }
 
-class OAMonitorUnpaywallBySubcontinent(db.Model, MyMixin):
+class OAMonitorUnpaywallBySubcontinent(db.Model, GeoRowMixin):
     __tablename__ = 'oamonitor_unpaywall_by_subcontinent'
     __bind_key__ = "redshift_db"
 
@@ -95,21 +194,21 @@ class OAMonitorUnpaywallBySubcontinent(db.Model, MyMixin):
     continent = db.Column(db.Text)
     year = db.Column(db.Text, primary_key=True)
     num_distinct_articles = db.Column(db.Numeric)
-    is_oa = db.Column(db.Numeric)
-    bronze = db.Column(db.Numeric)
-    green = db.Column(db.Numeric)
-    gold = db.Column(db.Numeric)
-    hybrid = db.Column(db.Numeric)
-    bronze_green = db.Column(db.Numeric)
-    bronze_gold = db.Column(db.Numeric)
-    bronze_hybrid = db.Column(db.Numeric)
-    green_gold = db.Column(db.Numeric)
-    green_hybrid = db.Column(db.Numeric)
-    gold_hybrid = db.Column(db.Numeric)
-    bronze_green_gold = db.Column(db.Numeric)
-    bronze_green_hybrid = db.Column(db.Numeric)
-    bronze_gold_hybrid = db.Column(db.Numeric)
-    green_gold_hybrid = db.Column(db.Numeric)
+    is_oa = deferred(db.Column(db.Numeric))
+    bronze = deferred(db.Column(db.Numeric))
+    green = deferred(db.Column(db.Numeric))
+    gold = deferred(db.Column(db.Numeric))
+    hybrid = deferred(db.Column(db.Numeric))
+    bronze_green = deferred(db.Column(db.Numeric))
+    bronze_gold = deferred(db.Column(db.Numeric))
+    bronze_hybrid = deferred(db.Column(db.Numeric))
+    green_gold = deferred(db.Column(db.Numeric))
+    green_hybrid = deferred(db.Column(db.Numeric))
+    gold_hybrid = deferred(db.Column(db.Numeric))
+    bronze_green_gold = deferred(db.Column(db.Numeric))
+    bronze_green_hybrid = deferred(db.Column(db.Numeric))
+    bronze_gold_hybrid = deferred(db.Column(db.Numeric))
+    green_gold_hybrid = deferred(db.Column(db.Numeric))
 
     @property
     def lookup(self):
@@ -121,28 +220,28 @@ class OAMonitorUnpaywallBySubcontinent(db.Model, MyMixin):
             "year": self.year
         }
 
-class OAMonitorUnpaywallByContinent(db.Model, MyMixin):
+class OAMonitorUnpaywallByContinent(db.Model, GeoRowMixin):
     __tablename__ = 'oamonitor_unpaywall_by_continent'
     __bind_key__ = "redshift_db"
 
     continent = db.Column(db.Text, primary_key=True)
     year = db.Column(db.Text, primary_key=True)
     num_distinct_articles = db.Column(db.Numeric)
-    is_oa = db.Column(db.Numeric)
-    bronze = db.Column(db.Numeric)
-    green = db.Column(db.Numeric)
-    gold = db.Column(db.Numeric)
-    hybrid = db.Column(db.Numeric)
-    bronze_green = db.Column(db.Numeric)
-    bronze_gold = db.Column(db.Numeric)
-    bronze_hybrid = db.Column(db.Numeric)
-    green_gold = db.Column(db.Numeric)
-    green_hybrid = db.Column(db.Numeric)
-    gold_hybrid = db.Column(db.Numeric)
-    bronze_green_gold = db.Column(db.Numeric)
-    bronze_green_hybrid = db.Column(db.Numeric)
-    bronze_gold_hybrid = db.Column(db.Numeric)
-    green_gold_hybrid = db.Column(db.Numeric)
+    is_oa = deferred(db.Column(db.Numeric))
+    bronze = deferred(db.Column(db.Numeric))
+    green = deferred(db.Column(db.Numeric))
+    gold = deferred(db.Column(db.Numeric))
+    hybrid = deferred(db.Column(db.Numeric))
+    bronze_green = deferred(db.Column(db.Numeric))
+    bronze_gold = deferred(db.Column(db.Numeric))
+    bronze_hybrid = deferred(db.Column(db.Numeric))
+    green_gold = deferred(db.Column(db.Numeric))
+    green_hybrid = deferred(db.Column(db.Numeric))
+    gold_hybrid = deferred(db.Column(db.Numeric))
+    bronze_green_gold = deferred(db.Column(db.Numeric))
+    bronze_green_hybrid = deferred(db.Column(db.Numeric))
+    bronze_gold_hybrid = deferred(db.Column(db.Numeric))
+    green_gold_hybrid = deferred(db.Column(db.Numeric))
 
     @property
     def lookup(self):
@@ -154,27 +253,27 @@ class OAMonitorUnpaywallByContinent(db.Model, MyMixin):
             "year": self.year
         }
 
-class OAMonitorUnpaywallWorldwide(db.Model, MyMixin):
+class OAMonitorUnpaywallWorldwide(db.Model, GeoRowMixin):
     __tablename__ = 'oamonitor_unpaywall_worldwide'
     __bind_key__ = "redshift_db"
 
     year = db.Column(db.Text, primary_key=True)
     num_distinct_articles = db.Column(db.Numeric)
-    is_oa = db.Column(db.Numeric)
-    bronze = db.Column(db.Numeric)
-    green = db.Column(db.Numeric)
-    gold = db.Column(db.Numeric)
-    hybrid = db.Column(db.Numeric)
-    bronze_green = db.Column(db.Numeric)
-    bronze_gold = db.Column(db.Numeric)
-    bronze_hybrid = db.Column(db.Numeric)
-    green_gold = db.Column(db.Numeric)
-    green_hybrid = db.Column(db.Numeric)
-    gold_hybrid = db.Column(db.Numeric)
-    bronze_green_gold = db.Column(db.Numeric)
-    bronze_green_hybrid = db.Column(db.Numeric)
-    bronze_gold_hybrid = db.Column(db.Numeric)
-    green_gold_hybrid = db.Column(db.Numeric)
+    is_oa = deferred(db.Column(db.Numeric))
+    bronze = deferred(db.Column(db.Numeric))
+    green = deferred(db.Column(db.Numeric))
+    gold = deferred(db.Column(db.Numeric))
+    hybrid = deferred(db.Column(db.Numeric))
+    bronze_green = deferred(db.Column(db.Numeric))
+    bronze_gold = deferred(db.Column(db.Numeric))
+    bronze_hybrid = deferred(db.Column(db.Numeric))
+    green_gold = deferred(db.Column(db.Numeric))
+    green_hybrid = deferred(db.Column(db.Numeric))
+    gold_hybrid = deferred(db.Column(db.Numeric))
+    bronze_green_gold = deferred(db.Column(db.Numeric))
+    bronze_green_hybrid = deferred(db.Column(db.Numeric))
+    bronze_gold_hybrid = deferred(db.Column(db.Numeric))
+    green_gold_hybrid = deferred(db.Column(db.Numeric))
 
     @property
     def lookup(self):
