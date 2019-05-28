@@ -710,7 +710,7 @@ def get_oa_from_redshift(my_key):
                     out_of_over_years[obj.lookup] += int(obj.num_distinct_articles)
 
     for obj in objects:
-        if since_year==obj.year_int:
+        if since_year==obj.year_int and obj.lookup:
             for column_name in dir(obj):
                 column_name_parts = sorted([w.lower() for w in column_name.split("_")])
                 if set(column_name_parts) == set(oa_filter_list):
