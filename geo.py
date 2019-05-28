@@ -85,6 +85,10 @@ def get_oa_from_redshift(my_key):
             if global_response:
                 distinct_articles_proportion_global = float(out_of_over_years[obj.lookup]) / global_response["global"]["articles"]["num_total"]
             sorted_histogram = sorted(oa_histogram[obj.lookup], key=lambda x: x[0], reverse=False)
+            if out_of_over_years[obj.lookup]:
+                prop_oa = round(float(value_over_years[obj.lookup])/out_of_over_years[obj.lookup], 5)
+            else:
+                prop_oa = None
             my_dict = {
                 "name": obj.lookup,
                 "name_iso2": obj.country_iso2_display,
@@ -97,7 +101,7 @@ def get_oa_from_redshift(my_key):
                     "num_total": out_of_over_years[obj.lookup],
                     "prop_global": round(distinct_articles_proportion_global, 5),
                     "num_oa": value_over_years[obj.lookup],
-                    "prop_oa": round(float(value_over_years[obj.lookup])/out_of_over_years[obj.lookup], 5),
+                    "prop_oa": prop_oa,
                     "prop_oa_by_year": sorted_histogram
                 }
             }

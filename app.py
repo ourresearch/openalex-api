@@ -76,15 +76,18 @@ app.config["SQLALCHEMY_BINDS"] = {
 }
 
 # from http://stackoverflow.com/a/12417346/596939
-class NullPoolSQLAlchemy(SQLAlchemy):
-    def apply_driver_hacks(self, app, info, options):
-        options['poolclass'] = NullPool
-        return super(NullPoolSQLAlchemy, self).apply_driver_hacks(app, info, options)
+# class NullPoolSQLAlchemy(SQLAlchemy):
+#     def apply_driver_hacks(self, app, info, options):
+#         options['poolclass'] = NullPool
+#         return super(NullPoolSQLAlchemy, self).apply_driver_hacks(app, info, options)
+#
+# db = NullPoolSQLAlchemy(app, session_options={"autoflush": False})
 
-db = NullPoolSQLAlchemy(app, session_options={"autoflush": False})
+app.config["SQLALCHEMY_POOL_SIZE"] = 10
+db = SQLAlchemy(app, session_options={"autoflush": False})
 
 # do compression.  has to be above flask debug toolbar so it can override this.
-compress_json = os.getenv("COMPRESS_DEBUG", "False")=="True"
+compress_json = os.getenv("COMPRESS_DEBUG", "True")=="True"
 
 
 # set up Flask-DebugToolbar
