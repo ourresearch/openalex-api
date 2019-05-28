@@ -10,6 +10,10 @@ from sqlalchemy.orm import column_property
 
 from app import db
 
+
+# really speeds things up to preload these, need them as a denominator for everything
+global_objects = None
+
 def get_oa_column(oa_filter_list):
 
     all_columns = OAMonitorUnpaywallByCountry.__table__.columns
@@ -29,7 +33,7 @@ def get_geo_rows(groupby, oa_filter_list):
     elif groupby == "continent":
         objects = OAMonitorUnpaywallByContinent.query.options(undefer(undefer_column)).all()
     else:
-        objects = OAMonitorUnpaywallWorldwide.query.options(undefer(undefer_column)).all()
+        objects = global_objects
     return objects
 
 
@@ -286,3 +290,9 @@ class OAMonitorUnpaywallWorldwide(db.Model, GeoRowMixin):
         return {
             "year": self.year
         }
+
+def preload_global_objects():
+    return OAMonitorUnpaywallWorldwide.query.options(undefer('*')).all()
+
+# initial set is at the top of the file
+global_objects = preload_global_objects()
