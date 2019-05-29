@@ -119,9 +119,6 @@ def stuff_before_request():
         return redirect(new_url, 301)  # permanent
 
 
-@app.route("/test", methods=["GET"])
-def get_example():
-    return jsonify({"results": "hi"})
 
 @app.route('/', methods=["GET", "POST"])
 def base_endpoint():
@@ -596,15 +593,6 @@ def unpaywall_metrics_articles_csv_gz():
 
 @app.route("/metrics/geo", methods=["GET"])
 def metrics_oa_geo():
-    # groupby = request.args.get("groupby", "country")
-    # if groupby=="country":
-    #     response = get_oa_from_file("country", "data/oa_by_country.csv")
-    # if groupby=="continent":
-    #     response = get_oa_from_file("continent", "data/oa_by_continent.csv")
-    # if groupby=="global":
-    #     response = get_oa_from_file(None, "data/oa_global.csv")
-    # return jsonify({"response": response})
-
     groupby = request.args.get("groupby", "country")
     if groupby=="country":
         (response, timing) = get_oa_from_redshift("country")
@@ -629,6 +617,162 @@ def unpaywall_metrics_subscriptions_csv():
 
     return Response(key, mimetype="text/csv")
 
+
+temp_response = {
+  "_timing": {
+    "0. prep_elapsed": 0.0,
+    "0.5. get_global": {
+      "0. prep_elapsed": 0.0,
+      "1. get_geo_rows": 0.0,
+      "2. first_loop": 0.0,
+      "3. second_loop": 0.0
+    },
+    "1. get_geo_rows": 0.16,
+    "2. first_loop": 0.0,
+    "3. second_loop": 0.0
+  },
+  "response": {
+    "Africa": {
+      "articles": {
+        "num_oa": 36802,
+        "num_total": 151219,
+        "prop_global": 0.03099,
+        "prop_oa": 0.24337,
+        "prop_oa_by_year": [
+          [
+            2017,
+            0.23847
+          ],
+          [
+            2018,
+            0.24816
+          ]
+        ]
+      },
+      "continent": "Africa",
+      "name": "Africa",
+      "name_iso2": None,
+      "name_iso3": None,
+      "oa_types": [
+        "gold"
+      ],
+      "since": 2017,
+      "subcontinent": None
+    },
+    "Americas": {
+      "articles": {
+        "num_oa": 325953,
+        "num_total": 1837062,
+        "prop_global": 0.37647,
+        "prop_oa": 0.17743,
+        "prop_oa_by_year": [
+          [
+            2017,
+            0.16887
+          ],
+          [
+            2018,
+            0.18629
+          ]
+        ]
+      },
+      "continent": "Americas",
+      "name": "Americas",
+      "name_iso2": None,
+      "name_iso3": None,
+      "oa_types": [
+        "gold"
+      ],
+      "since": 2017,
+      "subcontinent": None
+    },
+    "Asia": {
+      "articles": {
+        "num_oa": 320989,
+        "num_total": 1881617,
+        "prop_global": 0.3856,
+        "prop_oa": 0.17059,
+        "prop_oa_by_year": [
+          [
+            2017,
+            0.16252
+          ],
+          [
+            2018,
+            0.17848
+          ]
+        ]
+      },
+      "continent": "Asia",
+      "name": "Asia",
+      "name_iso2": None,
+      "name_iso3": None,
+      "oa_types": [
+        "gold"
+      ],
+      "since": 2017,
+      "subcontinent": None
+    },
+    "Europe": {
+      "articles": {
+        "num_oa": 303191,
+        "num_total": 1722628,
+        "prop_global": 0.35302,
+        "prop_oa": 0.176,
+        "prop_oa_by_year": [
+          [
+            2017,
+            0.16443
+          ],
+          [
+            2018,
+            0.18811
+          ]
+        ]
+      },
+      "continent": "Europe",
+      "name": "Europe",
+      "name_iso2": None,
+      "name_iso3": None,
+      "oa_types": [
+        "gold"
+      ],
+      "since": 2017,
+      "subcontinent": None
+    },
+    "Oceania": {
+      "articles": {
+        "num_oa": 36477,
+        "num_total": 233123,
+        "prop_global": 0.04777,
+        "prop_oa": 0.15647,
+        "prop_oa_by_year": [
+          [
+            2017,
+            0.14687
+          ],
+          [
+            2018,
+            0.16639
+          ]
+        ]
+      },
+      "continent": "Oceania",
+      "name": "Oceania",
+      "name_iso2": None,
+      "name_iso3": None,
+      "oa_types": [
+        "gold"
+      ],
+      "since": 2017,
+      "subcontinent": None
+    }
+  }
+}
+
+@app.route("/test", methods=["GET"])
+def test_timing():
+    return jsonify(temp_response)
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
