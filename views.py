@@ -19,6 +19,7 @@ from collections import defaultdict
 from sqlalchemy import sql
 from sqlalchemy import orm
 import newrelic.agent
+from collections import OrderedDict
 
 from app import app
 from app import db
@@ -590,6 +591,21 @@ def unpaywall_metrics_articles_csv_gz():
     return Response(key, mimetype="application/gzip")
 
 
+@newrelic.agent.function_trace()
+def get_oa_from_redshift_country():
+    return get_oa_from_redshift("country")
+
+@newrelic.agent.function_trace()
+def get_oa_from_redshift_subcontinent():
+    return get_oa_from_redshift("subcontinent")
+
+@newrelic.agent.function_trace()
+def get_oa_from_redshift_continent():
+    return get_oa_from_redshift("continent")
+
+@newrelic.agent.function_trace()
+def get_oa_from_redshift_global():
+    return get_oa_from_redshift("global")
 
 
 @app.route("/metrics/geo", methods=["GET"])
@@ -597,14 +613,14 @@ def unpaywall_metrics_articles_csv_gz():
 def metrics_oa_geo():
     groupby = request.args.get("groupby", "country")
     if groupby=="country":
-        (response, timing) = get_oa_from_redshift("country")
+        (response, timing) = get_oa_from_redshift_country()
     if groupby=="subcontinent":
-        (response, timing) = get_oa_from_redshift("subcontinent")
+        (response, timing) = get_oa_from_redshift_subcontinent()
     if groupby=="continent":
-        (response, timing) = get_oa_from_redshift("continent")
+        (response, timing) = get_oa_from_redshift_continent()
     if groupby=="global":
-        (response, timing) = get_oa_from_redshift("global")
-    return jsonify_fast({"response": response, "_timing": timing})
+        (response, timing) = get_oa_from_redshift_global()
+    return jsonify_fast(OrderedDict({"_timing": timing, "response": response}))
 
 
 
@@ -773,6 +789,7 @@ temp_response = {
 }
 
 @app.route("/test", methods=["GET"])
+@newrelic.agent.function_trace()
 def test_timing():
     return jsonify_fast(temp_response)
 
