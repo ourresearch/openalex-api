@@ -96,33 +96,6 @@ def after_request_stuff(resp):
 
 
 
-@app.before_request
-def stuff_before_request():
-
-    g.request_start_time = time()
-
-    # don't redirect http api in some cases
-    if request.url.startswith("http://api."):
-        return
-    if "staging" in request.url or "localhost" in request.url:
-        return
-
-    # redirect everything else to https.
-    new_url = None
-    try:
-        if request.headers["X-Forwarded-Proto"] == "https":
-            pass
-        elif "http://" in request.url:
-            new_url = request.url.replace("http://", "https://")
-    except KeyError:
-        # logger.info(u"There's no X-Forwarded-Proto header; assuming localhost, serving http.")
-        pass
-
-    if new_url:
-        return redirect(new_url, 301)  # permanent
-
-
-
 @app.route('/', methods=["GET", "POST"])
 def base_endpoint():
     return jsonify_fast({
