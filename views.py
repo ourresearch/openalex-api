@@ -18,6 +18,7 @@ from util import elapsed
 from collections import defaultdict
 from sqlalchemy import sql
 from sqlalchemy import orm
+import newrelic.agent
 
 from app import app
 from app import db
@@ -35,6 +36,7 @@ from util import clean_doi
 from util import is_doi
 from util import is_issn
 from util import get_sql_answer
+from util import jsonify_fast
 
 def json_dumper(obj):
     """
@@ -83,8 +85,8 @@ def after_request_stuff(resp):
     resp.headers['Access-Control-Allow-Methods'] = "POST, GET, OPTIONS, PUT, DELETE, PATCH"
     resp.headers['Access-Control-Allow-Headers'] = "origin, content-type, accept, x-requested-with"
 
-    # remove session
-    db.session.remove()
+    # # remove session
+    # db.session.remove()
 
     # without this jason's heroku local buffers forever
     sys.stdout.flush()
@@ -122,7 +124,7 @@ def stuff_before_request():
 
 @app.route('/', methods=["GET", "POST"])
 def base_endpoint():
-    return jsonify({
+    return jsonify_fast({
         "version": "0.0.1",
         "msg": "Don't panic"
     })
@@ -590,8 +592,8 @@ def unpaywall_metrics_articles_csv_gz():
 
 
 
-
 @app.route("/metrics/geo", methods=["GET"])
+@newrelic.agent.function_trace()
 def metrics_oa_geo():
     groupby = request.args.get("groupby", "country")
     if groupby=="country":
@@ -602,7 +604,7 @@ def metrics_oa_geo():
         (response, timing) = get_oa_from_redshift("continent")
     if groupby=="global":
         (response, timing) = get_oa_from_redshift("global")
-    return jsonify({"response": response, "_timing": timing})
+    return jsonify_fast({"response": response, "_timing": timing})
 
 
 
@@ -772,7 +774,7 @@ temp_response = {
 
 @app.route("/test", methods=["GET"])
 def test_timing():
-    return jsonify(temp_response)
+    return jsonify_fast(temp_response)
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))

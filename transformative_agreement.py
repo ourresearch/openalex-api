@@ -1,6 +1,7 @@
 from sqlalchemy import orm
 from app import db
 from institution import Institution
+from collections import OrderedDict
 
 class TransformativeAgreementIssnlMatches(db.Model):
     __tablename__ = 'bq_transformative_agreement_issnl_matches'
@@ -71,18 +72,18 @@ class TransformativeAgreement(db.Model):
     def to_dict(self):
         between_publisher = None
         if self.issnl:
-            between_publisher = {"type": "journal", "id": self.issnl}
+            between_publisher = OrderedDict({"type": "journal", "id": self.issnl})
         elif self.publisher_string:
-            between_publisher = {"type": "publisher", "id": self.publisher_string}
+            between_publisher = OrderedDict({"type": "publisher", "id": self.publisher_string})
 
 
         between_institution = None
         if self.grid_id:
-            between_institution = {"type": "institution", "id": self.grid_id}
+            between_institution = OrderedDict({"type": "institution", "id": self.grid_id})
         elif self.country_code:
-            between_institution = {"type": "country", "id": self.country_code}
+            between_institution = OrderedDict({"type": "country", "id": self.country_code})
 
-        response = {
+        response = OrderedDict({
             "id": self.id,
             "between": [between_publisher, between_institution],
             "start_date": self.start_date,
@@ -91,15 +92,15 @@ class TransformativeAgreement(db.Model):
             "link": self.link,
             "esac_id": self.esac_id,
 
-            "matches": {
+            "matches": OrderedDict({
                 "journals": self.journals_list,
                 "institutions": self.institutions_list
-            },
+            }),
 
             # j adding these to make it easier to print out something in the frontend
             "content_owner": self.publisher_or_journal,
             "subscriber": self.subscriber
-        }
+        })
         return response
 
 

@@ -7,6 +7,8 @@ from sqlalchemy.orm import undefer
 from sqlalchemy.orm import synonym
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import column_property
+from cached_property import cached_property
+from collections import OrderedDict
 
 from app import db
 
@@ -115,35 +117,35 @@ def get_oa_from_redshift(my_key):
 class GeoRowMixin(object):
 
 
-    @property
+    @cached_property
     def country_iso2_display(self):
         if hasattr(self, "country_iso2"):
             return self.country_iso2
         else:
             return None
 
-    @property
+    @cached_property
     def country_iso3_display(self):
         if hasattr(self, "country_iso3"):
             return self.country_iso3
         else:
             return None
 
-    @property
+    @cached_property
     def continent_display(self):
         if hasattr(self, "continent"):
             return self.continent
         else:
             return None
 
-    @property
+    @cached_property
     def subcontinent_display(self):
         if hasattr(self, "subcontinent"):
             return self.subcontinent
         else:
             return None
 
-    @property
+    @cached_property
     def year_int(self):
         return int(self.year)
 
@@ -187,15 +189,15 @@ class OAMonitorUnpaywallByCountry(db.Model, GeoRowMixin):
     bronze_gold_hybrid = deferred(db.Column(db.Numeric))
     green_gold_hybrid = deferred(db.Column(db.Numeric))
 
-    @property
+    @cached_property
     def lookup(self):
         return self.country
 
     def to_dict(self):
-        return {
+        return OrderedDict({
             "country": self.country,
             "year": self.year
-        }
+        })
 
 class OAMonitorUnpaywallBySubcontinent(db.Model, GeoRowMixin):
     __tablename__ = 'oamonitor_unpaywall_by_subcontinent'
@@ -221,15 +223,15 @@ class OAMonitorUnpaywallBySubcontinent(db.Model, GeoRowMixin):
     bronze_gold_hybrid = deferred(db.Column(db.Numeric))
     green_gold_hybrid = deferred(db.Column(db.Numeric))
 
-    @property
+    @cached_property
     def lookup(self):
         return self.subcontinent
 
     def to_dict(self):
-        return {
+        return OrderedDict({
             "subcontinent": self.subcontinent,
             "year": self.year
-        }
+        })
 
 class OAMonitorUnpaywallByContinent(db.Model, GeoRowMixin):
     __tablename__ = 'oamonitor_unpaywall_by_continent'
@@ -254,15 +256,15 @@ class OAMonitorUnpaywallByContinent(db.Model, GeoRowMixin):
     bronze_gold_hybrid = deferred(db.Column(db.Numeric))
     green_gold_hybrid = deferred(db.Column(db.Numeric))
 
-    @property
+    @cached_property
     def lookup(self):
         return self.continent
 
     def to_dict(self):
-        return {
+        return OrderedDict({
             "continent": self.continent,
             "year": self.year
-        }
+        })
 
 class OAMonitorUnpaywallWorldwide(db.Model, GeoRowMixin):
     __tablename__ = 'oamonitor_unpaywall_worldwide'
@@ -286,7 +288,7 @@ class OAMonitorUnpaywallWorldwide(db.Model, GeoRowMixin):
     bronze_gold_hybrid = deferred(db.Column(db.Numeric))
     green_gold_hybrid = deferred(db.Column(db.Numeric))
 
-    @property
+    @cached_property
     def lookup(self):
         return "global"
 

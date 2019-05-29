@@ -1,4 +1,4 @@
-
+from collections import OrderedDict
 from app import db
 
 
@@ -14,12 +14,12 @@ class Institution(db.Model):
     num_papers = db.Column(db.Numeric)
 
     def to_dict(self):
-        response = {
+        response = OrderedDict({
             "id": self.grid_id,
             "name": self.org_name,
             "country": self.country,
             "country_code": self.country_code,
             "continent": self.continent,
             "num_papers": self.num_papers
-        }
+        })
         return response
