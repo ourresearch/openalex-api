@@ -106,8 +106,8 @@ if (os.getenv("FLASK_DEBUG", False) == "True"):
     toolbar = DebugToolbarExtension(app)
 
 # gzip responses
-# Compress(app)
-# app.config["COMPRESS_DEBUG"] = compress_json
+Compress(app)
+app.config["COMPRESS_DEBUG"] = compress_json
 
 
 redshift_url = urlparse.urlparse(os.getenv("DATABASE_URL_REDSHIFT"))
