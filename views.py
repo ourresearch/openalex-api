@@ -19,10 +19,12 @@ from collections import defaultdict
 from sqlalchemy import sql
 from sqlalchemy import orm
 import newrelic.agent
-from collections import OrderedDict
+import psycopg2
 
 from app import app
 from app import db
+from app import get_db_connection
+from app import get_db_cursor
 from app import logger
 from data.funders import funder_names
 from journal import Journal
@@ -30,6 +32,7 @@ from topic import Topic
 from institution import Institution
 from geo import get_geo_rows
 from geo import get_oa_from_redshift
+from geo import get_oa_from_redshift_fast
 from transformative_agreement import TransformativeAgreement
 from util import str2bool
 from util import normalize_title
@@ -583,6 +586,17 @@ def get_oa_from_redshift_global():
 
 @app.route("/metrics/geo", methods=["GET"])
 @newrelic.agent.function_trace()
+def metrics_oa_geo_fast():
+
+    groupby = request.args.get("groupby", "country")
+    get_oa_newrelic_wrapper = newrelic.agent.FunctionTraceWrapper(
+        get_oa_from_redshift_fast, name=groupby, group='get_oa_from_redshift')
+    (response, timing) = get_oa_newrelic_wrapper(groupby)
+    return jsonify_fast({"_timing": timing, "response": response})
+
+
+@app.route("/metrics/geo_old", methods=["GET"])
+@newrelic.agent.function_trace()
 def metrics_oa_geo():
     groupby = request.args.get("groupby", "country")
     if groupby=="country":
@@ -593,7 +607,7 @@ def metrics_oa_geo():
         (response, timing) = get_oa_from_redshift_continent()
     if groupby=="global":
         (response, timing) = get_oa_from_redshift_global()
-    return jsonify_fast(OrderedDict({"_timing": timing, "response": response}))
+    return jsonify_fast({"_timing": timing, "response": response})
 
 
 
@@ -766,8 +780,9 @@ temp_response = {
 def test_timing():
     return jsonify_fast(temp_response)
 
+
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 5000))
+    port = int(os.environ.get("PORT", 5003))
     app.run(host='0.0.0.0', port=port, debug=True, threaded=True)
 
 

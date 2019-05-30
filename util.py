@@ -604,6 +604,9 @@ def jsonify_fast(*args, **kwargs):
     else:
         data = args or kwargs
 
+    # turn this to False to be even faster, but warning then responses may not cache
+    sort_keys = True
+
     return current_app.response_class(
         dumps(data,
               skipkeys=True,
@@ -614,5 +617,5 @@ def jsonify_fast(*args, **kwargs):
               indent=None,
               # separators=None,
               default=None,
-              sort_keys=False) + '\n', mimetype=current_app.config['JSONIFY_MIMETYPE']
+              sort_keys=sort_keys) + '\n', mimetype=current_app.config['JSONIFY_MIMETYPE']
     )

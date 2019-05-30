@@ -14,6 +14,10 @@ import requests
 import json
 import random
 import warnings
+import urlparse
+import psycopg2
+from psycopg2.pool import ThreadedConnectionPool
+from contextlib import contextmanager
 
 from util import safe_commit
 from util import elapsed
@@ -84,7 +88,7 @@ app.config["SQLALCHEMY_BINDS"] = {
 # db = NullPoolSQLAlchemy(app, session_options={"autoflush": False})
 
 app.config["SQLALCHEMY_POOL_SIZE"] = 10
-db = SQLAlchemy(app, session_options={"autoflush": False, "autocommit": True, "isolation_level": "AUTOCOMMIT"})
+db = SQLAlchemy(app, session_options={"autoflush": False, "autocommit": True})
 
 # do compression.  has to be above flask debug toolbar so it can override this.
 compress_json = os.getenv("COMPRESS_DEBUG", "True")=="True"
@@ -105,3 +109,32 @@ if (os.getenv("FLASK_DEBUG", False) == "True"):
 # Compress(app)
 # app.config["COMPRESS_DEBUG"] = compress_json
 
+
+redshift_url = urlparse.urlparse(os.getenv("DATABASE_URL_REDSHIFT"))
+app.config['postgreSQL_pool'] = ThreadedConnectionPool(1, 5,
+                                  database=redshift_url.path[1:],
+                                  user=redshift_url.username,
+                                  password=redshift_url.password,
+                                  host=redshift_url.hostname,
+                                  port=redshift_url.port)
+
+
+@contextmanager
+def get_db_connection():
+    try:
+        connection = app.config['postgreSQL_pool'].getconn()
+        yield connection
+    finally:
+        app.config['postgreSQL_pool'].putconn(connection)
+
+@contextmanager
+def get_db_cursor(commit=False):
+    with get_db_connection() as connection:
+      cursor = connection.cursor(
+                  cursor_factory=psycopg2.extras.RealDictCursor)
+      try:
+          yield cursor
+          if commit:
+              connection.commit()
+      finally:
+          cursor.close()
