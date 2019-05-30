@@ -90,7 +90,7 @@ def get_all_rows_fast(groupby, oa_column):
         timing["0. in with"] = elapsed(start_time)
 
         start_time = time()
-        q = "select {}, {} from {} where year='2018'".format(lookup[groupby]["__columns__"],
+        q = "select {}, {} from {}".format(lookup[groupby]["__columns__"],
                                              oa_column,
                                              lookup[groupby]["__tablename__"])
         # print q
