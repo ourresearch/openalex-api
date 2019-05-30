@@ -141,3 +141,4 @@ def get_db_cursor(commit=False):
               connection.commit()
       finally:
           cursor.close()
+          pass

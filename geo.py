@@ -84,14 +84,23 @@ lookup = {
 }
 
 def get_all_rows_fast(groupby, oa_column):
+    timing = {}
+    start_time = time()
     with get_db_cursor() as cursor:
-        q = "select {}, {} from {}".format(lookup[groupby]["__columns__"],
+        timing["0. in with"] = elapsed(start_time)
+
+        start_time = time()
+        q = "select {}, {} from {} where year='2018'".format(lookup[groupby]["__columns__"],
                                              oa_column,
                                              lookup[groupby]["__tablename__"])
         # print q
         cursor.execute(q)
+        timing["1. after execute"] = elapsed(start_time)
+
+        start_time = time()
         rows = cursor.fetchall()
-    return rows
+        timing["2. after fetchall"] = elapsed(start_time)
+    return (rows, timing)
 
 def objects_from_rows(groupby, rows):
     class_name = u"Geo{}".format(groupby.title())
@@ -297,8 +306,8 @@ def get_oa_from_redshift_fast(groupby):
 
     this_start = time()
     undefer_column = get_oa_column_name(oa_filter_list)
-    rows = get_all_rows_fast(groupby, undefer_column)
-    timing["1. get_geo_rows"] = elapsed(this_start)
+    (rows, rows_timing) = get_all_rows_fast(groupby, undefer_column)
+    timing["1. get_geo_rows"] = rows_timing
     this_start = time()
 
     objects = objects_from_rows(groupby, rows)
@@ -316,6 +325,7 @@ def get_oa_from_redshift_fast(groupby):
                                       round(float(column_value)/int(obj.num_distinct_articles), 5))]
 
     timing["2. first_loop"] = elapsed(this_start)
+
     this_start = time()
 
     sorted_objects = sorted(objects, key=lambda x: x.lookup, reverse=False)
@@ -350,6 +360,7 @@ def get_oa_from_redshift_fast(groupby):
             response[obj.lookup] = my_dict
 
     timing["3. second_loop"] = elapsed(this_start)
+    timing["9. TOTAL"] = elapsed(start_time)
 
     return (response, timing)
 
