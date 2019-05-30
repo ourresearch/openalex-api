@@ -10,7 +10,6 @@ from sqlalchemy.orm import column_property
 from cached_property import cached_property
 
 from app import db
-from app import get_db_connection
 from app import get_db_cursor
 
 
@@ -73,11 +72,13 @@ class GeoObject(object):
             setattr(self, k, v)
 
     @classmethod
-    def fetchall(cls, oa_column):
+    def get_all_rows(cls, oa_column):
         with get_db_cursor() as cursor:
-            cursor.execute("select {}, {} from {}".format(cls.__columns__,
+            q = "select {}, {} from {}".format(cls.__columns__,
                                                          oa_column,
-                                                         cls.__tablename__))
+                                                         cls.__tablename__)
+            # print q
+            cursor.execute(q)
             rows = cursor.fetchall()
         my_objects = [cls(row) for row in rows]
         return my_objects
@@ -168,7 +169,7 @@ def get_geo_rows_fast(groupby, oa_filter_list):
     undefer_column = get_oa_column_name(oa_filter_list)
     class_name = u"Geo{}".format(groupby.title())
     my_class = globals()[class_name]
-    fetchall_method = getattr(my_class, "fetchall")
+    fetchall_method = getattr(my_class, "get_all_rows")
     my_objects = fetchall_method(undefer_column)
     # print my_objects
     return my_objects

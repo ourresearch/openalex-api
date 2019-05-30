@@ -111,7 +111,7 @@ app.config["COMPRESS_DEBUG"] = compress_json
 
 
 redshift_url = urlparse.urlparse(os.getenv("DATABASE_URL_REDSHIFT"))
-app.config['postgreSQL_pool'] = ThreadedConnectionPool(1, 5,
+app.config['postgreSQL_pool'] = ThreadedConnectionPool(2, 5,
                                   database=redshift_url.path[1:],
                                   user=redshift_url.username,
                                   password=redshift_url.password,
@@ -123,6 +123,9 @@ app.config['postgreSQL_pool'] = ThreadedConnectionPool(1, 5,
 def get_db_connection():
     try:
         connection = app.config['postgreSQL_pool'].getconn()
+        connection.set_isolation_level(psycopg2.extensions.ISOLATION_LEVEL_AUTOCOMMIT)
+        connection.autocommit=True
+        connection.readonly = True
         yield connection
     finally:
         app.config['postgreSQL_pool'].putconn(connection)
