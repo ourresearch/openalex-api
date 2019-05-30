@@ -82,7 +82,6 @@ def get_oa_from_redshift(my_key):
 
     for obj in objects:
         if since_year==obj.year_int and obj.lookup:
-            column_value = getattr(obj, oa_data_column)
             distinct_articles_proportion_global = 1
             if global_response:
                 distinct_articles_proportion_global = float(out_of_over_years[obj.lookup]) / global_response["global"]["articles"]["num_total"]
