@@ -64,6 +64,41 @@ def get_oa_column_name(oa_filter_list):
             return attr_name
     return u"_".join(sorted(oa_filter_list))
 
+lookup = {
+    "country": {
+        "__tablename__": 'oamonitor_unpaywall_by_country',
+        "__columns__": 'country, country_iso2, country_iso3, subcontinent, continent, year, num_distinct_articles, is_oa'
+    },
+    "subcontinent": {
+        "__tablename__": 'oamonitor_unpaywall_by_subcontinent',
+        "__columns__": 'subcontinent, continent, year, num_distinct_articles, is_oa'
+    },
+    "continent": {
+        "__tablename__": 'oamonitor_unpaywall_by_continent',
+        "__columns__" : 'continent, year, num_distinct_articles, is_oa'
+    },
+    "global": {
+        "__tablename__": 'oamonitor_unpaywall_worldwide',
+        "__columns__" : 'year, num_distinct_articles, is_oa'
+    },
+}
+
+def get_all_rows_fast(groupby, oa_column):
+    with get_db_cursor() as cursor:
+        q = "select {}, {} from {}".format(lookup[groupby]["__columns__"],
+                                             oa_column,
+                                             lookup[groupby]["__tablename__"])
+        # print q
+        cursor.execute(q)
+        rows = cursor.fetchall()
+    return rows
+
+def objects_from_rows(groupby, rows):
+    class_name = u"Geo{}".format(groupby.title())
+    my_class = globals()[class_name]
+    my_objects = [my_class(row) for row in rows]
+    return my_objects
+
 class GeoObject(object):
 
     def __init__(self, row):
@@ -128,6 +163,7 @@ class GeoObject(object):
         return u"{} ({}, {})".format(self.__class__.__name__, self.lookup, self.year_int)
 
 
+
 class GeoCountry(GeoObject):
     __tablename__ = 'oamonitor_unpaywall_by_country'
     __columns__ = 'country, country_iso2, country_iso3, subcontinent, continent, year, num_distinct_articles, is_oa'
@@ -163,16 +199,6 @@ class GeoGlobal(GeoObject):
     def lookup(self):
         return "global"
 
-
-
-def get_geo_rows_fast(groupby, oa_filter_list):
-    undefer_column = get_oa_column_name(oa_filter_list)
-    class_name = u"Geo{}".format(groupby.title())
-    my_class = globals()[class_name]
-    fetchall_method = getattr(my_class, "get_all_rows")
-    my_objects = fetchall_method(undefer_column)
-    # print my_objects
-    return my_objects
 
 
 def get_oa_from_redshift(my_key):
@@ -250,7 +276,7 @@ def get_oa_from_redshift(my_key):
 
 
 
-def get_oa_from_redshift_fast(my_key):
+def get_oa_from_redshift_fast(groupby):
     timing = {}
     start_time = time()
 
@@ -263,15 +289,20 @@ def get_oa_from_redshift_fast(my_key):
     timing["0. prep_elapsed"] = elapsed(start_time)
 
     global_response = None
-    if my_key and my_key != "global":
+    if groupby and groupby != "global":
         (global_response, global_timing) = get_oa_from_redshift("global")
         timing["0.5. get_global"] = global_timing
     else:
-        my_key = "global"
+        groupby = "global"
 
     this_start = time()
-    objects = get_geo_rows_fast(my_key, oa_filter_list)
+    undefer_column = get_oa_column_name(oa_filter_list)
+    rows = get_all_rows_fast(groupby, undefer_column)
     timing["1. get_geo_rows"] = elapsed(this_start)
+    this_start = time()
+
+    objects = objects_from_rows(groupby, rows)
+    timing["1.5 get_geo_objects"] = elapsed(this_start)
     this_start = time()
 
     response = {}
