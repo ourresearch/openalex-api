@@ -39,6 +39,32 @@ def get_geo_rows(groupby, oa_filter_list):
         objects = global_objects
     return objects
 
+def get_oa_column_name(oa_filter_list):
+    all_columns = "bronze_gold_green_hybrid".split("_")
+    if set(oa_filter_list) == set(all_columns):
+        return "is_oa"
+    valid_columns = """
+    bronze
+    green
+    gold
+    hybrid
+    bronze_green
+    bronze_gold
+    bronze_hybrid
+    green_gold
+    green_hybrid
+    gold_hybrid
+    bronze_green_gold
+    bronze_green_hybrid
+    bronze_gold_hybrid
+    green_gold_hybrid""".split()
+    for attr_raw in valid_columns:
+        attr_name = attr_raw.strip()
+        attr_name_parts = sorted([w.lower() for w in attr_name.split("_")])
+        if set(oa_filter_list) == set(attr_name_parts):
+            return attr_name
+    return u"_".join(sorted(oa_filter_list))
+
 class GeoObject(object):
 
     def __init__(self, row):
@@ -47,9 +73,11 @@ class GeoObject(object):
             setattr(self, k, v)
 
     @classmethod
-    def fetchall(cls):
+    def fetchall(cls, oa_column):
         with get_db_cursor() as cursor:
-            cursor.execute("select * from {}".format(cls.__tablename__))
+            cursor.execute("select {}, {} from {}".format(cls.__columns__,
+                                                         oa_column,
+                                                         cls.__tablename__))
             rows = cursor.fetchall()
         my_objects = [cls(row) for row in rows]
         return my_objects
@@ -101,6 +129,7 @@ class GeoObject(object):
 
 class GeoCountry(GeoObject):
     __tablename__ = 'oamonitor_unpaywall_by_country'
+    __columns__ = 'country, country_iso2, country_iso3, subcontinent, continent, year, num_distinct_articles, is_oa'
 
     @property
     def lookup(self):
@@ -109,6 +138,7 @@ class GeoCountry(GeoObject):
 
 class GeoSubcontinent(GeoObject):
     __tablename__ = 'oamonitor_unpaywall_by_subcontinent'
+    __columns__ = 'subcontinent, continent, year, num_distinct_articles, is_oa'
 
     @property
     def lookup(self):
@@ -117,6 +147,7 @@ class GeoSubcontinent(GeoObject):
 
 class GeoContinent(GeoObject):
     __tablename__ = 'oamonitor_unpaywall_by_continent'
+    __columns__ = 'continent, year, num_distinct_articles, is_oa'
 
     @property
     def lookup(self):
@@ -125,6 +156,7 @@ class GeoContinent(GeoObject):
 
 class GeoGlobal(GeoObject):
     __tablename__ = 'oamonitor_unpaywall_worldwide'
+    __columns__ = 'year, num_distinct_articles, is_oa'
 
     @property
     def lookup(self):
@@ -133,11 +165,11 @@ class GeoGlobal(GeoObject):
 
 
 def get_geo_rows_fast(groupby, oa_filter_list):
-    undefer_column = get_oa_column(oa_filter_list)
+    undefer_column = get_oa_column_name(oa_filter_list)
     class_name = u"Geo{}".format(groupby.title())
     my_class = globals()[class_name]
     fetchall_method = getattr(my_class, "fetchall")
-    my_objects = fetchall_method()
+    my_objects = fetchall_method(undefer_column)
     # print my_objects
     return my_objects
 
