@@ -586,6 +586,18 @@ def get_oa_from_redshift_global():
 
 @app.route("/metrics/geo", methods=["GET"])
 @newrelic.agent.function_trace()
+def metrics_oa_geo_hack_for_subcontinents():
+
+    groupby = request.args.get("groupby", "country")
+    if groupby == "country":
+        groupby = "subcontinent_as_country"
+    get_oa_newrelic_wrapper = newrelic.agent.FunctionTraceWrapper(
+        get_oa_from_redshift_fast, name=groupby, group='get_oa_from_redshift')
+    (response, timing) = get_oa_newrelic_wrapper(groupby)
+    return jsonify_fast({"_timing": timing, "response": response})
+
+@app.route("/metrics/geo_real", methods=["GET"])
+@newrelic.agent.function_trace()
 def metrics_oa_geo_fast():
 
     groupby = request.args.get("groupby", "country")
@@ -593,7 +605,6 @@ def metrics_oa_geo_fast():
         get_oa_from_redshift_fast, name=groupby, group='get_oa_from_redshift')
     (response, timing) = get_oa_newrelic_wrapper(groupby)
     return jsonify_fast({"_timing": timing, "response": response})
-
 
 @app.route("/metrics/geo_old", methods=["GET"])
 @newrelic.agent.function_trace()

@@ -38,11 +38,8 @@ def get_geo_rows(groupby, oa_filter_list):
         objects = global_objects
     return objects
 
-def get_oa_column_name(oa_filter_list):
-    all_columns = "bronze_gold_green_hybrid".split("_")
-    if set(oa_filter_list) == set(all_columns):
-        return "is_oa"
-    valid_columns = """
+oa_columns = """
+    is_oa
     bronze
     green
     gold
@@ -57,7 +54,12 @@ def get_oa_column_name(oa_filter_list):
     bronze_green_hybrid
     bronze_gold_hybrid
     green_gold_hybrid""".split()
-    for attr_raw in valid_columns:
+
+def get_oa_column_name(oa_filter_list):
+    all_columns = "bronze_gold_green_hybrid".split("_")
+    if set(oa_filter_list) == set(all_columns):
+        return "is_oa"
+    for attr_raw in oa_columns:
         attr_name = attr_raw.strip()
         attr_name_parts = sorted([w.lower() for w in attr_name.split("_")])
         if set(oa_filter_list) == set(attr_name_parts):
@@ -306,7 +308,19 @@ def get_oa_from_redshift_fast(groupby):
 
     this_start = time()
     undefer_column = get_oa_column_name(oa_filter_list)
-    (rows, rows_timing) = get_all_rows_fast(groupby, undefer_column)
+    if groupby == "subcontinent_as_country":
+        (subcontinent_rows, subcontinent_timing) = get_all_rows_fast("subcontinent", undefer_column)
+        (country_rows, rows_timing) = get_all_rows_fast("country", undefer_column)
+        groupby = "country"
+        rows = []
+        for row in country_rows:
+            new_row = row
+            matching_subcontinent_rows = [r for r in subcontinent_rows if row["year"]==r["year"] and row["subcontinent"]==r["subcontinent"]]
+            for k in ["num_distinct_articles", "is_oa", undefer_column]:
+                new_row[k] = matching_subcontinent_rows[0][k]
+            rows.append(new_row)
+    else:
+        (rows, rows_timing) = get_all_rows_fast(groupby, undefer_column)
     timing["1. get_geo_rows"] = rows_timing
     this_start = time()
 
