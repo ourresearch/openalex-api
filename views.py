@@ -620,6 +620,10 @@ def metrics_oa_geo_all_as_csv():
     # undefer_column = get_oa_column_name(oa_filter_list)
     undefer_column = '*'
     (rows, timing) = get_all_rows_fast(groupby, undefer_column)
+    for row in rows:
+        row["year"] = int(row["year"])
+        row["bronze_gold_green_hybrid"] = row["is_oa"]
+        row["closed"] = row["num_distinct_articles"] - row["is_oa"]
 
     return jsonify_fast({"_timing": timing, "response": {"keys": rows[0].keys(), "values": [r.values() for r in rows]}})
 
