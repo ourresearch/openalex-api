@@ -606,6 +606,24 @@ def metrics_oa_geo_fast():
     (response, timing) = get_oa_newrelic_wrapper(groupby)
     return jsonify_fast({"_timing": timing, "response": response})
 
+@app.route("/metrics/geo_all", methods=["GET"])
+@newrelic.agent.function_trace()
+def metrics_oa_geo_all_as_csv():
+    groupby = request.args.get("groupby", "country")
+
+    oa_request = request.args.get("oa", "na")
+    if oa_request in ("all", "any"):
+        oa_request = "bronze,green,gold,hybrid"
+    oa_filter_list = [w.strip() for w in oa_request.lower().split(",")]
+
+    from geo import get_all_rows_fast, get_oa_column_name
+    # undefer_column = get_oa_column_name(oa_filter_list)
+    undefer_column = '*'
+    (rows, timing) = get_all_rows_fast(groupby, undefer_column)
+
+    return jsonify_fast({"_timing": timing, "response": {"keys": rows[0].keys(), "values": [r.values() for r in rows]}})
+
+
 @app.route("/metrics/geo_old", methods=["GET"])
 @newrelic.agent.function_trace()
 def metrics_oa_geo():
