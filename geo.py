@@ -318,6 +318,7 @@ def get_oa_from_redshift_fast(groupby):
             matching_subcontinent_rows = [r for r in subcontinent_rows if row["year"]==r["year"] and row["subcontinent"]==r["subcontinent"]]
             for k in ["num_distinct_articles", "is_oa", undefer_column]:
                 new_row[k] = matching_subcontinent_rows[0][k]
+            new_row["country"] = u"{} ({})".format(row["country"], row["subcontinent"])
             rows.append(new_row)
     else:
         (rows, rows_timing) = get_all_rows_fast(groupby, undefer_column)
