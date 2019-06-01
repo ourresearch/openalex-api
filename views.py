@@ -20,6 +20,7 @@ from sqlalchemy import sql
 from sqlalchemy import orm
 import newrelic.agent
 import psycopg2
+import hashlib
 
 from app import app
 from app import db
@@ -33,6 +34,7 @@ from institution import Institution
 from geo import get_geo_rows
 from geo import get_oa_from_redshift
 from geo import get_oa_from_redshift_fast
+from geo import get_all_rows_fast
 from transformative_agreement import TransformativeAgreement
 from util import str2bool
 from util import normalize_title
@@ -609,23 +611,29 @@ def metrics_oa_geo_fast():
 @app.route("/metrics/geo_all", methods=["GET"])
 @newrelic.agent.function_trace()
 def metrics_oa_geo_all_as_csv():
-    groupby = request.args.get("groupby", "country")
 
-    oa_request = request.args.get("oa", "na")
-    if oa_request in ("all", "any"):
-        oa_request = "bronze,green,gold,hybrid"
-    oa_filter_list = [w.strip() for w in oa_request.lower().split(",")]
+    all_response_values = []
+    for level in ["country", "subcontinent", "continent", "global"]:
 
-    from geo import get_all_rows_fast, get_oa_column_name
-    # undefer_column = get_oa_column_name(oa_filter_list)
-    undefer_column = '*'
-    (rows, timing) = get_all_rows_fast(groupby, undefer_column)
-    for row in rows:
-        row["year"] = int(row["year"])
-        row["bronze_gold_green_hybrid"] = row["is_oa"]
-        row["closed"] = row["num_distinct_articles"] - row["is_oa"]
+        # undefer_column = get_oa_column_name(oa_filter_list)
+        undefer_column = '*'
+        (rows, timing) = get_all_rows_fast(level, undefer_column)
+        for row in rows:
+            if row.get(level, "global"):
+                row["bronze_gold_green_hybrid"] = row["is_oa"]
+                row["closed"] = row["num_distinct_articles"] - row["is_oa"]
+                row["year"] = int(row["year"])
+                row["continent"] = row.get("continent", None)
+                row["subcontinent"] = row.get("subcontinent", None)
+                row["name"] = row.get(level, "global")
+                row["id"] = row.get("country_iso3", hashlib.md5(row["name"].encode()).hexdigest()[0:4])
+                row["level"] = level
+                all_response_values.append(row)
 
-    return jsonify_fast({"_timing": timing, "response": {"keys": rows[0].keys(), "values": [r.values() for r in rows]}})
+    keys = rows[0].keys()
+    keys.reverse()  # a bit nicer this way
+    values = [[r[k] for k in keys] for r in all_response_values]  # do it this way to make sure they are in order
+    return jsonify_fast({"_timing": timing, "response": {"keys": keys, "values": values}})
 
 
 @app.route("/metrics/geo_old", methods=["GET"])

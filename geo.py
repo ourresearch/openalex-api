@@ -218,7 +218,7 @@ def get_oa_from_redshift(my_key):
 
     since_year = int(request.args.get("since", "2009"))
 
-    oa_request = request.args.get("oa", "na")
+    oa_request = request.args.get("oa", "all")
     if oa_request in ("all", "any"):
         oa_request = "bronze,green,gold,hybrid"
     oa_filter_list = [w.strip() for w in oa_request.lower().split(",")]
@@ -293,7 +293,7 @@ def get_oa_from_redshift_fast(groupby):
 
     since_year = request.args.get("since", "2009")
 
-    oa_request = request.args.get("oa", "na")
+    oa_request = request.args.get("oa", "all")
     if oa_request in ("all", "any"):
         oa_request = "bronze,green,gold,hybrid"
     oa_filter_list = [w.strip() for w in oa_request.lower().split(",")]
