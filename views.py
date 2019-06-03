@@ -626,7 +626,7 @@ def metrics_oa_geo_all_as_csv():
                 row["subcontinent"] = row.get("subcontinent", None)
                 row["name"] = row.get(level, "global")
                 row["iso2"] = row.get("country_iso2", None)
-                row["id"] = row.get("country_iso2", hashlib.md5(row["name"].encode()).hexdigest()[0:4])
+                row["id"] = row.get("country_iso3", hashlib.md5(row["name"].encode()).hexdigest()[0:4])
                 row["level"] = level
                 all_response_values.append(row)
 
