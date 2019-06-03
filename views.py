@@ -615,7 +615,6 @@ def metrics_oa_geo_all_as_csv():
     all_response_values = []
     for level in ["country", "subcontinent", "continent", "global"]:
 
-        # undefer_column = get_oa_column_name(oa_filter_list)
         undefer_column = '*'
         (rows, timing) = get_all_rows_fast(level, undefer_column)
         for row in rows:
@@ -626,7 +625,8 @@ def metrics_oa_geo_all_as_csv():
                 row["continent"] = row.get("continent", None)
                 row["subcontinent"] = row.get("subcontinent", None)
                 row["name"] = row.get(level, "global")
-                row["id"] = row.get("country_iso3", hashlib.md5(row["name"].encode()).hexdigest()[0:4])
+                row["iso2"] = row.get("country_iso2", None)
+                row["id"] = row.get("country_iso2", hashlib.md5(row["name"].encode()).hexdigest()[0:4])
                 row["level"] = level
                 all_response_values.append(row)
 
@@ -634,22 +634,6 @@ def metrics_oa_geo_all_as_csv():
     keys.reverse()  # a bit nicer this way
     values = [[r[k] for k in keys] for r in all_response_values]  # do it this way to make sure they are in order
     return jsonify_fast({"_timing": timing, "response": {"keys": keys, "values": values}})
-
-
-@app.route("/metrics/geo_old", methods=["GET"])
-@newrelic.agent.function_trace()
-def metrics_oa_geo():
-    groupby = request.args.get("groupby", "country")
-    if groupby=="country":
-        (response, timing) = get_oa_from_redshift_country()
-    if groupby=="subcontinent":
-        (response, timing) = get_oa_from_redshift_subcontinent()
-    if groupby=="continent":
-        (response, timing) = get_oa_from_redshift_continent()
-    if groupby=="global":
-        (response, timing) = get_oa_from_redshift_global()
-    return jsonify_fast({"_timing": timing, "response": response})
-
 
 
 @app.route("/subscriptions.csv", methods=["GET"])
@@ -662,164 +646,6 @@ def unpaywall_metrics_subscriptions_csv():
     key = bucket.lookup(filename)
 
     return Response(key, mimetype="text/csv")
-
-
-temp_response = {
-  "_timing": {
-    "0. prep_elapsed": 0.0,
-    "0.5. get_global": {
-      "0. prep_elapsed": 0.0,
-      "1. get_geo_rows": 0.0,
-      "2. first_loop": 0.0,
-      "3. second_loop": 0.0
-    },
-    "1. get_geo_rows": 0.16,
-    "2. first_loop": 0.0,
-    "3. second_loop": 0.0
-  },
-  "response": {
-    "Africa": {
-      "articles": {
-        "num_oa": 36802,
-        "num_total": 151219,
-        "prop_global": 0.03099,
-        "prop_oa": 0.24337,
-        "prop_oa_by_year": [
-          [
-            2017,
-            0.23847
-          ],
-          [
-            2018,
-            0.24816
-          ]
-        ]
-      },
-      "continent": "Africa",
-      "name": "Africa",
-      "name_iso2": None,
-      "name_iso3": None,
-      "oa_types": [
-        "gold"
-      ],
-      "since": 2017,
-      "subcontinent": None
-    },
-    "Americas": {
-      "articles": {
-        "num_oa": 325953,
-        "num_total": 1837062,
-        "prop_global": 0.37647,
-        "prop_oa": 0.17743,
-        "prop_oa_by_year": [
-          [
-            2017,
-            0.16887
-          ],
-          [
-            2018,
-            0.18629
-          ]
-        ]
-      },
-      "continent": "Americas",
-      "name": "Americas",
-      "name_iso2": None,
-      "name_iso3": None,
-      "oa_types": [
-        "gold"
-      ],
-      "since": 2017,
-      "subcontinent": None
-    },
-    "Asia": {
-      "articles": {
-        "num_oa": 320989,
-        "num_total": 1881617,
-        "prop_global": 0.3856,
-        "prop_oa": 0.17059,
-        "prop_oa_by_year": [
-          [
-            2017,
-            0.16252
-          ],
-          [
-            2018,
-            0.17848
-          ]
-        ]
-      },
-      "continent": "Asia",
-      "name": "Asia",
-      "name_iso2": None,
-      "name_iso3": None,
-      "oa_types": [
-        "gold"
-      ],
-      "since": 2017,
-      "subcontinent": None
-    },
-    "Europe": {
-      "articles": {
-        "num_oa": 303191,
-        "num_total": 1722628,
-        "prop_global": 0.35302,
-        "prop_oa": 0.176,
-        "prop_oa_by_year": [
-          [
-            2017,
-            0.16443
-          ],
-          [
-            2018,
-            0.18811
-          ]
-        ]
-      },
-      "continent": "Europe",
-      "name": "Europe",
-      "name_iso2": None,
-      "name_iso3": None,
-      "oa_types": [
-        "gold"
-      ],
-      "since": 2017,
-      "subcontinent": None
-    },
-    "Oceania": {
-      "articles": {
-        "num_oa": 36477,
-        "num_total": 233123,
-        "prop_global": 0.04777,
-        "prop_oa": 0.15647,
-        "prop_oa_by_year": [
-          [
-            2017,
-            0.14687
-          ],
-          [
-            2018,
-            0.16639
-          ]
-        ]
-      },
-      "continent": "Oceania",
-      "name": "Oceania",
-      "name_iso2": None,
-      "name_iso3": None,
-      "oa_types": [
-        "gold"
-      ],
-      "since": 2017,
-      "subcontinent": None
-    }
-  }
-}
-
-@app.route("/test", methods=["GET"])
-@newrelic.agent.function_trace()
-def test_timing():
-    return jsonify_fast(temp_response)
 
 
 if __name__ == "__main__":
