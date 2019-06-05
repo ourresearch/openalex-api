@@ -16,6 +16,7 @@ import random
 import warnings
 import urlparse
 import psycopg2
+import psycopg2.extras # needed though you wouldn't guess it
 from psycopg2.pool import ThreadedConnectionPool
 from contextlib import contextmanager
 
