@@ -27,7 +27,7 @@ has_green
 has_gold
 has_bronze
 is_in_doaj
-journal
+issnl
 publisher
 year
 city
