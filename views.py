@@ -620,6 +620,10 @@ def metrics_oa_geo_all_as_csv():
         for row in rows:
             if row.get(level, "global"):
                 row["bronze_gold_green_hybrid"] = row["is_oa"]
+                row["gold_green_hybrid"] = row["green_gold_hybrid"]
+                del(row["green_gold_hybrid"])
+                row["bronze_gold_green"] = row["bronze_green_gold"]
+                del(row["bronze_green_gold"])
                 row["closed"] = row["num_distinct_articles"] - row["is_oa"]
                 row["year"] = int(row["year"])
                 row["continent"] = row.get("continent", None)
@@ -634,6 +638,33 @@ def metrics_oa_geo_all_as_csv():
     keys.reverse()  # a bit nicer this way
     values = [[r[k] for k in keys] for r in all_response_values]  # do it this way to make sure they are in order
     return jsonify_fast({"_timing": timing, "response": {"keys": keys, "values": values}})
+
+@app.route("/metrics/map/continent", methods=["GET"])
+@newrelic.agent.function_trace()
+def metrics_continent_map():
+    with open("data/world-continents.json") as f:
+        data = f.read()
+    return Response(data, mimetype="application/json")
+
+@app.route("/metrics/map/countries", methods=["GET"])
+@newrelic.agent.function_trace()
+def metrics_countries_map():
+    with open("data/world-countries-sans-antarctica.json") as f:
+        data = f.read()
+    return Response(data, mimetype="application/json")
+
+@app.route("/metrics/iso2_to_iso3", methods=["GET"])
+@newrelic.agent.function_trace()
+def metrics_iso2_to_iso3():
+
+    all_response_values = {}
+    (rows, timing) = get_all_rows_fast("country", "country_iso2, country_iso3")
+    for row in rows:
+        all_response_values[row["country_iso2"]] = row["country_iso3"]
+
+    return jsonify_fast({"_timing": timing, "response": all_response_values})
+
+
 
 
 @app.route("/subscriptions.csv", methods=["GET"])
