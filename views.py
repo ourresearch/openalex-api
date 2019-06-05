@@ -646,7 +646,7 @@ def metrics_continent_map():
         data = f.read()
     return Response(data, mimetype="application/json")
 
-@app.route("/metrics/map/countries", methods=["GET"])
+@app.route("/metrics/map/country", methods=["GET"])
 @newrelic.agent.function_trace()
 def metrics_countries_map():
     with open("data/world-countries-sans-antarctica.json") as f:
