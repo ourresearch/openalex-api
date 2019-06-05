@@ -66,7 +66,7 @@ if __name__ == "__main__":
     print u"done, took {} seconds".format(elapsed(start_time))
 
     while True:
-        num_columns = random.randint(0,4)
+        num_columns = random.randint(1,4)
         chosen_columns = random.sample(all_columns, num_columns)
 
         # chosen_columns = ["has_green", "state"]
