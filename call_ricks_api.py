@@ -35,7 +35,11 @@ state
 country
 continent
 subcontinent""".split("\n")
-
+# number of combos of length up to four
+# is 15 choose 4 + 15 choose 3 + ... 15 choose 1  https://www.calculatorsoup.com/calculators/discretemathematics/combinations.php?n=15&r=4&action=solve
+# = 1365 + 455 + 105 + 15
+# = 1940
+# 3.5 seconds per = 3.5*1940 = 6790 seconds = 1.9 hours until everything has been primed once
 
 def get_column_values(column):
     with get_db_cursor() as cursor:
