@@ -34,13 +34,14 @@ all_columns = ['v.doi', 'v.is_oa', 'v.has_hybrid', 'v.has_green', 'v.has_gold', 
 def get_column_values(column):
     print u"getting values for column {}".format(column)
     (column_table, column_solo) = column.split(".")
-    join_with_a = (column_table == "a")
-    join_clause = u" "
-    if join_with_a:
-        join_clause += u" join mag_authors_paperid a on v.doi=a.doi "
+    if (column_table == "a"):
+        table = "mag_authors_paperid a"
+    else:
+        table = "ricks_temp_pub_affil_journals2 v"
 
     with get_db_cursor() as cursor:
-        q = "select {} from ricks_temp_pub_affil_journals2 v {} where {} is not null order by random() limit 100".format(column, join_clause, column)
+        q = "select {column} from {table} where {column} is not null order by random() limit 100".format(
+            column=column, table=table)
         cursor.execute(q)
         rows = cursor.fetchall()
     values = []
