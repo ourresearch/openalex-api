@@ -7,6 +7,7 @@ import re
 import argparse
 import random
 from time import time
+from itertools import combinations
 
 from app import db
 from util import run_sql
@@ -53,10 +54,17 @@ def get_column_values(column):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Run stuff.")
-    parser.add_argument('--pg', nargs="?", type=str, help="table name in postgres (eg bq_journals)")
-    parser.add_argument('--bq', nargs="?", type=str, help="table name in bigquery (eg unpaywall.journals)")
+    parser.add_argument('--warm', action='store_true', help="warm cache")
 
     parsed_args = parser.parse_args()
+    parsed_vars = vars(parsed_args)
+
+    if parsed_vars.get("warm"):
+        chosen_columns_combinations_remaining = []
+        for num_columns in range(1, 5):
+            chosen_columns_combinations_remaining += combinations(all_columns, num_columns)
+        # print chosen_columns_combinations_remaining
+        random.shuffle(chosen_columns_combinations_remaining)
 
     start_time = time()
     print "getting valid column values"
@@ -66,9 +74,17 @@ if __name__ == "__main__":
         column_values[c] = get_column_values(c)
     print u"done, took {} seconds".format(elapsed(start_time))
 
-    while True:
-        num_columns = random.randint(1,4)
-        chosen_columns = random.sample(all_columns, num_columns)
+
+    keep_running = True
+    while keep_running:
+
+        if chosen_columns_combinations_remaining:
+            chosen_columns = chosen_columns_combinations_remaining.pop()
+            if not chosen_columns_combinations_remaining:
+                keep_running = False
+        else:
+            num_columns = random.randint(1,4)
+            chosen_columns = random.sample(all_columns, num_columns)
 
         # chosen_columns = ["has_green", "state"]
         # print num_columns, chosen_columns
