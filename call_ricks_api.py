@@ -60,8 +60,8 @@ if __name__ == "__main__":
     parsed_args = parser.parse_args()
     parsed_vars = vars(parsed_args)
 
+    chosen_columns_combinations_remaining = []
     if parsed_vars.get("warm"):
-        chosen_columns_combinations_remaining = []
         for num_columns in range(1, 5):
             chosen_columns_combinations_remaining += combinations(all_columns, num_columns)
         # print chosen_columns_combinations_remaining
