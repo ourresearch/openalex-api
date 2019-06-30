@@ -49,8 +49,9 @@ def get_column_values(column):
         if isinstance(row[column_solo], bool) or isinstance(row[column_solo], int) or isinstance(row[column_solo], long):
             value = row[column_solo]
         else:
-            value = u"'{}'".format(row[column_solo].decode('utf-8'))
+            value = row[column_solo].decode('utf-8')
             value = value.replace("'", "''")
+            value = u"'{}'".format(value)
         values.append(value)
     return values
 
