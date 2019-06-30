@@ -47,9 +47,11 @@ def get_column_values(column):
     values = []
     for row in rows:
         if isinstance(row[column_solo], bool) or isinstance(row[column_solo], int) or isinstance(row[column_solo], long):
-            values.append(row[column_solo])
+            value = row[column_solo]
         else:
-            values.append(u"'{}'".format(row[column_solo].decode('utf-8')))
+            value = u"'{}'".format(row[column_solo].decode('utf-8'))
+            value = value.replace("'", "''")
+        values.append(value)
     return values
 
 
