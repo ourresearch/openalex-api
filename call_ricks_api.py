@@ -48,11 +48,13 @@ def get_column_values(column):
     for row in rows:
         if isinstance(row[column_solo], bool) or isinstance(row[column_solo], int) or isinstance(row[column_solo], long):
             value = row[column_solo]
+            values.append(value)
         else:
             value = row[column_solo].decode('utf-8')
             value = value.replace("'", "''")
             value = u"'{}'".format(value)
-        values.append(value)
+            if value:
+                values.append(value)  # don't include empty strings
     return values
 
 
