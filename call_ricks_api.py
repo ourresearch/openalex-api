@@ -52,8 +52,8 @@ def get_column_values(column):
         else:
             value = row[column_solo].decode('utf-8')
             value = value.replace("'", "''")
-            value = u"'{}'".format(value)
             if value:
+                value = u"'{}'".format(value)
                 values.append(value)  # don't include empty strings
     return values
 
