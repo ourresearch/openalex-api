@@ -22,7 +22,7 @@ from app import get_db_cursor
 # pick an aggregation level (top dois, top journals, top publishers, top countries)
 
 all_columns = ['v.doi', 'v.is_oa', 'v.has_hybrid', 'v.has_green', 'v.has_gold', 'v.has_bronze',
-               'v.is_in_doaj', 'v.issnl', 'v.publisher', 'v.org', 'v.year', 'v.city', 'v.state', 'v.country',
+               'v.issn_l', 'v.publisher', 'v.org', 'v.year', 'v.city', 'v.state', 'v.country',
                'v.continent', 'v.subcontinent', 'a.normalized_name']
 
 # number of combos of length up to four
@@ -37,7 +37,7 @@ def get_column_values(column):
     if (column_table == "a"):
         table = "mag_authors_paperid3 a"
     else:
-        table = "ricks_temp_pub_affil_journals3 v"
+        table = "ricks_fast_pub_affil_journal v"
 
     with get_db_cursor() as cursor:
         q = "select {column} from {table} where {column} is not null order by random() limit 100".format(
@@ -111,7 +111,7 @@ if __name__ == "__main__":
             timing["0. in with"] = elapsed(start_time)
 
             start_time = time()
-            q = u"select count(distinct v.doi) from ricks_temp_pub_affil_journals3 v {} where {}".format(join_clause, where_clause)
+            q = u"select count(distinct v.doi) from ricks_fast_pub_affil_journal v {} where {}".format(join_clause, where_clause)
 
             cursor.execute(q)
             timing["1. after execute"] = elapsed(start_time)
