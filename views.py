@@ -322,8 +322,9 @@ def search_journals_get(journal_query):
 
     return jsonify({ "list": responses, "count": len(responses)})
 
-@app.route("/subscriptions", methods=["GET"])
-def unpaywall_journals_subscriptions_get():
+
+@app.route("/subscriptions_old", methods=["GET"])
+def unpaywall_journals_subscriptions_get_old():
     responses = []
 
     command = """select cdl_subscription_summary_mv.issnl, journal_name, from_date, cdl_subscription_summary_mv.num_dois, num_oa, oa_rate, issns,
@@ -350,6 +351,60 @@ def unpaywall_journals_subscriptions_get():
             "issns": row[6],
             "score": row[7]
 
+        }
+        responses.append(to_dict)
+
+    responses = sorted(responses, key=lambda k: k['score'], reverse=True)
+
+    return jsonify({ "list": responses, "count": len(responses)})
+
+
+
+
+@app.route("/subscriptions", methods=["GET"])
+def unpaywall_journals_subscriptions_get():
+    responses = []
+
+    command = """with journal_stats as (
+                    select journal_issn_l,
+                    max(cdl.from_date) as from_date,
+                    max(cdl.to_date) as to_date,                     
+                    count(*) as num_papers, 
+                    sum(case when is_oa='true' then 1 else 0 end) as num_is_oa, 
+                    sum(case when oa_status in ('gold', 'hybrid', 'bronze') then 1 else 0 end) as num_publisher_hosted, 
+                    sum(        CASE
+                                WHEN 'repository' in ( SELECT host_type
+                                   FROM unpaywall_oa_location uoa
+                                  WHERE j.doi::text = uoa.doi::text) THEN 1
+                                ELSE 0
+                            END) as num_repository_hosted                    
+                    from unpaywall j
+                    join cdl_journals_temp_with_issn_l cdl on j.journal_issn_l = cdl.issn_l
+                    where 
+                    j.published_date > coalesce(cdl.from_date, '1900-01-01'::timestamp) and j.published_date < coalesce(cdl.to_date, '2100-01-01'::timestamp) 
+                    group by journal_issn_l)
+                    (select j.title, j.publisher, j.issns, journal_stats.*
+                    from journal_stats, ricks_journal j where journal_stats.journal_issn_l = j.issn_l
+                    )"""
+
+    with get_db_cursor() as cursor:
+        cursor.execute(command)
+        rows = cursor.fetchall()
+
+    for row in rows:
+        to_dict = {
+            "issnl": row["journal_issn_l"],
+            "journal_name": row["title"],
+            "publisher": row["publisher"],
+            "subscription_start_date": row["from_date"],
+            "subscription_to_date": row["to_date"],
+            "num_dois": row["num_papers"],
+            "num_oa": row["num_is_oa"],
+            "proportion_publisher_hosted": float(row["num_publisher_hosted"]) / row["num_papers"],
+            "proportion_repository_hosted": float(row["num_repository_hosted"]) / row["num_papers"],
+            "proportion_oa": float(row["num_is_oa"]) / row["num_papers"],
+            "issns": json.loads(row["issns"]),
+            "score": row["num_papers"]
         }
         responses.append(to_dict)
 
@@ -441,7 +496,7 @@ def unpaywall_journals_issn(q):
 
 
 @app.route("/breakdown", methods=["GET"])
-def unpaywall_metrics_breakdown():
+def unpaywall_journals_breakdown():
     q = """
      SELECT 
     count(id) FILTER (where oa_status = 'closed') as num_closed,
@@ -513,7 +568,7 @@ def get_total_count():
 
 
 @app.route("/articles", methods=["GET"])
-def unpaywall_metrics_articles_paged():
+def unpaywall_journals_articles_paged():
 
     # page starts at 1 not 0
     if request.args.get("page"):
@@ -557,7 +612,7 @@ def unpaywall_metrics_articles_paged():
 
 
 @app.route("/articles.csv.gz", methods=["GET"])
-def unpaywall_metrics_articles_csv_gz():
+def unpaywall_journals_articles_csv_gz():
     filename = "cdl_articles.csv.gz"
 
     s3 = boto.connect_s3()
@@ -668,7 +723,7 @@ def metrics_iso2_to_iso3():
 
 
 @app.route("/subscriptions.csv", methods=["GET"])
-def unpaywall_metrics_subscriptions_csv():
+def unpaywall_journals_subscriptions_csv():
     filename = "cdl_subscriptions.csv"
 
     s3 = boto.connect_s3()
