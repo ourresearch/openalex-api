@@ -324,71 +324,48 @@ def search_journals_get(journal_query):
     return jsonify({ "list": responses, "count": len(responses)})
 
 
-@app.route("/subscriptions_old", methods=["GET"])
-def unpaywall_journals_subscriptions_get_old():
-    responses = []
-
-    command = """select cdl_subscription_summary_mv.issnl, journal_name, from_date, cdl_subscription_summary_mv.num_dois, num_oa, oa_rate, issns,
-                cdl_subscription_summary_mv.num_dois  as score,
-                proportion_is_oa, proportion_repository_hosted, proportion_publisher_hosted
-            from cdl_subscription_summary_mv, cdl_subscription_oa_counts_mv
-            where cdl_subscription_summary_mv.issnl = cdl_subscription_oa_counts_mv.issnl
-            order by cdl_subscription_summary_mv.num_dois desc
-                """
-    res = db.session.connection().execute(sql.text(command), bind=db.get_engine(app, 'unpaywall_db'))
-    rows = res.fetchall()
-
-    for row in rows:
-        to_dict = {
-            "issnl": row[0],
-            "journal_name": row[1],
-            "publisher": "Elsevier",
-            "subscription_start_date": row[2].isoformat(),
-            "num_dois": row[3],
-            "num_oa": row[4],
-            "proportion_oa": row[8],
-            "proportion_repository_hosted": row[9],
-            "proportion_publisher_hosted": row[10],
-            "issns": row[6],
-            "score": row[7]
-
-        }
-        responses.append(to_dict)
-
-    responses = sorted(responses, key=lambda k: k['score'], reverse=True)
-
-    return jsonify({ "list": responses, "count": len(responses)})
-
-
-
-def get_subscriptions():
-    responses = []
-    command = """with journal_stats as (
-                    select journal_issn_l,
-                    max(cdl.from_date) as from_date,
-                    max(cdl.to_date) as to_date,                     
-                    count(*) as num_papers, 
-                    sum(case when is_oa='true' then 1 else 0 end) as num_is_oa, 
-                    sum(case when oa_status in ('gold', 'hybrid', 'bronze') then 1 else 0 end) as num_publisher_hosted, 
-                    sum(        CASE
-                                WHEN 'repository' in ( SELECT host_type
-                                   FROM unpaywall_oa_location_production uoa
-                                  WHERE j.doi::text = uoa.doi::text) THEN 1
-                                ELSE 0
-                            END) as num_repository_hosted                    
-                    from unpaywall_production j
-                    join cdl_journals_temp_with_issn_l cdl on j.journal_issn_l = cdl.issn_l
-                    where 
-                    j.published_date > coalesce(cdl.from_date, '1900-01-01'::timestamp) and j.published_date < coalesce(cdl.to_date, '2100-01-01'::timestamp) 
-                    group by journal_issn_l)
-                    (select j.title, j.publisher, j.issns, journal_stats.*
+def get_subscription_rows():
+    command = """with unpaywall_host_type_derived as (
+            select journal_issn_l, 
+            published_date,
+            oa_status,
+            is_oa='true' as is_oa, 
+            oa_status in ('gold', 'hybrid', 'bronze') as is_publisher_hosted, 
+            case when 'repository' in ( SELECT host_type
+                           FROM unpaywall_oa_location_production uoa
+                          WHERE u.doi::text = uoa.doi::text) then true else false end as is_repository_hosted
+            from unpaywall_production u
+        ) ,       
+        journal_stats as (
+            select journal_issn_l, 
+            max(cdl.from_date) as from_date,
+            max(cdl.to_date) as to_date,
+            count(*) as num_papers, 
+            sum(case when is_oa then 1 else 0 end) as num_is_oa, 
+            sum(case when is_publisher_hosted then 1 else 0 end) as num_publisher_hosted, 
+            sum(case when is_repository_hosted then 1 else 0 end) as num_repository_hosted, 
+            sum(case when is_repository_hosted and is_publisher_hosted then 1 else 0 end) as num_has_repository_hosted_and_has_publisher_hosted,              
+            sum(case when is_repository_hosted and not is_publisher_hosted then 1 else 0 end) as num_has_repository_hosted_and_not_publisher_hosted            ,  
+            sum(case when not is_repository_hosted and is_publisher_hosted then 1 else 0 end) as num_not_repository_hosted_and_has_publisher_hosted              
+            from unpaywall_host_type_derived j
+            join cdl_journals_temp_with_issn_l cdl on j.journal_issn_l = cdl.issn_l
+            where 
+            j.published_date > coalesce(cdl.from_date, '1900-01-01'::timestamp) and j.published_date < coalesce(cdl.to_date, '2100-01-01'::timestamp) 
+            group by journal_issn_l
+        )
+        (select j.title, j.publisher, j.issns, journal_stats.*
                     from journal_stats, ricks_journal j where journal_stats.journal_issn_l = j.issn_l
-                    )"""
+                    )
+        """
 
     with get_db_cursor() as cursor:
         cursor.execute(command)
         rows = cursor.fetchall()
+    return rows
 
+def get_subscriptions():
+    responses = []
+    rows = get_subscription_rows()
     for row in rows:
         to_dict = {
             "issnl": row["journal_issn_l"],
@@ -437,30 +414,16 @@ def unpaywall_journals_issn(q):
 
 @app.route("/breakdown", methods=["GET"])
 def unpaywall_journals_breakdown():
-    q = """
-     SELECT 
-    count(id) FILTER (where oa_status = 'closed') as num_closed,
-    count(id) FILTER (where has_green and oa_status in ('hybrid', 'bronze', 'gold')) as num_has_repo_and_has_publisher,
-    count(id) FILTER (where has_green and not oa_status in ('hybrid', 'bronze', 'gold')) as num_has_repo_and_not_publisher,
-    count(id) FILTER (where (not has_green) and oa_status in ('hybrid', 'bronze', 'gold')) as num_not_repo_and_has_publisher,
-    count(id) as num_total
-   FROM subscription_dois_with_attributes_mv
-  where published_date is not null 
-   """
-    article_query_rows = db.engine.execute(sql.text(q)).fetchall()
-    article_numbers = article_query_rows[0]
-    q = "select count(*) from cdl_journals"
-    num_journals = get_sql_answer(db, q)
-
+    rows = get_subscription_rows()
     response = {
         "article_breakdown": {
-            "num_closed": article_numbers[0],
-            "num_has_repository_hosted_and_has_publisher_hosted": article_numbers[1],
-            "num_has_repository_hosted_and_not_publisher_hosted": article_numbers[2],
-            "num_not_repository_hosted_and_has_publisher_hosted": article_numbers[3]
+            "num_closed": sum([r["num_papers"] - r["num_is_oa"] for r in rows]),
+            "num_has_repository_hosted_and_has_publisher_hosted": sum([r["num_has_repository_hosted_and_has_publisher_hosted"] for r in rows]),
+            "num_has_repository_hosted_and_not_publisher_hosted": sum([r["num_has_repository_hosted_and_not_publisher_hosted"] for r in rows]),
+            "num_not_repository_hosted_and_has_publisher_hosted": sum([r["num_not_repository_hosted_and_has_publisher_hosted"] for r in rows])
         },
-        "num_articles_total": article_numbers[4],
-        "num_journals_total": num_journals,
+        "num_articles_total": sum([r["num_papers"] for r in rows]),
+        "num_journals_total": len(rows),
     }
     return jsonify(response)
 
