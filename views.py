@@ -372,11 +372,11 @@ def get_subscriptions():
                     sum(case when oa_status in ('gold', 'hybrid', 'bronze') then 1 else 0 end) as num_publisher_hosted, 
                     sum(        CASE
                                 WHEN 'repository' in ( SELECT host_type
-                                   FROM unpaywall_oa_location uoa
+                                   FROM unpaywall_oa_location_production uoa
                                   WHERE j.doi::text = uoa.doi::text) THEN 1
                                 ELSE 0
                             END) as num_repository_hosted                    
-                    from unpaywall j
+                    from unpaywall_production j
                     join cdl_journals_temp_with_issn_l cdl on j.journal_issn_l = cdl.issn_l
                     where 
                     j.published_date > coalesce(cdl.from_date, '1900-01-01'::timestamp) and j.published_date < coalesce(cdl.to_date, '2100-01-01'::timestamp) 
