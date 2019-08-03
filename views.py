@@ -15,6 +15,7 @@ from time import time
 import boto
 from util import read_csv_file
 from util import elapsed
+from util import to_unicode_or_bust
 from collections import defaultdict
 from sqlalchemy import sql
 from sqlalchemy import orm
@@ -360,11 +361,8 @@ def unpaywall_journals_subscriptions_get_old():
 
 
 
-
-@app.route("/subscriptions", methods=["GET"])
-def unpaywall_journals_subscriptions_get():
+def get_subscriptions():
     responses = []
-
     command = """with journal_stats as (
                     select journal_issn_l,
                     max(cdl.from_date) as from_date,
@@ -406,93 +404,35 @@ def unpaywall_journals_subscriptions_get():
             "issns": json.loads(row["issns"]),
             "score": row["num_papers"]
         }
+        for date_key in (["subscription_start_date", "subscription_to_date"]):
+            if to_dict[date_key]:
+                to_dict[date_key] = to_dict[date_key].isoformat()[0:10]
         responses.append(to_dict)
 
     responses = sorted(responses, key=lambda k: k['score'], reverse=True)
+    return responses
 
+@app.route("/subscriptions", methods=["GET"])
+def unpaywall_journals_subscriptions_get():
+    responses = get_subscriptions()
     return jsonify({ "list": responses, "count": len(responses)})
 
 @app.route("/subscriptions/name/<q>", methods=["GET"])
 def unpaywall_journals_autocomplete_journals(q):
-    ret = []
-
-    query_for_search = re.sub(r'[!\'()|&]', ' ', q).strip()
-    if query_for_search:
-        query_for_search = re.sub(r'\s+', ' & ', query_for_search)
-        query_for_search += ':*'
-
-    command = """select cdl_subscription_summary_mv.issnl, journal_name, from_date, cdl_subscription_summary_mv.num_dois, num_oa, oa_rate, issns,
-                ts_rank_cd(to_tsvector('only_stop_words', journal_name), query, 1) as text_rank,
-                cdl_subscription_summary_mv.num_dois + 10000 * ts_rank_cd(to_tsvector('only_stop_words', journal_name), query, 1) as score,
-                proportion_is_oa, proportion_repository_hosted, proportion_publisher_hosted
-            from cdl_subscription_summary_mv, to_tsquery('only_stop_words', '{query_for_search}') query, cdl_subscription_oa_counts_mv
-            where to_tsvector('only_stop_words', journal_name) @@ query
-            and cdl_subscription_summary_mv.issnl = cdl_subscription_oa_counts_mv.issnl
-            order by cdl_subscription_summary_mv.num_dois + 10000 * ts_rank_cd(to_tsvector('only_stop_words', journal_name), query, 1) desc
-            limit 10
-    """.format(query_for_search=query_for_search)
-    print command
-    res = db.session.connection().execute(sql.text(command), bind=db.get_engine(app, 'unpaywall_db'))
-    rows = res.fetchall()
-
-    responses = []
-    for row in rows:
-        to_dict = {
-            "issnl": row[0],
-            "journal_name": row[1],
-            "publisher": "Elsevier",
-            "subscription_start_date": row[2].isoformat(),
-            "num_dois": row[3],
-            "num_oa": row[4],
-            "proportion_oa": row[9],
-            "proportion_repository_hosted": row[10],
-            "proportion_publisher_hosted": row[11],
-            "issns": row[6],
-            "text_rank": row[7],
-            "score": row[8]
-        }
-        responses.append(to_dict)
-
-    responses = sorted(responses, key=lambda k: k['text_rank'], reverse=True)  # or could use score
-
-    return jsonify({ "list": responses, "count": len(responses)})
+    responses = get_subscriptions()
+    filtered_responses = []
+    for response in responses:
+        if to_unicode_or_bust(q).lower() in to_unicode_or_bust(response["journal_name"]).lower():
+            filtered_responses.append(response)
+    return jsonify({ "list": filtered_responses, "count": len(filtered_responses)})
 
 @app.route("/subscription/issn/<q>", methods=["GET"])
 def unpaywall_journals_issn(q):
-    ret = []
-
-    query_for_search = q
-
-    command = """
-        select cdl_subscription_summary_mv.issnl, journal_name, from_date, cdl_subscription_summary_mv.num_dois, num_oa, oa_rate, issns,
-                        cdl_subscription_summary_mv.num_dois  as score,
-                        proportion_is_oa, proportion_repository_hosted, proportion_publisher_hosted
-                    from cdl_subscription_summary_mv, cdl_subscription_oa_counts_mv
-                    where cdl_subscription_summary_mv.issnl = cdl_subscription_oa_counts_mv.issnl
-                    and array['{query_for_search}'] <@ issns
-                order by score desc
-                limit 10
-    """.format(query_for_search=query_for_search)
-    res = db.session.connection().execute(sql.text(command), bind=db.get_engine(app, 'unpaywall_db'))
-
-    row = res.first()  # just get one
-
-    to_dict = {
-        "issnl": row[0],
-        "journal_name": row[1],
-        "publisher": "Elsevier",
-        "subscription_start_date": row[2].isoformat(),
-        "num_dois": row[3],
-        "num_oa": row[4],
-        "proportion_oa": row[8],
-        "proportion_repository_hosted": row[9],
-        "proportion_publisher_hosted": row[10],
-        "issns": row[6],
-        "score": row[7]
-    }
-
-    return jsonify({ "response": to_dict})
-
+    responses = get_subscriptions()
+    for response in responses:
+        if to_unicode_or_bust(q).lower() in response["issns"]:
+            return jsonify(response)
+    abort_json(404, u"issn not found in this subscription package")
 
 
 @app.route("/breakdown", methods=["GET"])
