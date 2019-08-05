@@ -326,7 +326,8 @@ def search_journals_get(journal_query):
 
 def get_subscription_rows():
     command = """with unpaywall_host_type_derived as (
-            select journal_issn_l, 
+            select 
+            journal_issn_l, 
             published_date,
             oa_status,
             is_oa='true' as is_oa, 
@@ -339,7 +340,7 @@ def get_subscription_rows():
         journal_stats as (
             select journal_issn_l, 
             max(cdl.from_date) as from_date,
-            max(cdl.to_date) as to_date,
+            coalesce(max(cdl.to_date), max(published_date::timestamp)) as to_date,
             count(*) as num_papers, 
             sum(case when is_oa then 1 else 0 end) as num_is_oa, 
             sum(case when is_publisher_hosted then 1 else 0 end) as num_publisher_hosted, 
@@ -371,8 +372,8 @@ def get_subscriptions():
             "issnl": row["journal_issn_l"],
             "journal_name": row["title"],
             "publisher": row["publisher"],
-            "subscription_start_date": row["from_date"],
-            "subscription_to_date": row["to_date"],
+            "affected_start_date": row["from_date"],
+            "affected_end_date": row["to_date"],
             "num_dois": row["num_papers"],
             "num_oa": row["num_is_oa"],
             "proportion_publisher_hosted": float(row["num_publisher_hosted"]) / row["num_papers"],
@@ -381,7 +382,7 @@ def get_subscriptions():
             "issns": json.loads(row["issns"]),
             "score": row["num_papers"]
         }
-        for date_key in (["subscription_start_date", "subscription_to_date"]):
+        for date_key in (["affected_start_date", "affected_end_date"]):
             if to_dict[date_key]:
                 to_dict[date_key] = to_dict[date_key].isoformat()[0:10]
         responses.append(to_dict)
@@ -445,11 +446,11 @@ def build_text_filter():
         text_query = request.args.get("q", None)
         if text_query:
             if is_issn(text_query):
-                text_filter = u" and issnl = '{}' ".format(text_query)
+                text_filter = u" and journal_issn_l = '{}' ".format(text_query)
             elif is_doi(text_query):
-                text_filter = u" and id = '{}' ".format(clean_doi(text_query))
+                text_filter = u" and doi = '{}' ".format(clean_doi(text_query))
             else:
-                text_filter = u" and article_title ilike '%{}%' ".format(text_query)
+                text_filter = u" and title ilike '%{}%' ".format(text_query)
     return text_filter
 
 
@@ -491,7 +492,8 @@ def unpaywall_journals_articles_paged():
     command = """
         select pub.response_jsonb from pub where id in
             (
-            select id from subscription_dois_with_attributes_mv
+            select id 
+            from subscription_dois_with_attributes_mv
             where published_date is not null
             {text_filter}
             {oa_filter}
@@ -513,6 +515,10 @@ def unpaywall_journals_articles_paged():
 
 
 
+# "id","issnl","journal_name","published_date","is_oa","has_repository_hosted_oa","has_publisher_hosted_oa","article_title"
+# "10.1002/(issn)1881-4204","1348-8643","Oral science international",,FALSE,FALSE,FALSE,"Oral Science International"
+# "10.1002/osi2.1000","1348-8643","Oral science international","2019-03-14",FALSE,FALSE,FALSE,"Oral and dental health of Italian drug addicted in methadone treatment"
+# "
 
 @app.route("/articles.csv.gz", methods=["GET"])
 def unpaywall_journals_articles_csv_gz():
