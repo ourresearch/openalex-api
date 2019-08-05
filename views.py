@@ -22,6 +22,7 @@ from sqlalchemy import orm
 import newrelic.agent
 import psycopg2
 import hashlib
+import unicodecsv as csv
 
 from app import app
 from app import db
@@ -390,6 +391,33 @@ def get_subscriptions():
     responses = sorted(responses, key=lambda k: k['score'], reverse=True)
     return responses
 
+
+@app.route("/subscriptions.csv", methods=["GET"])
+def unpaywall_journals_subscriptions_csv():
+    def csv_value(subscription, key):
+        if key == "issns":
+            return u";".join(subscription[key])
+        if "proportion" in key:
+            return round(subscription[key], 4)
+        return subscription[key]
+
+    subscriptions = get_subscriptions()
+
+    filename = "subscriptions.csv"
+    with open(filename, "w") as file:
+        csv_file = csv.writer(file, encoding='utf-8')
+        keys = [k for k in sorted(subscriptions[0].keys()) if k != 'score']
+        csv_file.writerow(keys)
+        for subscription in subscriptions:
+            csv_file.writerow([csv_value(subscription, k) for k in keys])
+
+    with open(filename, "r") as file:
+        contents = file.readlines()
+
+    return Response(contents, mimetype="text/text")
+    # return Response(key, mimetype="text/csv")
+
+
 @app.route("/subscriptions", methods=["GET"])
 def unpaywall_journals_subscriptions_get():
     responses = get_subscriptions()
@@ -515,23 +543,6 @@ def unpaywall_journals_articles_paged():
 
 
 
-# "id","issnl","journal_name","published_date","is_oa","has_repository_hosted_oa","has_publisher_hosted_oa","article_title"
-# "10.1002/(issn)1881-4204","1348-8643","Oral science international",,FALSE,FALSE,FALSE,"Oral Science International"
-# "10.1002/osi2.1000","1348-8643","Oral science international","2019-03-14",FALSE,FALSE,FALSE,"Oral and dental health of Italian drug addicted in methadone treatment"
-# "
-
-@app.route("/articles.csv.gz", methods=["GET"])
-def unpaywall_journals_articles_csv_gz():
-    filename = "cdl_articles.csv.gz"
-
-    s3 = boto.connect_s3()
-    bucket_name = "unpaywall-subscription-canceller"
-    bucket = s3.get_bucket(bucket_name)
-    key = bucket.lookup(filename)
-
-    # streaming response, see https://stackoverflow.com/q/41311589/596939
-    return Response(key, mimetype="application/gzip")
-
 
 @newrelic.agent.function_trace()
 def get_oa_from_redshift_country():
@@ -630,17 +641,6 @@ def metrics_iso2_to_iso3():
 
 
 
-
-@app.route("/subscriptions.csv", methods=["GET"])
-def unpaywall_journals_subscriptions_csv():
-    filename = "cdl_subscriptions.csv"
-
-    s3 = boto.connect_s3()
-    bucket_name = "unpaywall-subscription-canceller"
-    bucket = s3.get_bucket(bucket_name)
-    key = bucket.lookup(filename)
-
-    return Response(key, mimetype="text/csv")
 
 
 if __name__ == "__main__":
