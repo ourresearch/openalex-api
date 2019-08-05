@@ -490,14 +490,12 @@ def unpaywall_journals_articles_paged():
     offset = (page - 1) * pagesize
 
     command = """
-        select api_json from unpaywall_production where doi in
-            (
-            select doi
+            select api_json
             from unpaywall_production j
             join cdl_journals_temp_with_issn_l_dist_all cdl on j.journal_issn_l = cdl.issn_l
             where 
             j.published_date > coalesce(cdl.from_date, '1900-01-01'::timestamp) and j.published_date < coalesce(cdl.to_date, '2100-01-01'::timestamp) 
-                        {text_filter}
+            {text_filter}
             {oa_filter}
             order by published_date desc 
             limit {pagesize}
