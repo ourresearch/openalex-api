@@ -453,7 +453,7 @@ def build_text_filter():
 def get_total_count():
 
     command = """
-            select count(doi)
+            select count(doi) as num_articles
             from unpaywall_production j
             join cdl_journals_temp_with_issn_l_dist_all cdl on j.journal_issn_l = cdl.issn_l
             where 
@@ -467,9 +467,8 @@ def get_total_count():
     with get_db_cursor() as cursor:
         cursor.execute(command)
         rows = cursor.fetchall()
-    return rows
 
-    return rows[0]
+    return rows["num_articles"]
 
 
 @app.route("/articles", methods=["GET"])
