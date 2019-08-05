@@ -466,7 +466,7 @@ def get_total_count():
     # print command
     with get_db_cursor() as cursor:
         cursor.execute(command)
-        rows = cursor.fetchall()
+        rows = cursor.fetchone()  # just get first row
 
     return rows["num_articles"]
 
