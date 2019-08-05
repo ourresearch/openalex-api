@@ -500,7 +500,6 @@ def unpaywall_journals_articles_paged():
             order by published_date desc 
             limit {pagesize}
             offset {offset}
-            )
         """.format(pagesize=pagesize,
                    offset=offset,
                    text_filter=build_text_filter(),
