@@ -432,11 +432,7 @@ def build_oa_filter():
     oa_filter = ""
     if request.args.get("oa_host", None):
         oa_host_text = request.args.get("oa_host", "")
-        if "publisher" in oa_host_text:
-            oa_filter = u" and oa_status in ('hybrid', 'bronze', 'gold') "
-        elif "repository" in oa_host_text:
-            oa_filter = u" and has_green "
-        elif oa_host_text == "any":
+        if oa_host_text == "any":
             oa_filter = u" and oa_status != 'closed' "
     return oa_filter
 
@@ -457,18 +453,23 @@ def build_text_filter():
 def get_total_count():
 
     command = """
-            select count(id) from subscription_dois_with_attributes_mv
-            where published_date is not null
+            select count(doi)
+            from unpaywall_production j
+            join cdl_journals_temp_with_issn_l_dist_all cdl on j.journal_issn_l = cdl.issn_l
+            where 
+            j.published_date > coalesce(cdl.from_date, '1900-01-01'::timestamp) and j.published_date < coalesce(cdl.to_date, '2100-01-01'::timestamp)
             {text_filter}
             {oa_filter}
         """.format(text_filter=build_text_filter(),
                    oa_filter=build_oa_filter())
 
     # print command
-    res = db.session.connection().execute(sql.text(command), bind=db.get_engine(app, 'unpaywall_db'))
-    row = res.first()
+    with get_db_cursor() as cursor:
+        cursor.execute(command)
+        rows = cursor.fetchall()
+    return rows
 
-    return row[0]
+    return rows[0]
 
 
 @app.route("/articles", methods=["GET"])
@@ -490,12 +491,14 @@ def unpaywall_journals_articles_paged():
     offset = (page - 1) * pagesize
 
     command = """
-        select pub.response_jsonb from pub where id in
+        select api_json from unpaywall_production where doi in
             (
-            select id 
-            from subscription_dois_with_attributes_mv
-            where published_date is not null
-            {text_filter}
+            select doi
+            from unpaywall_production j
+            join cdl_journals_temp_with_issn_l_dist_all cdl on j.journal_issn_l = cdl.issn_l
+            where 
+            j.published_date > coalesce(cdl.from_date, '1900-01-01'::timestamp) and j.published_date < coalesce(cdl.to_date, '2100-01-01'::timestamp) 
+                        {text_filter}
             {oa_filter}
             order by published_date desc 
             limit {pagesize}
@@ -507,9 +510,10 @@ def unpaywall_journals_articles_paged():
                    oa_filter=build_oa_filter())
 
     print command
-    res = db.session.connection().execute(sql.text(command), bind=db.get_engine(app, 'unpaywall_db'))
-    rows = res.fetchall()
-    responses = [row[0] for row in rows]
+    with get_db_cursor() as cursor:
+        cursor.execute(command)
+        rows = cursor.fetchall()
+    responses = [json.loads(row["api_json"]) for row in rows]
 
     return jsonify({"page": page, "list": responses, "total_count": get_total_count()})
 
