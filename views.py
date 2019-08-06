@@ -350,7 +350,7 @@ def get_subscription_rows():
             sum(case when is_repository_hosted and not is_publisher_hosted then 1 else 0 end) as num_has_repository_hosted_and_not_publisher_hosted            ,  
             sum(case when not is_repository_hosted and is_publisher_hosted then 1 else 0 end) as num_not_repository_hosted_and_has_publisher_hosted              
             from unpaywall_host_type_derived j
-            join cdl_journals_temp_with_issn_l cdl on j.journal_issn_l = cdl.issn_l
+            join cdl_journals_temp_with_issn_l_dist_all_orig cdl on j.journal_issn_l = cdl.issn_l
             where 
             j.published_date > coalesce(cdl.from_date, '1900-01-01'::timestamp) and j.published_date < coalesce(cdl.to_date, '2100-01-01'::timestamp) 
             group by journal_issn_l
