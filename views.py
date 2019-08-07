@@ -333,9 +333,7 @@ def get_subscription_rows():
             oa_status,
             is_oa='true' as is_oa, 
             oa_status in ('gold', 'hybrid', 'bronze') as is_publisher_hosted, 
-            case when 'repository' in ( SELECT host_type
-                           FROM unpaywall_oa_location_production uoa
-                          WHERE u.doi::text = uoa.doi::text) then true else false end as is_repository_hosted
+            has_green as is_repository_hosted
             from unpaywall_production u
         ) ,       
         journal_stats as (
