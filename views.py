@@ -351,7 +351,7 @@ def get_subscription_rows():
             from unpaywall_host_type_derived j
             join cdl_journals_temp_with_issn_l_dist_all cdl on j.journal_issn_l = cdl.issn_l
             where 
-            j.published_date > coalesce(cdl.from_date, '1900-01-01'::timestamp) and j.published_date < coalesce(cdl.to_date, '2100-01-01'::timestamp) 
+            j.published_date >= coalesce(cdl.from_date, '1900-01-01'::timestamp) and j.published_date < coalesce(cdl.to_date, '2100-01-01'::timestamp) 
             group by journal_issn_l
         )
         (select j.title, j.publisher, j.issns, journal_stats.*
@@ -383,7 +383,7 @@ def get_subscriptions():
             "score": row["num_papers"]
         }
         if my_dict["affected_start_date"]:
-            if my_dict["affected_start_date"].isoformat()[0:10] == '12-31':
+            if my_dict["affected_start_date"].isoformat()[0:10].endswith('12-31'):
                 my_dict["affected_start_date"] = my_dict["affected_start_date"] + datetime.timedelta(days=1)
             my_dict["affected_start_date"] = my_dict["affected_start_date"].isoformat()[0:10]
         if my_dict["affected_end_date"]:
@@ -487,7 +487,7 @@ def get_total_count():
             from unpaywall_production j
             join cdl_journals_temp_with_issn_l_dist_all cdl on j.journal_issn_l = cdl.issn_l
             where 
-            j.published_date > coalesce(cdl.from_date, '1900-01-01'::timestamp) and j.published_date < coalesce(cdl.to_date, '2100-01-01'::timestamp)
+            j.published_date >= coalesce(cdl.from_date, '1900-01-01'::timestamp) and j.published_date < coalesce(cdl.to_date, '2100-01-01'::timestamp)
             {text_filter}
             {oa_filter}
         """.format(text_filter=build_text_filter(),
@@ -524,7 +524,7 @@ def unpaywall_journals_articles_paged():
     #         from unpaywall_production j
     #         join cdl_journals_temp_with_issn_l_dist_all cdl on j.journal_issn_l = cdl.issn_l
     #         where
-    #         (j.published_date > coalesce(cdl.from_date, '1900-01-01'::timestamp) and j.published_date < coalesce(cdl.to_date, '2100-01-01'::timestamp))
+    #         (j.published_date >= coalesce(cdl.from_date, '1900-01-01'::timestamp) and j.published_date < coalesce(cdl.to_date, '2100-01-01'::timestamp))
     #         {text_filter}
     #         {oa_filter}
     #         order by published_date desc
@@ -542,7 +542,7 @@ def unpaywall_journals_articles_paged():
             from unpaywall_production j
             join cdl_journals_temp_with_issn_l_dist_all cdl on j.journal_issn_l = cdl.issn_l
             where 
-                j.published_date > coalesce(cdl.from_date, '1900-01-01'::timestamp) and j.published_date < coalesce(cdl.to_date, '2100-01-01'::timestamp) 
+                j.published_date >= coalesce(cdl.from_date, '1900-01-01'::timestamp) and j.published_date < coalesce(cdl.to_date, '2100-01-01'::timestamp) 
                 {text_filter}
                 {oa_filter}
             order by published_date desc
