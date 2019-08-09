@@ -11,6 +11,7 @@ import json
 import os
 import sys
 import re
+import datetime
 from time import time
 import boto
 from util import read_csv_file
@@ -367,7 +368,7 @@ def get_subscriptions():
     responses = []
     rows = get_subscription_rows()
     for row in rows:
-        to_dict = {
+        my_dict = {
             "issnl": row["journal_issn_l"],
             "journal_name": row["title"],
             "publisher": row["publisher"],
@@ -381,10 +382,13 @@ def get_subscriptions():
             "issns": json.loads(row["issns"]),
             "score": row["num_papers"]
         }
-        for date_key in (["affected_start_date", "affected_end_date"]):
-            if to_dict[date_key]:
-                to_dict[date_key] = to_dict[date_key].isoformat()[0:10]
-        responses.append(to_dict)
+        if my_dict["affected_start_date"]:
+            if my_dict["affected_start_date"].isoformat()[0:10] == '12-31':
+                my_dict["affected_start_date"] = my_dict["affected_start_date"] + datetime.timedelta(days=1)
+                my_dict["affected_start_date"] = my_dict["affected_start_date"].isoformat()[0:10]
+        if my_dict["affected_end_date"]:
+            my_dict["affected_end_date"] = my_dict["affected_end_date"].isoformat()[0:10]
+        responses.append(my_dict)
 
     responses = sorted(responses, key=lambda k: k['score'], reverse=True)
     return responses
