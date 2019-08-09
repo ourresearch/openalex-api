@@ -385,7 +385,7 @@ def get_subscriptions():
         if my_dict["affected_start_date"]:
             if my_dict["affected_start_date"].isoformat()[0:10] == '12-31':
                 my_dict["affected_start_date"] = my_dict["affected_start_date"] + datetime.timedelta(days=1)
-                my_dict["affected_start_date"] = my_dict["affected_start_date"].isoformat()[0:10]
+            my_dict["affected_start_date"] = my_dict["affected_start_date"].isoformat()[0:10]
         if my_dict["affected_end_date"]:
             my_dict["affected_end_date"] = my_dict["affected_end_date"].isoformat()[0:10]
         responses.append(my_dict)
