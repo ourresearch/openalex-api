@@ -359,7 +359,7 @@ def get_subscription_rows():
     #                 )
     #     """
 
-    command = "select * from ricks_unpaywall_journals_subscription_agg;"
+    command = "select * from ricks_unpaywall_journals_subscription_agg where package = 'cdl_elsevier';"
 
     with get_db_cursor() as cursor:
         cursor.execute(command)
@@ -491,6 +491,7 @@ def get_total_count():
             from unpaywall_production u
             join ricks_unpaywall_journals_subscription_agg j on u.journal_issn_l = j.journal_issn_l
             where 
+            package = 'cdl_elsevier' and
             u.published_date >= coalesce(j.from_date, '1900-01-01'::timestamp) and u.published_date < coalesce(j.to_date, '2100-01-01'::timestamp)
             {text_filter}
             {oa_filter}
@@ -546,6 +547,7 @@ def unpaywall_journals_articles_paged():
             from unpaywall_production u
             join ricks_unpaywall_journals_subscription_agg j on u.journal_issn_l = j.journal_issn_l
             where 
+                package = 'cdl_elsevier' and
                 u.published_date >= coalesce(j.from_date, '1900-01-01'::timestamp) and u.published_date < coalesce(j.to_date, '2100-01-01'::timestamp) 
                 {text_filter}
                 {oa_filter}
