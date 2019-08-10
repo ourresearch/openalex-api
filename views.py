@@ -400,7 +400,9 @@ def get_subscriptions():
 def unpaywall_journals_subscriptions_csv():
     def csv_value(subscription, key):
         if key == "issns":
-            return u";".join(subscription[key])
+            return u" " + u";".join(subscription[key]) #need to prefix with space or excel interprets some issns as a date
+        if key == "issnl":
+            return u" {}".format(subscription[key])  #need to prefix with space or excel interprets some issns as a date
         if "proportion" in key:
             return round(subscription[key], 4)
         return subscription[key]
@@ -418,8 +420,8 @@ def unpaywall_journals_subscriptions_csv():
     with open(filename, "r") as file:
         contents = file.readlines()
 
-    return Response(contents, mimetype="text/text")
-    # return Response(key, mimetype="text/csv")
+    # return Response(contents, mimetype="text/text")
+    return Response(contents, mimetype="text/csv")
 
 
 @app.route("/subscriptions", methods=["GET"])
@@ -474,11 +476,11 @@ def build_text_filter():
         text_query = request.args.get("q", None)
         if text_query:
             if is_issn(text_query):
-                text_filter = u" and journal_issn_l = '{}' ".format(text_query)
+                text_filter = u" and u.journal_issn_l = '{}' ".format(text_query)
             elif is_doi(text_query):
-                text_filter = u" and doi = '{}' ".format(clean_doi(text_query))
+                text_filter = u" and u.doi = '{}' ".format(clean_doi(text_query))
             else:
-                text_filter = u" and title ilike '%{}%' ".format(text_query)
+                text_filter = u" and u.title ilike '%{}%' ".format(text_query)
     return text_filter
 
 
@@ -486,10 +488,10 @@ def get_total_count():
 
     command = """
             select count(doi) as num_articles
-            from unpaywall_production j
-            join cdl_journals_temp_with_issn_l_dist_all cdl on j.journal_issn_l = cdl.issn_l
+            from unpaywall_production u
+            join ricks_unpaywall_journals_subscription_agg j on u.journal_issn_l = j.journal_issn_l
             where 
-            j.published_date >= coalesce(cdl.from_date, '1900-01-01'::timestamp) and j.published_date < coalesce(cdl.to_date, '2100-01-01'::timestamp)
+            u.published_date >= coalesce(j.from_date, '1900-01-01'::timestamp) and u.published_date < coalesce(j.to_date, '2100-01-01'::timestamp)
             {text_filter}
             {oa_filter}
         """.format(text_filter=build_text_filter(),
@@ -538,19 +540,19 @@ def unpaywall_journals_articles_paged():
     #                oa_filter=build_oa_filter())
 
     command = """
-        select u.doi, api_json 
-        from unpaywall_simple_sortkey u, 
+        select usimple.doi, api_json 
+        from unpaywall_simple_sortkey usimple, 
         (   select doi
-            from unpaywall_production j
-            join cdl_journals_temp_with_issn_l_dist_all cdl on j.journal_issn_l = cdl.issn_l
+            from unpaywall_production u
+            join ricks_unpaywall_journals_subscription_agg j on u.journal_issn_l = j.journal_issn_l
             where 
-                j.published_date >= coalesce(cdl.from_date, '1900-01-01'::timestamp) and j.published_date < coalesce(cdl.to_date, '2100-01-01'::timestamp) 
+                u.published_date >= coalesce(j.from_date, '1900-01-01'::timestamp) and u.published_date < coalesce(j.to_date, '2100-01-01'::timestamp) 
                 {text_filter}
                 {oa_filter}
             order by published_date desc
             limit {pagesize}
             offset {offset}) as s
-        where u.doi=s.doi    
+        where usimple.doi=s.doi    
     """.format(pagesize=pagesize,
                    offset=offset,
                    text_filter=build_text_filter(),
