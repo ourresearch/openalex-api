@@ -327,37 +327,39 @@ def search_journals_get(journal_query):
 
 
 def get_subscription_rows():
-    command = """with unpaywall_host_type_derived as (
-            select 
-            journal_issn_l, 
-            published_date,
-            oa_status,
-            is_oa='true' as is_oa, 
-            oa_status in ('gold', 'hybrid', 'bronze') as is_publisher_hosted, 
-            has_green as is_repository_hosted
-            from unpaywall_production u
-        ) ,       
-        journal_stats as (
-            select journal_issn_l, 
-            max(cdl.from_date) as from_date,
-            coalesce(max(cdl.to_date), max(published_date::timestamp)) as to_date,
-            count(*) as num_papers, 
-            sum(case when is_oa then 1 else 0 end) as num_is_oa, 
-            sum(case when is_publisher_hosted then 1 else 0 end) as num_publisher_hosted, 
-            sum(case when is_repository_hosted then 1 else 0 end) as num_repository_hosted, 
-            sum(case when is_repository_hosted and is_publisher_hosted then 1 else 0 end) as num_has_repository_hosted_and_has_publisher_hosted,              
-            sum(case when is_repository_hosted and not is_publisher_hosted then 1 else 0 end) as num_has_repository_hosted_and_not_publisher_hosted            ,  
-            sum(case when not is_repository_hosted and is_publisher_hosted then 1 else 0 end) as num_not_repository_hosted_and_has_publisher_hosted              
-            from unpaywall_host_type_derived j
-            join cdl_journals_temp_with_issn_l_dist_all cdl on j.journal_issn_l = cdl.issn_l
-            where 
-            j.published_date >= coalesce(cdl.from_date, '1900-01-01'::timestamp) and j.published_date < coalesce(cdl.to_date, '2100-01-01'::timestamp) 
-            group by journal_issn_l
-        )
-        (select j.title, j.publisher, j.issns, journal_stats.*
-                    from journal_stats, ricks_journal j where journal_stats.journal_issn_l = j.issn_l
-                    )
-        """
+    # command = """with unpaywall_host_type_derived as (
+    #         select
+    #         journal_issn_l,
+    #         published_date,
+    #         oa_status,
+    #         is_oa='true' as is_oa,
+    #         oa_status in ('gold', 'hybrid', 'bronze') as is_publisher_hosted,
+    #         has_green as is_repository_hosted
+    #         from unpaywall_production u
+    #     ) ,
+    #     journal_stats as (
+    #         select journal_issn_l,
+    #         max(cdl.from_date) as from_date,
+    #         coalesce(max(cdl.to_date), max(published_date::timestamp)) as to_date,
+    #         count(*) as num_papers,
+    #         sum(case when is_oa then 1 else 0 end) as num_is_oa,
+    #         sum(case when is_publisher_hosted then 1 else 0 end) as num_publisher_hosted,
+    #         sum(case when is_repository_hosted then 1 else 0 end) as num_repository_hosted,
+    #         sum(case when is_repository_hosted and is_publisher_hosted then 1 else 0 end) as num_has_repository_hosted_and_has_publisher_hosted,
+    #         sum(case when is_repository_hosted and not is_publisher_hosted then 1 else 0 end) as num_has_repository_hosted_and_not_publisher_hosted            ,
+    #         sum(case when not is_repository_hosted and is_publisher_hosted then 1 else 0 end) as num_not_repository_hosted_and_has_publisher_hosted
+    #         from unpaywall_host_type_derived j
+    #         join cdl_journals_temp_with_issn_l_dist_all cdl on j.journal_issn_l = cdl.issn_l
+    #         where
+    #         j.published_date >= coalesce(cdl.from_date, '1900-01-01'::timestamp) and j.published_date < coalesce(cdl.to_date, '2100-01-01'::timestamp)
+    #         group by journal_issn_l
+    #     )
+    #     (select j.title, j.publisher, j.issns, journal_stats.*
+    #                 from journal_stats, ricks_journal j where journal_stats.journal_issn_l = j.issn_l
+    #                 )
+    #     """
+
+    command = "select * from ricks_unpaywall_journals_subscription_agg;"
 
     with get_db_cursor() as cursor:
         cursor.execute(command)
