@@ -372,7 +372,7 @@ def get_subscriptions():
     for row in rows:
         my_dict = {
             "issnl": row["journal_issn_l"],
-            "issn_l": row["journal_issn_l"],
+            "journal_issn_l": row["journal_issn_l"],
             "journal_name": row["title"],
             # "publisher": row["publisher"],
             "affected_start_date": row["from_date"],
