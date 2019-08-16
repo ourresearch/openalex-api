@@ -372,8 +372,9 @@ def get_subscriptions():
     for row in rows:
         my_dict = {
             "issnl": row["journal_issn_l"],
+            "issn_l": row["journal_issn_l"],
             "journal_name": row["title"],
-            "publisher": row["publisher"],
+            # "publisher": row["publisher"],
             "affected_start_date": row["from_date"],
             "affected_end_date": row["to_date"],
             "num_dois": row["num_papers"],
@@ -401,7 +402,7 @@ def unpaywall_journals_subscriptions_csv():
     def csv_value(subscription, key):
         if key == "issns":
             return u" " + u";".join(subscription[key]) #need to prefix with space or excel interprets some issns as a date
-        if key == "issnl":
+        if key == "issn_l":
             return u" {}".format(subscription[key])  #need to prefix with space or excel interprets some issns as a date
         if "proportion" in key:
             return round(subscription[key], 4)
