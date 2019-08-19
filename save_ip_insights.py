@@ -38,12 +38,12 @@ def get_unpaywall_events(chunk=25):
     num_since_commit = 0
     insight_objs = []
     for ip in ips:
-
+        ip_to_lookup = ip.split(",")[0]  # sometimes has two separated by comma for some reason
         print ip
 
         try:
-            response_insights = insights_client.insights(ip)
-        except ValueError:
+            response_insights = insights_client.insights(ip_to_lookup)
+        except (ValueError, geoip2.errors.AddressNotFoundError):
             # this is what it throws if bad ip address
             response_insights = None
 
@@ -66,6 +66,12 @@ def get_unpaywall_events(chunk=25):
                                   organization=insight_dict["traits"].get("organization", None),
                                   user_type=insight_dict["traits"].get("user_type", None),
                                   insights=json.dumps(insight_dict)))
+        else:
+            insight_objs.append(IpInsights(ip=ip,
+                                  organization=None,
+                                  user_type=None,
+                                  insights=""))
+
 
     print "committing"
     with get_db_cursor() as cursor:
