@@ -24,7 +24,7 @@ def get_unpaywall_events(chunk=25):
 
     # writing into database
 
-    command = """select ip from papertrail_unpaywall_extracted 
+    command = """select distinct ip from papertrail_unpaywall_extracted 
               where ip not in (select ip from unpaywall_ip_lookup) 
               order by received_at_raw desc 
               limit {chunk}""".format(chunk=chunk)
