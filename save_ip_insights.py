@@ -73,7 +73,7 @@ def get_unpaywall_events(chunk=25):
         insert_strings = []
         for obj in insight_objs:
             insert_string = u"""('{}', '{}', '{}', '{}', '{}')""".format(
-                obj.ip, obj.updated, obj.organization, obj.user_type, obj.insights)
+                obj.ip, obj.updated, obj.organization.replace("'", "''"), obj.user_type.replace("'", "''"), obj.insights.replace("'", "''"))
             insert_strings.append(insert_string)
         command = command + u",".join(insert_strings) + u";"
         # print command
