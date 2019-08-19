@@ -69,13 +69,13 @@ def get_unpaywall_events(chunk=25):
 
     print "committing"
     with get_db_cursor() as cursor:
-        command = """INSERT INTO unpaywall_ip_lookup (ip, updated, organization, user_type, insights) values """
+        command = u"""INSERT INTO unpaywall_ip_lookup (ip, updated, organization, user_type, insights) values """
         insert_strings = []
         for obj in insight_objs:
-            insert_string = """('{}', '{}', '{}', '{}', '{}')""".format(
+            insert_string = u"""('{}', '{}', '{}', '{}', '{}')""".format(
                 obj.ip, obj.updated, obj.organization, obj.user_type, obj.insights)
             insert_strings.append(insert_string)
-        command = command + u",".join(insert_strings) + ";"
+        command = command + u",".join(insert_strings) + u";"
         # print command
         cursor.execute(command)
 
