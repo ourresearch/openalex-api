@@ -126,7 +126,7 @@ def get_db_connection():
         connection = app.config['postgreSQL_pool'].getconn()
         connection.set_isolation_level(psycopg2.extensions.ISOLATION_LEVEL_AUTOCOMMIT)
         connection.autocommit=True
-        connection.readonly = True
+        # connection.readonly = True
         yield connection
     finally:
         app.config['postgreSQL_pool'].putconn(connection)
