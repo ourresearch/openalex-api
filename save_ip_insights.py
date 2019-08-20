@@ -16,6 +16,7 @@ from app import db
 from app import app
 from util import elapsed
 from util import safe_commit
+from util import is_ip
 from app import get_db_cursor
 from app import get_db_connection
 
@@ -39,7 +40,9 @@ def get_unpaywall_events(chunk=25):
     insight_objs = []
     for ip in ips:
         ip_to_lookup = ip.split(",")[0]  # sometimes has two separated by comma for some reason
-        print ip
+        if not is_ip(ip_to_lookup):
+            ip_to_lookup = None
+        print ip_to_lookup
 
         try:
             response_insights = insights_client.insights(ip_to_lookup)
@@ -78,6 +81,8 @@ def get_unpaywall_events(chunk=25):
         command = u"""INSERT INTO unpaywall_ip_lookup (ip, updated, organization, user_type, insights) values """
         insert_strings = []
         for obj in insight_objs:
+            if obj.ip:
+                obj.ip = obj.ip.replace("'", "''")  # yes, some of the ip fields have ' in them gah
             if obj.organization:
                 obj.organization = obj.organization.replace("'", "''")
             if obj.user_type:

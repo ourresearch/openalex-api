@@ -219,6 +219,11 @@ def is_doi_url(url):
         return True
     return False
 
+def is_ip(ip):
+    if re.match(u"^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$", ip):
+        return True
+    return False
+
 def clean_doi(dirty_doi, return_none_if_error=False):
     if not dirty_doi:
         if return_none_if_error:
