@@ -891,7 +891,7 @@ def get_authoritative_permission(permissions_list):
     if not permissions_list:
         return None
 
-    allowable_permissions = [p for p in permissions_list if p["application"]["can_post_now"]][0]
+    allowable_permissions = [p for p in permissions_list if p["application"]["can_post_now"]]
     if allowable_permissions:
         return allowable_permissions[0]
 
