@@ -624,3 +624,64 @@ def jsonify_fast(*args, **kwargs):
               default=None,
               sort_keys=sort_keys) + '\n', mimetype=current_app.config['JSONIFY_MIMETYPE']
     )
+
+def find_normalized_license(text):
+    if not text:
+        return None
+
+    normalized_text = text.replace(" ", "").replace("-", "").lower()
+
+    # the lookup order matters
+    # assumes no spaces, no dashes, and all lowercase
+    # inspired by https://github.com/CottageLabs/blackbox/blob/fc13e5855bd13137cf1ef8f5e93883234fdab464/service/licences.py
+    # thanks CottageLabs!  :)
+
+    license_lookups = [
+        ("koreanjpathol.org/authors/access.php", "cc-by-nc"),  # their access page says it is all cc-by-nc now
+        ("elsevier.com/openaccess/userlicense", "elsevier-specific: oa user license"),  #remove the - because is removed in normalized_text above
+        ("pubs.acs.org/page/policy/authorchoice_termsofuse.html", "acs-specific: authorchoice/editors choice usage agreement"),
+
+        ("creativecommons.org/licenses/byncnd", "cc-by-nc-nd"),
+        ("creativecommonsattributionnoncommercialnoderiv", "cc-by-nc-nd"),
+        ("ccbyncnd", "cc-by-nc-nd"),
+
+        ("creativecommons.org/licenses/byncsa", "cc-by-nc-sa"),
+        ("creativecommonsattributionnoncommercialsharealike", "cc-by-nc-sa"),
+        ("ccbyncsa", "cc-by-nc-sa"),
+
+        ("creativecommons.org/licenses/bynd", "cc-by-nd"),
+        ("creativecommonsattributionnoderiv", "cc-by-nd"),
+        ("ccbynd", "cc-by-nd"),
+
+        ("creativecommons.org/licenses/bysa", "cc-by-sa"),
+        ("creativecommonsattributionsharealike", "cc-by-sa"),
+        ("ccbysa", "cc-by-sa"),
+
+        ("creativecommons.org/licenses/bync", "cc-by-nc"),
+        ("creativecommonsattributionnoncommercial", "cc-by-nc"),
+        ("ccbync", "cc-by-nc"),
+
+        ("creativecommons.org/licenses/by", "cc-by"),
+        ("creativecommonsattribution", "cc-by"),
+        ("ccby", "cc-by"),
+
+        ("creativecommons.org/publicdomain/zero", "cc0"),
+        ("creativecommonszero", "cc0"),
+
+        ("creativecommons.org/publicdomain/mark", "pd"),
+        ("publicdomain", "pd"),
+
+        # ("openaccess", "oa")
+    ]
+
+    for (lookup, license) in license_lookups:
+        if lookup in normalized_text:
+            if license=="pd":
+                try:
+                    if u"worksnotinthepublicdomain" in normalized_text.decode(errors='ignore'):
+                        return None
+                except:
+                    # some kind of unicode exception
+                    return None
+            return license
+    return None
