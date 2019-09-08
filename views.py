@@ -938,6 +938,27 @@ def permissions_issn_get(issn):
     return jsonify([row_dict_to_api(row) for row in rows])
 
 
+@app.route("/jump/temp", methods=["GET"])
+def jump_get():
+    command = "select * from jump_elsevier_temp"
+    with get_db_cursor() as cursor:
+        cursor.execute(command)
+        rows = cursor.fetchall()
+    for row in rows:
+        for field in row.keys():
+            if not row[field]:
+                row[field] = 0
+        row["usa_usd"] = float(row["usa_usd"])
+        row["calculations"] = {
+            "value": round(row["num_unpaywall_downloads_to_2018"] + 100*row["num_citations_from_mit_2018"], 0),
+            "dollars_per_2018_closed_download": round(row["usa_usd"] / (0.1 + row["num_unpaywall_downloads_to_2018_closed"]), 0),
+            "dollars_per_value": round(row["usa_usd"] / (0.1 + row["num_unpaywall_downloads_to_2018"] + 100*row["num_citations_from_mit_2018"]), 0)
+        }
+    sorted_rows = sorted(rows, key=lambda x: x["calculations"]["dollars_per_2018_closed_download"], reverse=True)
+    return jsonify(sorted_rows)
+
+
+
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5003))
     app.run(host='0.0.0.0', port=port, debug=True, threaded=True)
