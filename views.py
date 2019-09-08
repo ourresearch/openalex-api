@@ -944,17 +944,22 @@ def jump_get():
     with get_db_cursor() as cursor:
         cursor.execute(command)
         rows = cursor.fetchall()
+    rows_to_export = []
     for row in rows:
         for field in row.keys():
             if not row[field]:
                 row[field] = 0
-        row["usa_usd"] = float(row["usa_usd"])
-        row["calculations"] = {
-            "value": round(row["num_unpaywall_downloads_to_2018"] + 100*row["num_citations_from_mit_2018"], 0),
-            "dollars_per_2018_closed_download": round(row["usa_usd"] / (0.1 + row["num_unpaywall_downloads_to_2018_closed"]), 0),
-            "dollars_per_value": round(row["usa_usd"] / (0.1 + row["num_unpaywall_downloads_to_2018"] + 100*row["num_citations_from_mit_2018"]), 0)
-        }
-    sorted_rows = sorted(rows, key=lambda x: x["calculations"]["dollars_per_2018_closed_download"], reverse=True)
+        value = round(row["num_unpaywall_downloads_to_2018"] + 100*row["num_citations_from_mit_2018"], 0)
+        if value:
+            row["dollars_2018_subscription"] = float(row["usa_usd"])
+            del row["usa_usd"]
+            row["calculations"] = {
+                "value": round(row["num_unpaywall_downloads_to_2018"] + 100*row["num_citations_from_mit_2018"], 0),
+                "dollars_per_2018_closed_download": round(row["dollars_2018_subscription"] / (0.1 + row["num_unpaywall_downloads_to_2018_closed"]), 4),
+                "dollars_per_value": round(row["dollars_2018_subscription"] / (0.1 + row["num_unpaywall_downloads_to_2018"] + 100*row["num_citations_from_mit_2018"]), 4)
+            }
+            rows_to_export.append(row)
+    sorted_rows = sorted(rows_to_export, key=lambda x: x["calculations"]["dollars_per_2018_closed_download"], reverse=False)
     return jsonify(sorted_rows)
 
 
