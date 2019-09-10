@@ -50,6 +50,20 @@ from util import get_sql_answer
 from util import jsonify_fast
 from util import find_normalized_license
 
+# do on load till I can speed this up
+command = "select * from counter"
+counter_rows = None
+with get_db_cursor() as cursor:
+    cursor.execute(command)
+    counter_rows = cursor.fetchall()
+
+command = "select * from jump_elsevier_unpaywall_downloads"
+jump_elsevier_unpaywall_downloads_rows = None
+with get_db_cursor() as cursor:
+    cursor.execute(command)
+    jump_elsevier_unpaywall_downloads_rows = cursor.fetchall()
+
+
 def json_dumper(obj):
     """
     if the obj has a to_dict() function we've implemented, uses it to get dict.
@@ -938,6 +952,8 @@ def permissions_issn_get(issn):
     return jsonify([row_dict_to_api(row) for row in rows])
 
 
+
+
 @app.route("/jump/temp", methods=["GET"])
 def jump_get():
     if request.args.get("pagesize"):
@@ -947,17 +963,8 @@ def jump_get():
     if pagesize > 3000:
         abort_json(400, u"pagesize too large")
 
-    command = "select * from counter"
-    with get_db_cursor() as cursor:
-        cursor.execute(command)
-        counter_rows = cursor.fetchall()
-
-    command = "select * from jump_elsevier_unpaywall_downloads"
-    with get_db_cursor() as cursor:
-        cursor.execute(command)
-        rows = cursor.fetchall()
     rows_to_export = []
-    for row in rows:
+    for row in jump_elsevier_unpaywall_downloads_rows:
 
         my_dict = {}
         for field in row.keys():
