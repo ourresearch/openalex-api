@@ -967,15 +967,15 @@ def jump_get():
             "back_catalog": int((row["downloads_total"] - row["downloads_total_oa"]) * .75),
             "turnaways": int((row["downloads_total"] - row["downloads_total_oa"]) * .25)
         }
-        my_dict["downloads_by_year"] = []
-        for projected_year in range(0, 5):
-            my_dict["downloads_by_year"].append({
-                "year": 2020 + projected_year,
-                "total": None,
-                "oa": None,
-                "back_catalog": None,
-                "turnaways": None
-            })
+        # my_dict["downloads_by_year"] = []
+        # for projected_year in range(0, 5):
+        #     my_dict["downloads_by_year"].append({
+        #         "year": 2020 + projected_year,
+        #         "total": None,
+        #         "oa": None,
+        #         "back_catalog": None,
+        #         "turnaways": None
+        #     })
         my_dict["citations_from_mit_in_2018"] = row["num_citations_from_mit_2018"]
         if value:
             my_dict["dollars_2018_subscription"] = float(row["usa_usd"])
