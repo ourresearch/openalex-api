@@ -940,6 +940,13 @@ def permissions_issn_get(issn):
 
 @app.route("/jump/temp", methods=["GET"])
 def jump_get():
+    if request.args.get("pagesize"):
+        pagesize = int(request.args.get("pagesize"))
+    else:
+        pagesize = 100
+    if pagesize > 3000:
+        abort_json(400, u"pagesize too large")
+
     command = "select * from counter"
     with get_db_cursor() as cursor:
         cursor.execute(command)
@@ -1018,7 +1025,7 @@ def jump_get():
             }
             rows_to_export.append(my_dict)
     sorted_rows = sorted(rows_to_export, key=lambda x: x["downloads_next_3_years"]["total"], reverse=True)
-    return jsonify({"list": sorted_rows, "count": len(sorted_rows)})
+    return jsonify({"list": sorted_rows[0:pagesize], "count": len(sorted_rows[0:pagesize])})
 
 
 
