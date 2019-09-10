@@ -946,15 +946,17 @@ def permissions_issn_get(issn):
 @app.route("/jump/temp", methods=["GET"])
 def jump_get():
 
-    all = False
-    if request.args.get("all"):
-        all = True
+    timing = []
+
+    start_time = time()
+    section_time = time()
 
     command = "select * from counter"
     counter_rows = None
     with get_db_cursor() as cursor:
         cursor.execute(command)
         counter_rows = cursor.fetchall()
+    counter_dict = dict((a["issn_l"], a["total"]) for a in counter_rows)
 
     command = "select * from jump_elsevier_unpaywall_downloads"
     jump_elsevier_unpaywall_downloads_rows = None
@@ -962,14 +964,19 @@ def jump_get():
         cursor.execute(command)
         jump_elsevier_unpaywall_downloads_rows = cursor.fetchall()
 
+    timing.append(("time from db", elapsed(section_time, 2)))
+    section_time = time()
+
     rows_to_export = []
-    jump_elsevier_unpaywall_downloads_rows_sorted = sorted(jump_elsevier_unpaywall_downloads_rows, key=lambda x: x["downloads_total"], reverse=True)
     summary_dict = {}
     summary_dict["year"] = [2020 + projected_year for projected_year in range(0, 5)]
     for field in ["total", "oa", "back_catalog", "turnaways"]:
         summary_dict[field] = [0 for projected_year in range(0, 5)]
 
-    for row in jump_elsevier_unpaywall_downloads_rows_sorted:
+    timing.append(("summary", elapsed(section_time, 2)))
+    section_time = time()
+
+    for row in jump_elsevier_unpaywall_downloads_rows:
 
         my_dict = {}
         for field in row.keys():
@@ -982,17 +989,16 @@ def jump_get():
         my_dict["papers_2018"] = row["num_papers_2018"]
         my_dict["citations_from_mit_in_2018"] = row["num_citations_from_mit_2018"]
 
-
         my_dict["downloads_by_year"] = {}
         my_dict["downloads_by_year"]["year"] = [2020 + projected_year for projected_year in range(0, 5)]
         my_dict["downloads_by_year"]["total"] = [row["downloads_total"] for projected_year in range(0, 5)]
-        my_dict["downloads_by_year"]["oa"] = [None for projected_year in range(0, 5)]
+        my_dict["downloads_by_year"]["oa"] = [0 for projected_year in range(0, 5)]
         my_dict["downloads_by_year"]["oa"][0] = row["downloads_0y_oa"]
         my_dict["downloads_by_year"]["oa"][1] = row["downloads_0y_oa"] + row["downloads_1y_oa"]
         my_dict["downloads_by_year"]["oa"][2] = row["downloads_0y_oa"] + row["downloads_1y_oa"] + row["downloads_2y_oa"]
         my_dict["downloads_by_year"]["oa"][3] = row["downloads_0y_oa"] + row["downloads_1y_oa"] + row["downloads_2y_oa"] + row["downloads_3y_oa"]
         my_dict["downloads_by_year"]["oa"][4] = row["downloads_0y_oa"] + row["downloads_1y_oa"] + row["downloads_2y_oa"] + row["downloads_3y_oa"] + row["downloads_4y_oa"]
-        my_dict["downloads_by_year"]["back_catalog"] = [None for projected_year in range(0, 5)]
+        my_dict["downloads_by_year"]["back_catalog"] = [0 for projected_year in range(0, 5)]
         my_dict["downloads_by_year"]["back_catalog"][0] = row["downloads_total"] - (row["downloads_0y"])
         my_dict["downloads_by_year"]["back_catalog"][1] = row["downloads_total"] - (row["downloads_0y"] + row["downloads_1y"])
         my_dict["downloads_by_year"]["back_catalog"][2] = row["downloads_total"] - (row["downloads_0y"] + row["downloads_1y"] + row["downloads_2y"])
@@ -1003,9 +1009,8 @@ def jump_get():
 
         # now scale for the org
         try:
-            matching_counter_row = [counter_row for counter_row in counter_rows if counter_row["issn_l"]==row["issn_l"] ][0]
-            total_org_downloads = matching_counter_row["total"]
-            total_org_downloads_multiple = matching_counter_row["total"] / row["downloads_total"]
+            total_org_downloads = counter_dict[row["issn_l"]]
+            total_org_downloads_multiple = total_org_downloads / row["downloads_total"]
         except:
             total_org_downloads_multiple = 0
 
@@ -1032,13 +1037,18 @@ def jump_get():
             for projected_year in range(0, 5):
                 summary_dict[field][projected_year] += my_dict["downloads_by_year"][field][projected_year]
 
-        if not all:
-            del my_dict["downloads_by_year"]
         if value:
             my_dict["dollars_2018_subscription"] = float(row["usa_usd"])
-            rows_to_export.append(my_dict)
+        rows_to_export.append(my_dict)
+
+    timing.append(("loop", elapsed(section_time, 2)))
+    section_time = time()
+
     sorted_rows = sorted(rows_to_export, key=lambda x: x["downloads_next_3_years"]["total"], reverse=True)
-    return jsonify_fast({"list": sorted_rows, "total": summary_dict, "count": len(sorted_rows)})
+    timing.append(("after sort", elapsed(section_time, 2)))
+
+    timing_messages = ["{}: {}s".format(*item) for item in timing]
+    return jsonify_fast({"_timing": timing_messages, "list": sorted_rows, "total": summary_dict, "count": len(sorted_rows)})
 
 
 
