@@ -955,28 +955,40 @@ def jump_get():
             my_dict[field] = row[field]
         value = round(row["downloads_total"] + 100*row["num_citations_from_mit_2018"], 0)
         my_dict["papers_2018"] = row["num_papers_2018"]
+        my_dict["citations_from_mit_in_2018"] = row["num_citations_from_mit_2018"]
+
+
+        my_dict["downloads_by_year"] = {}
+        my_dict["downloads_by_year"]["year"] = [2020 + projected_year for projected_year in range(0, 5)]
+        my_dict["downloads_by_year"]["total"] = [row["downloads_total"] for projected_year in range(0, 5)]
+        my_dict["downloads_by_year"]["oa"] = [None for projected_year in range(0, 5)]
+        my_dict["downloads_by_year"]["oa"][0] = row["downloads_0y_oa"]
+        my_dict["downloads_by_year"]["oa"][1] = row["downloads_0y_oa"] + row["downloads_1y_oa"]
+        my_dict["downloads_by_year"]["oa"][2] = row["downloads_0y_oa"] + row["downloads_1y_oa"] + row["downloads_2y_oa"]
+        my_dict["downloads_by_year"]["oa"][3] = row["downloads_0y_oa"] + row["downloads_1y_oa"] + row["downloads_2y_oa"] + row["downloads_3y_oa"]
+        my_dict["downloads_by_year"]["oa"][4] = row["downloads_0y_oa"] + row["downloads_1y_oa"] + row["downloads_2y_oa"] + row["downloads_3y_oa"] + row["downloads_4y_oa"]
+        my_dict["downloads_by_year"]["back_catalog"] = [None for projected_year in range(0, 5)]
+        my_dict["downloads_by_year"]["back_catalog"][0] = row["downloads_total"] - (row["downloads_0y"])
+        my_dict["downloads_by_year"]["back_catalog"][1] = row["downloads_total"] - (row["downloads_0y"] + row["downloads_1y"])
+        my_dict["downloads_by_year"]["back_catalog"][2] = row["downloads_total"] - (row["downloads_0y"] + row["downloads_1y"] + row["downloads_2y"])
+        my_dict["downloads_by_year"]["back_catalog"][3] = row["downloads_total"] - (row["downloads_0y"] + row["downloads_1y"] + row["downloads_2y"] + row["downloads_3y"])
+        my_dict["downloads_by_year"]["back_catalog"][4] = row["downloads_total"] - (row["downloads_0y"] + row["downloads_1y"] + row["downloads_2y"] + row["downloads_3y"] + row["downloads_4y"])
+        my_dict["downloads_by_year"]["turnaways"] = [my_dict["downloads_by_year"]["total"][projected_year] - (my_dict["downloads_by_year"]["back_catalog"][projected_year] + my_dict["downloads_by_year"]["oa"][projected_year])
+            for projected_year in range(0, 5)]
+
         my_dict["downloads_next_3_years"] = {
-            "total": row["downloads_total"],
-            "oa": row["downloads_total_oa"],
-            "back_catalog": int((row["downloads_total"] - row["downloads_total_oa"]) * .75),
-            "turnaways": int((row["downloads_total"] - row["downloads_total_oa"]) * .25)
+            "total": sum(my_dict["downloads_by_year"]["total"][0:3]),
+            "oa": sum(my_dict["downloads_by_year"]["oa"][0:3]),
+            "back_catalog": sum(my_dict["downloads_by_year"]["back_catalog"][0:3]),
+            "turnaways": sum(my_dict["downloads_by_year"]["turnaways"][0:3])
         }
         my_dict["downloads_next_5_years"] = {
-            "total": row["downloads_total"],
-            "oa": row["downloads_total_oa"],
-            "back_catalog": int((row["downloads_total"] - row["downloads_total_oa"]) * .75),
-            "turnaways": int((row["downloads_total"] - row["downloads_total_oa"]) * .25)
+            "total": sum(my_dict["downloads_by_year"]["total"][0:5]),
+            "oa": sum(my_dict["downloads_by_year"]["oa"][0:5]),
+            "back_catalog": sum(my_dict["downloads_by_year"]["back_catalog"][0:5]),
+            "turnaways": sum(my_dict["downloads_by_year"]["turnaways"][0:5])
         }
-        # my_dict["downloads_by_year"] = []
-        # for projected_year in range(0, 5):
-        #     my_dict["downloads_by_year"].append({
-        #         "year": 2020 + projected_year,
-        #         "total": None,
-        #         "oa": None,
-        #         "back_catalog": None,
-        #         "turnaways": None
-        #     })
-        my_dict["citations_from_mit_in_2018"] = row["num_citations_from_mit_2018"]
+
         if value:
             my_dict["dollars_2018_subscription"] = float(row["usa_usd"])
             my_dict["calculations"] = {
