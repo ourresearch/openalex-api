@@ -941,10 +941,14 @@ def permissions_issn_get(issn):
     return jsonify([row_dict_to_api(row) for row in rows])
 
 
-
-
 @app.route("/jump/temp", methods=["GET"])
 def jump_get():
+    from data.jump_cache import cached_response
+    return jsonify_fast(cached_response)
+
+
+@app.route("/jump/temp/real", methods=["GET"])
+def jump_get_real():
 
     timing = []
 
