@@ -940,7 +940,7 @@ def permissions_issn_get(issn):
 
 @app.route("/jump/temp", methods=["GET"])
 def jump_get():
-    command = "select * from jump_elsevier_temp"
+    command = "select * from jump_elsevier_unpaywall_downloads"
     with get_db_cursor() as cursor:
         cursor.execute(command)
         rows = cursor.fetchall()
@@ -953,24 +953,39 @@ def jump_get():
 
         for field in ["issn_l", "title", "subject", "publisher"]:
             my_dict[field] = row[field]
-        value = round(row["num_unpaywall_downloads_to_2018"] + 100*row["num_citations_from_mit_2018"], 0)
+        value = round(row["downloads_total"] + 100*row["num_citations_from_mit_2018"], 0)
         my_dict["papers_2018"] = row["num_papers_2018"]
         my_dict["downloads_next_3_years"] = {
-            "total": row["num_unpaywall_downloads_to_2018"],
-            "oa": row["num_unpaywall_downloads_to_2018"] - row["num_unpaywall_downloads_to_2018_closed"],
-            "back_catalog": int(row["num_unpaywall_downloads_to_2018_closed"] * .75),
-            "turnaways": int(row["num_unpaywall_downloads_to_2018_closed"] * .25)
+            "total": row["downloads_total"],
+            "oa": row["downloads_total_oa"],
+            "back_catalog": int((row["downloads_total"] - row["downloads_total_oa"]) * .75),
+            "turnaways": int((row["downloads_total"] - row["downloads_total_oa"]) * .25)
         }
+        my_dict["downloads_next_5_years"] = {
+            "total": row["downloads_total"],
+            "oa": row["downloads_total_oa"],
+            "back_catalog": int((row["downloads_total"] - row["downloads_total_oa"]) * .75),
+            "turnaways": int((row["downloads_total"] - row["downloads_total_oa"]) * .25)
+        }
+        my_dict["downloads_by_year"] = []
+        for projected_year in range(0, 5):
+            my_dict["downloads_by_year"].append({
+                "year": 2020 + projected_year,
+                "total": None,
+                "oa": None,
+                "back_catalog": None,
+                "turnaways": None
+            })
         my_dict["citations_from_mit_in_2018"] = row["num_citations_from_mit_2018"]
         if value:
             my_dict["dollars_2018_subscription"] = float(row["usa_usd"])
             my_dict["calculations"] = {
-                "value": round(row["num_unpaywall_downloads_to_2018"] + 100*row["num_citations_from_mit_2018"], 0),
-                "dollars_per_2018_closed_download": round(my_dict["dollars_2018_subscription"] / (0.1 + row["num_unpaywall_downloads_to_2018_closed"]), 4),
-                "dollars_per_value": round(my_dict["dollars_2018_subscription"] / (0.1 + row["num_unpaywall_downloads_to_2018"] + 100*row["num_citations_from_mit_2018"]), 4)
+                "value": round(value, 0),
+                "dollars_per_2018_closed_download": round(my_dict["dollars_2018_subscription"] / (0.1 + row["downloads_total"] - row["downloads_total_oa"]), 4),
+                "dollars_per_value": round(my_dict["dollars_2018_subscription"] / (0.1 + value), 4)
             }
             rows_to_export.append(my_dict)
-    sorted_rows = sorted(rows_to_export, key=lambda x: x["calculations"]["dollars_per_2018_closed_download"], reverse=False)
+    sorted_rows = sorted(rows_to_export, key=lambda x: x["downloads_next_3_years"]["total"], reverse=True)
     return jsonify({"list": sorted_rows, "count": len(sorted_rows)})
 
 
