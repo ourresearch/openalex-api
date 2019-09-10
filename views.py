@@ -951,6 +951,8 @@ def jump_get():
     start_time = time()
     section_time = time()
 
+    min = request.args.get("min", None)
+
     command = "select * from counter"
     counter_rows = None
     with get_db_cursor() as cursor:
@@ -1036,6 +1038,9 @@ def jump_get():
         for field in ["total", "oa", "back_catalog", "turnaways"]:
             for projected_year in range(0, 5):
                 summary_dict[field][projected_year] += my_dict["downloads_by_year"][field][projected_year]
+
+        if min:
+            del my_dict["downloads_by_year"]
 
         if value:
             my_dict["dollars_2018_subscription"] = float(row["usa_usd"])
