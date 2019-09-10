@@ -50,18 +50,7 @@ from util import get_sql_answer
 from util import jsonify_fast
 from util import find_normalized_license
 
-# do on load till I can speed this up
-command = "select * from counter"
-counter_rows = None
-with get_db_cursor() as cursor:
-    cursor.execute(command)
-    counter_rows = cursor.fetchall()
 
-command = "select * from jump_elsevier_unpaywall_downloads"
-jump_elsevier_unpaywall_downloads_rows = None
-with get_db_cursor() as cursor:
-    cursor.execute(command)
-    jump_elsevier_unpaywall_downloads_rows = cursor.fetchall()
 
 
 def json_dumper(obj):
@@ -959,12 +948,26 @@ def jump_get():
     if request.args.get("pagesize"):
         pagesize = int(request.args.get("pagesize"))
     else:
-        pagesize = 100
+        pagesize = 25
     if pagesize > 3000:
         abort_json(400, u"pagesize too large")
 
+    command = "select * from counter"
+    counter_rows = None
+    with get_db_cursor() as cursor:
+        cursor.execute(command)
+        counter_rows = cursor.fetchall()
+
+    command = "select * from jump_elsevier_unpaywall_downloads"
+    jump_elsevier_unpaywall_downloads_rows = None
+    with get_db_cursor() as cursor:
+        cursor.execute(command)
+        jump_elsevier_unpaywall_downloads_rows = cursor.fetchall()
+
     rows_to_export = []
-    for row in jump_elsevier_unpaywall_downloads_rows:
+    jump_elsevier_unpaywall_downloads_rows_sorted = sorted(jump_elsevier_unpaywall_downloads_rows, key=lambda x: x["downloads_total"], reverse=True)
+
+    for row in jump_elsevier_unpaywall_downloads_rows_sorted[0:pagesize]:
 
         my_dict = {}
         for field in row.keys():
@@ -1027,12 +1030,11 @@ def jump_get():
             my_dict["dollars_2018_subscription"] = float(row["usa_usd"])
             my_dict["calculations"] = {
                 "value": round(value, 0),
-                "dollars_per_2018_closed_download": round(my_dict["dollars_2018_subscription"] / (0.1 + row["downloads_total"] - row["downloads_total_oa"]), 4),
                 "dollars_per_value": round(my_dict["dollars_2018_subscription"] / (0.1 + value), 4)
             }
             rows_to_export.append(my_dict)
     sorted_rows = sorted(rows_to_export, key=lambda x: x["downloads_next_3_years"]["total"], reverse=True)
-    return jsonify({"list": sorted_rows[0:pagesize], "count": len(sorted_rows[0:pagesize])})
+    return jsonify_fast({"list": sorted_rows, "count": len(sorted_rows)})
 
 
 
