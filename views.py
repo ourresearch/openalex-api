@@ -946,19 +946,36 @@ def jump_get():
         rows = cursor.fetchall()
     rows_to_export = []
     for row in rows:
+        my_dict = {}
         for field in row.keys():
             if not row[field]:
                 row[field] = 0
+
+        for field in ["issn_l", "title", "subject", "publisher", "num_papers_2018", "num_papers_closed_2018"]:
+            my_dict[field] = row[field]
         value = round(row["num_unpaywall_downloads_to_2018"] + 100*row["num_citations_from_mit_2018"], 0)
+        my_dict["papers_2018"] = {
+            "total": row["num_papers_2018"],
+            "closed": row["num_papers_closed_2018"]
+        }
+        my_dict["downloads_next_3_years"] = {
+            "total": row["num_unpaywall_downloads_to_2018"],
+            "oa": row["num_unpaywall_downloads_to_2018"] - row["num_unpaywall_downloads_to_2018_closed"],
+            "back_catalog": int(row["num_unpaywall_downloads_to_2018_closed"] * .75),
+            "turnaways": int(row["num_unpaywall_downloads_to_2018_closed"] * .25)
+        }
+        my_dict["citations_from_mit_in_2018"] = {
+            "total": row["num_citations_from_mit_2018"],
+            "closed": row["num_citations_from_mit_2018_to_closed"],
+        }
         if value:
-            row["dollars_2018_subscription"] = float(row["usa_usd"])
-            del row["usa_usd"]
-            row["calculations"] = {
+            my_dict["dollars_2018_subscription"] = float(row["usa_usd"])
+            my_dict["calculations"] = {
                 "value": round(row["num_unpaywall_downloads_to_2018"] + 100*row["num_citations_from_mit_2018"], 0),
-                "dollars_per_2018_closed_download": round(row["dollars_2018_subscription"] / (0.1 + row["num_unpaywall_downloads_to_2018_closed"]), 4),
-                "dollars_per_value": round(row["dollars_2018_subscription"] / (0.1 + row["num_unpaywall_downloads_to_2018"] + 100*row["num_citations_from_mit_2018"]), 4)
+                "dollars_per_2018_closed_download": round(my_dict["dollars_2018_subscription"] / (0.1 + row["num_unpaywall_downloads_to_2018_closed"]), 4),
+                "dollars_per_value": round(my_dict["dollars_2018_subscription"] / (0.1 + row["num_unpaywall_downloads_to_2018"] + 100*row["num_citations_from_mit_2018"]), 4)
             }
-            rows_to_export.append(row)
+            rows_to_export.append(my_dict)
     sorted_rows = sorted(rows_to_export, key=lambda x: x["calculations"]["dollars_per_2018_closed_download"], reverse=False)
     return jsonify(sorted_rows)
 
