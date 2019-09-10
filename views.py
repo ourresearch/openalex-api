@@ -940,12 +940,18 @@ def permissions_issn_get(issn):
 
 @app.route("/jump/temp", methods=["GET"])
 def jump_get():
+    command = "select * from counter"
+    with get_db_cursor() as cursor:
+        cursor.execute(command)
+        counter_rows = cursor.fetchall()
+
     command = "select * from jump_elsevier_unpaywall_downloads"
     with get_db_cursor() as cursor:
         cursor.execute(command)
         rows = cursor.fetchall()
     rows_to_export = []
     for row in rows:
+
         my_dict = {}
         for field in row.keys():
             if not row[field]:
@@ -976,6 +982,20 @@ def jump_get():
         my_dict["downloads_by_year"]["turnaways"] = [my_dict["downloads_by_year"]["total"][projected_year] - (my_dict["downloads_by_year"]["back_catalog"][projected_year] + my_dict["downloads_by_year"]["oa"][projected_year])
             for projected_year in range(0, 5)]
 
+        # now scale for the org
+        try:
+            matching_counter_row = [counter_row for counter_row in counter_rows if counter_row["issn_l"]==row["issn_l"] ][0]
+            total_org_downloads = matching_counter_row["total"]
+            total_org_downloads_multiple = matching_counter_row["total"] / row["downloads_total"]
+        except:
+            total_org_downloads_multiple = 0
+
+        for field in ["total", "oa", "back_catalog", "turnaways"]:
+            for projected_year in range(0, 5):
+                my_dict["downloads_by_year"][field][projected_year] *= total_org_downloads_multiple
+                my_dict["downloads_by_year"][field][projected_year] = int(my_dict["downloads_by_year"][field][projected_year])
+
+        # now accumulate
         my_dict["downloads_next_3_years"] = {
             "total": sum(my_dict["downloads_by_year"]["total"][0:3]),
             "oa": sum(my_dict["downloads_by_year"]["oa"][0:3]),
