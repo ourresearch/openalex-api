@@ -945,8 +945,22 @@ def permissions_issn_get(issn):
 def jump_issn_get(issn_l):
     from data.jump_cache import cached_response
     journal_dicts = cached_response["list"]
-    issnl_dict = filter(lambda my_dict: my_dict['issn_l'] == issn_l, journal_dicts)
-    return jsonify_fast(issnl_dict)
+    issnl_dict = filter(lambda my_dict: my_dict['issn_l'] == issn_l, journal_dicts)[0]
+
+    command = """select year, oa_status, count(*) as num_articles from unpaywall 
+    where journal_issn_l = '{}'
+    and year > 2015
+    group by year, oa_status""".format(issn_l)
+
+    with get_db_cursor() as cursor:
+        cursor.execute(command)
+        rows = cursor.fetchall()
+    for row in rows:
+        row["year"] = int(row["year"])
+
+    issnl_dict["oa_status"] = rows
+
+    return jsonify(issnl_dict)
 
 @app.route("/jump/temp", methods=["GET"])
 def jump_get():
