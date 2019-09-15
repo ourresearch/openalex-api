@@ -941,6 +941,13 @@ def permissions_issn_get(issn):
     return jsonify([row_dict_to_api(row) for row in rows])
 
 
+@app.route("/jump/temp/issn/<issn_l>", methods=["GET"])
+def jump_issn_get(issn_l):
+    from data.jump_cache import cached_response
+    journal_dicts = cached_response["list"]
+    issnl_dict = filter(lambda my_dict: my_dict['issn_l'] == issn_l, journal_dicts)
+    return jsonify_fast(issnl_dict)
+
 @app.route("/jump/temp", methods=["GET"])
 def jump_get():
     from data.jump_cache import cached_response
