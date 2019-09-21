@@ -5,4 +5,4 @@ web: NEW_RELIC_CONFIG_FILE=newrelic.ini newrelic-admin run-program gunicorn view
 warm_cache: python call_ricks_api.py --warm
 run_random: python call_ricks_api.py
 insights: python save_ip_insights.py
-pmc: python save_pmh_metadata.py
+pmc: python save_pmc_metadata.py
