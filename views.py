@@ -332,49 +332,20 @@ def search_journals_get(journal_query):
     return jsonify({ "list": responses, "count": len(responses)})
 
 
-def get_subscription_rows():
-    # command = """with unpaywall_host_type_derived as (
-    #         select
-    #         journal_issn_l,
-    #         published_date,
-    #         oa_status,
-    #         is_oa='true' as is_oa,
-    #         oa_status in ('gold', 'hybrid', 'bronze') as is_publisher_hosted,
-    #         has_green as is_repository_hosted
-    #         from unpaywall_production u
-    #     ) ,
-    #     journal_stats as (
-    #         select journal_issn_l,
-    #         max(cdl.from_date) as from_date,
-    #         coalesce(max(cdl.to_date), max(published_date::timestamp)) as to_date,
-    #         count(*) as num_papers,
-    #         sum(case when is_oa then 1 else 0 end) as num_is_oa,
-    #         sum(case when is_publisher_hosted then 1 else 0 end) as num_publisher_hosted,
-    #         sum(case when is_repository_hosted then 1 else 0 end) as num_repository_hosted,
-    #         sum(case when is_repository_hosted and is_publisher_hosted then 1 else 0 end) as num_has_repository_hosted_and_has_publisher_hosted,
-    #         sum(case when is_repository_hosted and not is_publisher_hosted then 1 else 0 end) as num_has_repository_hosted_and_not_publisher_hosted            ,
-    #         sum(case when not is_repository_hosted and is_publisher_hosted then 1 else 0 end) as num_not_repository_hosted_and_has_publisher_hosted
-    #         from unpaywall_host_type_derived j
-    #         join cdl_journals_temp_with_issn_l_dist_all cdl on j.journal_issn_l = cdl.issn_l
-    #         where
-    #         j.published_date >= coalesce(cdl.from_date, '1900-01-01'::timestamp) and j.published_date < coalesce(cdl.to_date, '2100-01-01'::timestamp)
-    #         group by journal_issn_l
-    #     )
-    #     (select j.title, j.publisher, j.issns, journal_stats.*
-    #                 from journal_stats, ricks_journal j where journal_stats.journal_issn_l = j.issn_l
-    #                 )
-    #     """
+def get_subscription_rows(package="cdl_elsevier"):
 
-    command = "select * from ricks_unpaywall_journals_subscription_agg where package = 'cdl_elsevier';"
+    command = "select * from ricks_unpaywall_journals_subscription_agg where package = %s"
 
     with get_db_cursor() as cursor:
-        cursor.execute(command)
+        cursor.execute(command, (package,))
         rows = cursor.fetchall()
     return rows
 
-def get_subscriptions():
+def get_subscriptions(package):
     responses = []
-    rows = get_subscription_rows()
+    rows = get_subscription_rows(package)
+
+
     for row in rows:
         my_dict = {
             "issnl": row["journal_issn_l"],
@@ -385,9 +356,9 @@ def get_subscriptions():
             "affected_end_date": row["to_date"],
             "num_dois": row["num_papers"],
             "num_oa": row["num_is_oa"],
-            "proportion_publisher_hosted": float(row["num_publisher_hosted"]) / row["num_papers"],
-            "proportion_repository_hosted": float(row["num_repository_hosted"]) / row["num_papers"],
-            "proportion_oa": float(row["num_is_oa"]) / row["num_papers"],
+            "proportion_publisher_hosted": round(float(row["num_publisher_hosted"]) / row["num_papers"], 4),
+            "proportion_repository_hosted": round(float(row["num_repository_hosted"]) / row["num_papers"], 4),
+            "proportion_oa": round(float(row["num_is_oa"]) / row["num_papers"], 4),
             "issns": json.loads(row["issns"]),
             "score": row["num_papers"]
         }
@@ -397,6 +368,13 @@ def get_subscriptions():
             my_dict["affected_start_date"] = my_dict["affected_start_date"].isoformat()[0:10]
         if my_dict["affected_end_date"]:
             my_dict["affected_end_date"] = my_dict["affected_end_date"].isoformat()[0:10]
+        if package == "mit_elsevier":
+            my_dict.update({
+            "num_downloads": row["mit_counter_age_0y"] if row["mit_counter_age_0y"] else 0,
+            "num_citations": row["mit_num_citations"] if row["mit_num_citations"] else 0,
+            "num_authored": 0
+            })
+
         responses.append(my_dict)
 
     responses = sorted(responses, key=lambda k: k['score'], reverse=True)
@@ -405,6 +383,8 @@ def get_subscriptions():
 
 @app.route("/subscriptions.csv", methods=["GET"])
 def unpaywall_journals_subscriptions_csv():
+    package = request.args.get("package", "cdl_elsevier")
+
     def csv_value(subscription, key):
         if key == "issns":
             return u" " + u";".join(subscription[key]) #need to prefix with space or excel interprets some issns as a date
@@ -414,7 +394,7 @@ def unpaywall_journals_subscriptions_csv():
             return round(subscription[key], 4)
         return subscription[key]
 
-    subscriptions = get_subscriptions()
+    subscriptions = get_subscriptions(package)
 
     filename = "subscriptions.csv"
     with open(filename, "w") as file:
@@ -433,12 +413,14 @@ def unpaywall_journals_subscriptions_csv():
 
 @app.route("/subscriptions", methods=["GET"])
 def unpaywall_journals_subscriptions_get():
-    responses = get_subscriptions()
+    package = request.args.get("package", "cdl_elsevier")
+    responses = get_subscriptions(package)
     return jsonify({ "list": responses, "count": len(responses)})
 
 @app.route("/subscriptions/name/<q>", methods=["GET"])
 def unpaywall_journals_autocomplete_journals(q):
-    responses = get_subscriptions()
+    package = request.args.get("package", "cdl_elsevier")
+    responses = get_subscriptions(package)
     filtered_responses = []
     for response in responses:
         if to_unicode_or_bust(q).lower() in to_unicode_or_bust(response["journal_name"]).lower():
@@ -447,7 +429,8 @@ def unpaywall_journals_autocomplete_journals(q):
 
 @app.route("/subscription/issn/<q>", methods=["GET"])
 def unpaywall_journals_issn(q):
-    responses = get_subscriptions()
+    package = request.args.get("package", "cdl_elsevier")
+    responses = get_subscriptions(package)
     for response in responses:
         if to_unicode_or_bust(q).lower() in response["issns"]:
             return jsonify(response)
@@ -456,7 +439,8 @@ def unpaywall_journals_issn(q):
 
 @app.route("/breakdown", methods=["GET"])
 def unpaywall_journals_breakdown():
-    rows = get_subscription_rows()
+    package = request.args.get("package", "cdl_elsevier")
+    rows = get_subscription_rows(package)
     response = {
         "article_breakdown": {
             "num_closed": sum([r["num_papers"] - r["num_is_oa"] for r in rows]),
@@ -515,6 +499,7 @@ def get_total_count():
 
 @app.route("/articles", methods=["GET"])
 def unpaywall_journals_articles_paged():
+    package = request.args.get("package", "cdl_elsevier")
 
     # page starts at 1 not 0
     if request.args.get("page"):
@@ -531,22 +516,6 @@ def unpaywall_journals_articles_paged():
 
     offset = (page - 1) * pagesize
 
-    # command = """
-    #         select api_json
-    #         from unpaywall_production j
-    #         join cdl_journals_temp_with_issn_l_dist_all cdl on j.journal_issn_l = cdl.issn_l
-    #         where
-    #         (j.published_date >= coalesce(cdl.from_date, '1900-01-01'::timestamp) and j.published_date < coalesce(cdl.to_date, '2100-01-01'::timestamp))
-    #         {text_filter}
-    #         {oa_filter}
-    #         order by published_date desc
-    #         limit {pagesize}
-    #         offset {offset}
-    #     """.format(pagesize=pagesize,
-    #                offset=offset,
-    #                text_filter=build_text_filter(),
-    #                oa_filter=build_oa_filter())
-
     command = """
         select usimple.doi, api_json 
         from unpaywall_simple_sortkey usimple, 
@@ -554,7 +523,7 @@ def unpaywall_journals_articles_paged():
             from unpaywall_production u
             join ricks_unpaywall_journals_subscription_agg j on u.journal_issn_l = j.journal_issn_l
             where 
-                package = 'cdl_elsevier' and
+                package = '{package}' and
                 u.published_date >= coalesce(j.from_date, '1900-01-01'::timestamp) and u.published_date < coalesce(j.to_date, '2100-01-01'::timestamp) 
                 {text_filter}
                 {oa_filter}
@@ -564,6 +533,7 @@ def unpaywall_journals_articles_paged():
         where usimple.doi=s.doi    
     """.format(pagesize=pagesize,
                    offset=offset,
+                   package=package,
                    text_filter=build_text_filter(),
                    oa_filter=build_oa_filter())
     print command
