@@ -341,6 +341,13 @@ def get_subscription_rows(package="cdl_elsevier"):
         rows = cursor.fetchall()
     return rows
 
+def display_downloads(num_downloads):
+    if num_downloads > 100:
+        return "HIGH"
+    if num_downloads > 25:
+        return "MEDIUM"
+    return "LOW"
+
 def get_subscriptions(package):
     responses = []
     rows = get_subscription_rows(package)
@@ -370,9 +377,9 @@ def get_subscriptions(package):
             my_dict["affected_end_date"] = my_dict["affected_end_date"].isoformat()[0:10]
         if package == "mit_elsevier":
             my_dict.update({
-            "num_downloads": row["mit_counter_age_0y"] if row["mit_counter_age_0y"] else 0,
+            "num_downloads": display_downloads(row["mit_counter_age_0y"]),
             "num_citations": row["mit_num_citations"] if row["mit_num_citations"] else 0,
-            "num_authored": 0
+            "num_authored": row["mit_num_citations"]/10 if row["mit_num_citations"] else 0,
             })
 
         responses.append(my_dict)
