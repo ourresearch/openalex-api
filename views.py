@@ -343,10 +343,10 @@ def get_subscription_rows(package="cdl_elsevier"):
 
 def display_downloads(num_downloads):
     if num_downloads > 300:
-        return "HIGH"
+        return "high"
     if num_downloads > 30:
-        return "MEDIUM"
-    return "LOW"
+        return "medium"
+    return "low"
 
 def get_subscriptions(package):
     responses = []
