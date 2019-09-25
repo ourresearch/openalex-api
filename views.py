@@ -341,10 +341,24 @@ def get_subscription_rows(package="cdl_elsevier"):
         rows = cursor.fetchall()
     return rows
 
-def display_downloads(num_downloads):
-    if num_downloads > 300:
+def display_closed_access_downloads(row):
+    if not row["num_papers"] or not ["num_is_oa"] or not row["mit_counter_age_0y"]:
+        return None
+
+    percent_closed = 1 - float(row["num_is_oa"])/row["num_papers"]
+    num_downloads = float(row["mit_counter_age_0y"])
+    closed_access_downloads = percent_closed * num_downloads
+    if closed_access_downloads > 190:
         return "high"
-    if num_downloads > 30:
+    if closed_access_downloads > 50:
+        return "medium"
+    return "low"
+
+def display_downloads(row):
+    num_downloads = row["mit_counter_age_0y"]
+    if num_downloads > 250:
+        return "high"
+    if num_downloads > 67:
         return "medium"
     return "low"
 
@@ -377,9 +391,9 @@ def get_subscriptions(package):
             my_dict["affected_end_date"] = my_dict["affected_end_date"].isoformat()[0:10]
         if package == "mit_elsevier":
             my_dict.update({
-            "num_downloads": display_downloads(row["mit_counter_age_0y"]),
+            "closed_access_downloads": display_closed_access_downloads(row),
+            "downloads": display_downloads(row),
             "num_citations": row["mit_num_citations"] if row["mit_num_citations"] else 0,
-            "num_authored": row["mit_num_citations"]/10 if row["mit_num_citations"] else 0,
             })
 
         responses.append(my_dict)
