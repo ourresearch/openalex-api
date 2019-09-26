@@ -496,18 +496,19 @@ def build_text_filter():
     return text_filter
 
 
-def get_total_count():
+def get_total_count(package):
 
     command = """
             select count(doi) as num_articles
             from unpaywall_production u
             join ricks_unpaywall_journals_subscription_agg j on u.journal_issn_l = j.journal_issn_l
             where 
-            package = 'cdl_elsevier' and
+            package = '{package}' and
             u.published_date >= coalesce(j.from_date, '1900-01-01'::timestamp) and u.published_date < coalesce(j.to_date, '2100-01-01'::timestamp)
             {text_filter}
             {oa_filter}
         """.format(text_filter=build_text_filter(),
+                   package=package,
                    oa_filter=build_oa_filter())
 
     # print command
@@ -521,6 +522,7 @@ def get_total_count():
 @app.route("/articles", methods=["GET"])
 def unpaywall_journals_articles_paged():
     package = request.args.get("package", "cdl_elsevier")
+    print package
 
     # page starts at 1 not 0
     if request.args.get("page"):
@@ -557,13 +559,13 @@ def unpaywall_journals_articles_paged():
                    package=package,
                    text_filter=build_text_filter(),
                    oa_filter=build_oa_filter())
-    print command
+    # print command
     with get_db_cursor() as cursor:
         cursor.execute(command)
         rows = cursor.fetchall()
     responses = [json.loads(row["api_json"]) for row in rows]
 
-    return jsonify({"page": page, "list": responses, "total_count": get_total_count()})
+    return jsonify({"page": page, "list": responses, "total_count": get_total_count(package)})
 
 
 
