@@ -6,3 +6,5 @@ warm_cache: python call_ricks_api.py --warm
 run_random: python call_ricks_api.py
 insights: python save_ip_insights.py
 pmc: python save_pmc_metadata.py
+crossref_2017: python save_crossref_in_db.py
+
