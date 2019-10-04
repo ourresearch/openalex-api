@@ -174,10 +174,12 @@ def scroll_through_all_dois(query_doi=None, first=None, last=None, today=False, 
     # needs a mailto, see https://github.com/CrossRef/rest-api-doc#good-manners--more-reliable-service
     headers={"Accept": "application/json", "User-Agent": "mailto:team@impactstory.org"}
 
-    if first:
-        base_url = "https://api.crossref.org/works?filter=from-created-date:{first},until-created-date:{last}&rows={rows}&select=DOI&cursor={next_cursor}"
-    else:
-        base_url = "https://api.crossref.org/works?filter=until-created-date:{last}&rows={rows}&select=DOI&cursor={next_cursor}"
+    base_url = "https://api.crossref.org/works?filter=type:journal-article,from-pub-date:2017,until-pub-date:2017&rows=1000&select=DOI&cursor={next_cursor}"
+
+    # if first:
+    #     base_url = "https://api.crossref.org/works?filter=from-created-date:{first},until-created-date:{last}&rows={rows}&select=DOI&cursor={next_cursor}"
+    # else:
+    #     base_url = "https://api.crossref.org/works?filter=until-created-date:{last}&rows={rows}&select=DOI&cursor={next_cursor}"
 
     next_cursor = "*"
     has_more_responses = True
