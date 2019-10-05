@@ -174,8 +174,11 @@ def scroll_through_all_dois(query_doi=None, first=None, last=None, today=False, 
     # needs a mailto, see https://github.com/CrossRef/rest-api-doc#good-manners--more-reliable-service
     headers={"Accept": "application/json", "User-Agent": "mailto:team@impactstory.org"}
 
-    # this is by pub-date instead of created date, for 2017, and includes journal=article filter
-    base_url = "https://api.crossref.org/works?filter=type:journal-article,from-pub-date:2017,until-pub-date:2017&rows=1000&select=DOI&cursor={next_cursor}"
+    # # this is by pub-date instead of created date, for 2017, and includes journal=article filter
+    # base_url = "https://api.crossref.org/works?filter=type:journal-article,from-pub-date:2017,until-pub-date:2017&rows=1000&select=DOI&cursor={next_cursor}"
+
+    # in the future maybe this
+    base_url = "https://api.crossref.org/works?filter=type:journal-article,from-issued-date:1949&rows=1000&select=DOI,published-print,published-online,issued&cursor={next_cursor}"
 
     # if first:
     #     base_url = "https://api.crossref.org/works?filter=from-created-date:{first},until-created-date:{last}&rows={rows}&select=DOI&cursor={next_cursor}"
@@ -210,14 +213,44 @@ def scroll_through_all_dois(query_doi=None, first=None, last=None, today=False, 
             if resp_data["items"] and len(resp_data["items"]) == chunk_size:
                 has_more_responses = True
 
-        dois_from_api = [clean_doi(api_raw["DOI"]) for api_raw in resp_data["items"]]
+        def get_fields(row):
+            fields = {}
+            fields["doi"] = clean_doi(row["DOI"])
+            fields["dates_text"] = json.dumps(row)
+            issued_year = ""
+            issued_month = ""
+            issued_day = ""
+            issued = row.get("issued", None)
+
+            if issued:
+                issued_date_list = issued.get("date-parts")[0]
+            if issued_date_list:
+                issued_year = issued_date_list[0]
+                try:
+                    issued_month = issued_date_list[1]
+                except IndexError:
+                    pass
+                try:
+                    issued_day = issued_date_list[2]
+                except IndexError:
+                    pass
+            fields["issued_year"] = issued_year
+            fields["issued_month"] = issued_month
+            fields["issued_day"] = issued_day
+            return fields
+
+        data_dicts = [get_fields(api_raw) for api_raw in resp_data["items"]]
         with get_db_cursor() as cursor:
-            command = u"""INSERT INTO crossref_2017_dois_fresh (doi) values """
+            # command = u"""INSERT INTO crossref_2017_dois_fresh (doi) values """
+            command = u"""INSERT INTO crossref_dois_fresh_dates (doi, dates_text, issued_year, issued_month, issued_day) values """
             insert_strings = []
-            for doi in dois_from_api:
-                insert_string = u"""('{}')""".format(doi)
+            for my_dict in data_dicts:
+                # insert_string = u"""('{}')""".format(doi)
+
+                insert_string = u"""('{doi}', '{dates_text}', '{issued_year}', '{issued_month}', '{issued_day}')""".format(**my_dict)
                 insert_strings.append(insert_string)
             command = command + u",".join(insert_strings) + u";"
+            # print command
             print "*",
 
             cursor.execute(command)
