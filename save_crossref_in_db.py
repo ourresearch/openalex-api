@@ -177,8 +177,7 @@ def scroll_through_all_dois(query_doi=None, first=None, last=None, today=False, 
     # # this is by pub-date instead of created date, for 2017, and includes journal=article filter
     # base_url = "https://api.crossref.org/works?filter=type:journal-article,from-pub-date:2017,until-pub-date:2017&rows=1000&select=DOI&cursor={next_cursor}"
 
-    # in the future maybe this
-    base_url = "https://api.crossref.org/works?filter=type:journal-article,from-issued-date:1949&rows=1000&select=DOI,published-print,published-online,issued&cursor={next_cursor}"
+    base_url = "https://api.crossref.org/works?filter=type:journal-article,from-issued-date:2015&rows=1000&select=DOI,published-print,published-online,issued&cursor={next_cursor}"
 
     # if first:
     #     base_url = "https://api.crossref.org/works?filter=from-created-date:{first},until-created-date:{last}&rows={rows}&select=DOI&cursor={next_cursor}"
