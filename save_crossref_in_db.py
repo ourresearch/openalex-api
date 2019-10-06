@@ -215,7 +215,8 @@ def scroll_through_all_dois(query_doi=None, first=None, last=None, today=False, 
         def get_fields(row):
             fields = {}
             fields["doi"] = clean_doi(row["DOI"])
-            fields["dates_text"] = json.dumps(row)
+            # fields["dates_text"] = json.dumps(row)  # too slow for now
+            fields["dates_text"] = None
             issued_year = ""
             issued_month = ""
             issued_day = ""
