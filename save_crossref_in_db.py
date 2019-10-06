@@ -170,7 +170,7 @@ def get_new_dois_and_data_from_crossref(query_doi=None, first=None, last=None, t
 
 
 # this one is used for catch up.  use the above function when we want all weekly dois
-def scroll_through_all_dois(query_doi=None, first=None, last=None, today=False, week=False, chunk_size=2000):
+def scroll_through_all_dois(query_doi=None, first=None, last=None, today=False, week=False, chunk_size=1000):
     # needs a mailto, see https://github.com/CrossRef/rest-api-doc#good-manners--more-reliable-service
     headers={"Accept": "application/json", "User-Agent": "mailto:team@impactstory.org"}
 
