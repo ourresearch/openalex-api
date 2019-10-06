@@ -170,14 +170,14 @@ def get_new_dois_and_data_from_crossref(query_doi=None, first=None, last=None, t
 
 
 # this one is used for catch up.  use the above function when we want all weekly dois
-def scroll_through_all_dois(query_doi=None, first=None, last=None, today=False, week=False, chunk_size=1000):
+def scroll_through_all_dois(query_doi=None, first=None, last=None, today=False, week=False, chunk_size=500):
     # needs a mailto, see https://github.com/CrossRef/rest-api-doc#good-manners--more-reliable-service
     headers={"Accept": "application/json", "User-Agent": "mailto:team@impactstory.org"}
 
     # # this is by pub-date instead of created date, for 2017, and includes journal=article filter
     # base_url = "https://api.crossref.org/works?filter=type:journal-article,from-pub-date:2017,until-pub-date:2017&rows=1000&select=DOI&cursor={next_cursor}"
 
-    base_url = "https://api.crossref.org/works?filter=type:journal-article,from-issued-date:2018,until-issued-date:2018&rows=1000&select=DOI,published-print,published-online,issued&cursor={next_cursor}"
+    base_url = "https://api.crossref.org/works?filter=type:journal-article,from-issued-date:2018,until-issued-date:2018&rows={rows}&select=DOI,published-print,published-online,issued&cursor={next_cursor}"
 
     # if first:
     #     base_url = "https://api.crossref.org/works?filter=from-created-date:{first},until-created-date:{last}&rows={rows}&select=DOI&cursor={next_cursor}"
@@ -203,7 +203,7 @@ def scroll_through_all_dois(query_doi=None, first=None, last=None, today=False, 
         logger.info(u"getting crossref response took {} seconds.  url: {}".format(elapsed(start_time, 2), url))
         if resp.status_code != 200:
             logger.info(u"error in crossref call, status_code = {}".format(resp.status_code))
-            return number_added
+            return
 
         resp_data = resp.json()["message"]
         next_cursor = resp_data.get("next-cursor", None)
@@ -244,8 +244,6 @@ def scroll_through_all_dois(query_doi=None, first=None, last=None, today=False, 
             command = u"""INSERT INTO crossref_dois_fresh_dates (doi, dates_text, issued_year, issued_month, issued_day) values """
             insert_strings = []
             for my_dict in data_dicts:
-                # insert_string = u"""('{}')""".format(doi)
-
                 insert_string = u"""('{doi}', '{dates_text}', '{issued_year}', '{issued_month}', '{issued_day}')""".format(**my_dict)
                 insert_strings.append(insert_string)
             command = command + u",".join(insert_strings) + u";"
@@ -253,17 +251,6 @@ def scroll_through_all_dois(query_doi=None, first=None, last=None, today=False, 
             print "*",
 
             cursor.execute(command)
-
-        # print dois_from_api
-        #
-        # added_pubs = add_new_pubs_from_dois(dois_from_api)
-        # if dois_from_api:
-        #     logger.info(u"got {} dois from api".format(len(dois_from_api)))
-        # if added_pubs:
-        #     logger.info(u"{}: saved {} new pubs, including {}".format(
-        #         first, len(added_pubs), added_pubs[-2:]))
-
-        # number_added += len(added_pubs)
 
         logger.info(u"loop done in {} seconds".format(elapsed(start_time, 2)))
 
