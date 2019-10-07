@@ -933,6 +933,16 @@ def permissions_issn_get(issn):
     rows = get_journal_rows_from_issn()
     return jsonify([row_dict_to_api(row) for row in rows])
 
+@app.route("/jump/temp/package/<package>", methods=["GET"])
+def jump_package_get(package):
+    command = """select issn_l, journal_name from unpaywall_journals_package_issnl_view where package='{}'""".format(package)
+
+    with get_db_cursor() as cursor:
+        cursor.execute(command)
+        rows = cursor.fetchall()
+
+    return jsonify({"list": rows, "count": len(rows)})
+
 
 @app.route("/jump/temp/issn/<issn_l>", methods=["GET"])
 def jump_issn_get(issn_l):
