@@ -991,7 +991,7 @@ def jump_get():
     else:
         return jsonify_fast(get_jump_response(package, min))
 
-def get_jump_response(package, min=None):
+def get_jump_response(package="mit_elsevier", min=None):
     timing = []
 
     start_time = time()
@@ -999,7 +999,7 @@ def get_jump_response(package, min=None):
 
     package_issn_ls = get_issn_ls_for_package(package)
 
-    command = "select * from counter"
+    command = "select * from counter where package='{}'".format(package)
     counter_rows = None
     with get_db_cursor() as cursor:
         cursor.execute(command)
