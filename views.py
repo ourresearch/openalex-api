@@ -965,11 +965,33 @@ def jump_issn_get(issn_l):
 
     return jsonify(issnl_dict)
 
+
+def get_issn_ls_for_package(package):
+    command = "select issn_l from unpaywall_journals_package_issnl_view"
+    if package:
+        command += " where package='{}'".format(package)
+    with get_db_cursor() as cursor:
+        cursor.execute(command)
+        rows = cursor.fetchall()
+    package_issn_ls = [row["issn_l"] for row in rows]
+    return package_issn_ls
+
+
 @app.route("/jump/temp", methods=["GET"])
 def jump_get():
+    package = request.args.get("package", None)
     from data.jump_cache import cached_response
-    return jsonify_fast(cached_response)
-
+    my_response = cached_response
+    if package:
+        package_issn_ls = get_issn_ls_for_package(package)
+        all_list = my_response["list"]
+        new_list = []
+        for entry in all_list:
+            if entry["issn_l"] in package_issn_ls:
+                new_list.append(entry)
+        my_response["list"] = new_list
+        my_response["count"] = len(new_list)
+    return jsonify_fast(my_response)
 
 @app.route("/jump/temp/real", methods=["GET"])
 def jump_get_real():
@@ -980,6 +1002,9 @@ def jump_get_real():
     section_time = time()
 
     min = request.args.get("min", None)
+    package = request.args.get("package", None)
+
+    package_issn_ls = get_issn_ls_for_package(package)
 
     command = "select * from counter"
     counter_rows = None
@@ -1007,6 +1032,8 @@ def jump_get_real():
     section_time = time()
 
     for row in jump_elsevier_unpaywall_downloads_rows:
+        if package and row["issn_l"] not in package_issn_ls:
+            continue
 
         my_dict = {}
         for field in row.keys():
