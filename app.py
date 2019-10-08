@@ -68,7 +68,7 @@ warnings.filterwarnings("ignore", category=DeprecationWarning)
 
 app = Flask(__name__)
 
-cache = Cache(app, config={'CACHE_TYPE': 'simple'})
+cache = Cache(app, config={'CACHE_TYPE': 'filesystem'})
 
 # database stuff
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = True  # as instructed, to suppress warning
