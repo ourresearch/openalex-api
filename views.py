@@ -14,6 +14,7 @@ import re
 import datetime
 from time import time
 import boto
+import pickle
 from util import read_csv_file
 from util import elapsed
 from util import to_unicode_or_bust
@@ -32,7 +33,6 @@ from app import db
 from app import get_db_connection
 from app import get_db_cursor
 from app import logger
-from app import cache
 from data.funders import funder_names
 from journal import Journal
 from topic import Topic
@@ -50,6 +50,7 @@ from util import is_issn
 from util import get_sql_answer
 from util import jsonify_fast
 from util import find_normalized_license
+from util import str2bool
 
 
 
@@ -977,21 +978,24 @@ def get_issn_ls_for_package(package):
     package_issn_ls = [row["issn_l"] for row in rows]
     return package_issn_ls
 
-@cache.cached(timeout=30)
+
 @app.route("/jump/temp", methods=["GET"])
 def jump_get():
-    return jump_get_uncached()
+    use_cache = str2bool(request.args.get("use_cache", "true"))
+    package = request.args.get("package", None)
+    min = request.args.get("min", None)
 
-@app.route("/jump/temp/real", methods=["GET"])
-def jump_get_uncached():
+    if use_cache:
+        global jump_cache
+        return jsonify_fast(jump_cache[package])
+    else:
+        return jsonify_fast(get_jump_response(package, min))
 
+def get_jump_response(package, min=None):
     timing = []
 
     start_time = time()
     section_time = time()
-
-    min = request.args.get("min", None)
-    package = request.args.get("package", None)
 
     package_issn_ls = get_issn_ls_for_package(package)
 
@@ -1097,8 +1101,20 @@ def jump_get_uncached():
     timing.append(("after sort", elapsed(section_time, 2)))
 
     timing_messages = ["{}: {}s".format(*item) for item in timing]
-    return jsonify_fast({"_timing": timing_messages, "list": sorted_rows, "total": summary_dict, "count": len(sorted_rows)})
+    return {"_timing": timing_messages, "list": sorted_rows, "total": summary_dict, "count": len(sorted_rows)}
 
+jump_cache = {}
+store_cache = False
+if store_cache:
+    print "building cache"
+    for package in [None, "cdl_elsevier", "mit_elsevier", "uva_elsevier"]:
+        print package
+        jump_cache[package] = get_jump_response(package)
+        pickle.dump(jump_cache, open( "data/jump_cache.pkl", "wb" ))
+    print "done"
+else:
+    print "loading cache"
+    jump_cache = pickle.load(open( "data/jump_cache.pkl", "rb" ))
 
 
 if __name__ == "__main__":
