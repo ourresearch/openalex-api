@@ -32,6 +32,7 @@ from app import db
 from app import get_db_connection
 from app import get_db_cursor
 from app import logger
+from app import cache
 from data.funders import funder_names
 from journal import Journal
 from topic import Topic
@@ -976,25 +977,13 @@ def get_issn_ls_for_package(package):
     package_issn_ls = [row["issn_l"] for row in rows]
     return package_issn_ls
 
-
+@cache.cached(timeout=30)
 @app.route("/jump/temp", methods=["GET"])
 def jump_get():
-    package = request.args.get("package", None)
-    from data.jump_cache import cached_response
-    my_response = cached_response
-    if package:
-        package_issn_ls = get_issn_ls_for_package(package)
-        all_list = my_response["list"]
-        new_list = []
-        for entry in all_list:
-            if entry["issn_l"] in package_issn_ls:
-                new_list.append(entry)
-        my_response["list"] = new_list
-        my_response["count"] = len(new_list)
-    return jsonify_fast(my_response)
+    return jump_get_uncached()
 
 @app.route("/jump/temp/real", methods=["GET"])
-def jump_get_real():
+def jump_get_uncached():
 
     timing = []
 
