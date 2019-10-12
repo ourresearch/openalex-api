@@ -991,6 +991,15 @@ def jump_get():
     else:
         return jsonify_fast(get_jump_response(package, min))
 
+# observation_year 	total views 	total views percent of 2018 	total oa views 	total oa views percent of 2018
+# 2018 	25,565,054.38 	1.00 	12,664,693.62 	1.00
+# 2019 	28,162,423.76 	1.10 	14,731,000.96 	1.16
+# 2020 	30,944,070.68 	1.21 	17,033,520.59 	1.34
+# 2021 	34,222,756.60 	1.34 	19,830,049.25 	1.57
+# 2022 	38,000,898.80 	1.49 	23,092,284.75 	1.82
+# 2023 	42,304,671.82 	1.65 	26,895,794.03 	2.12
+
+
 def get_jump_response(package="mit_elsevier", min=None):
     timing = []
 
@@ -1018,7 +1027,7 @@ def get_jump_response(package="mit_elsevier", min=None):
     rows_to_export = []
     summary_dict = {}
     summary_dict["year"] = [2020 + projected_year for projected_year in range(0, 5)]
-    for field in ["total", "oa", "back_catalog", "turnaways"]:
+    for field in ["total", "oa", "researchgate", "back_catalog", "turnaways"]:
         summary_dict[field] = [0 for projected_year in range(0, 5)]
 
     timing.append(("summary", elapsed(section_time, 2)))
@@ -1041,20 +1050,51 @@ def get_jump_response(package="mit_elsevier", min=None):
 
         my_dict["downloads_by_year"] = {}
         my_dict["downloads_by_year"]["year"] = [2020 + projected_year for projected_year in range(0, 5)]
-        my_dict["downloads_by_year"]["total"] = [row["downloads_total"] for projected_year in range(0, 5)]
-        my_dict["downloads_by_year"]["oa"] = [0 for projected_year in range(0, 5)]
-        my_dict["downloads_by_year"]["oa"][0] = row["downloads_0y_oa"]
-        my_dict["downloads_by_year"]["oa"][1] = row["downloads_0y_oa"] + row["downloads_1y_oa"]
-        my_dict["downloads_by_year"]["oa"][2] = row["downloads_0y_oa"] + row["downloads_1y_oa"] + row["downloads_2y_oa"]
-        my_dict["downloads_by_year"]["oa"][3] = row["downloads_0y_oa"] + row["downloads_1y_oa"] + row["downloads_2y_oa"] + row["downloads_3y_oa"]
-        my_dict["downloads_by_year"]["oa"][4] = row["downloads_0y_oa"] + row["downloads_1y_oa"] + row["downloads_2y_oa"] + row["downloads_3y_oa"] + row["downloads_4y_oa"]
-        my_dict["downloads_by_year"]["back_catalog"] = [0 for projected_year in range(0, 5)]
-        my_dict["downloads_by_year"]["back_catalog"][0] = row["downloads_total"] - (row["downloads_0y"])
-        my_dict["downloads_by_year"]["back_catalog"][1] = row["downloads_total"] - (row["downloads_0y"] + row["downloads_1y"])
-        my_dict["downloads_by_year"]["back_catalog"][2] = row["downloads_total"] - (row["downloads_0y"] + row["downloads_1y"] + row["downloads_2y"])
-        my_dict["downloads_by_year"]["back_catalog"][3] = row["downloads_total"] - (row["downloads_0y"] + row["downloads_1y"] + row["downloads_2y"] + row["downloads_3y"])
-        my_dict["downloads_by_year"]["back_catalog"][4] = row["downloads_total"] - (row["downloads_0y"] + row["downloads_1y"] + row["downloads_2y"] + row["downloads_3y"] + row["downloads_4y"])
-        my_dict["downloads_by_year"]["turnaways"] = [my_dict["downloads_by_year"]["total"][projected_year] - (my_dict["downloads_by_year"]["back_catalog"][projected_year] + my_dict["downloads_by_year"]["oa"][projected_year])
+
+        oa_recall_scaling_factor = 1.3
+        researchgate_proportion_of_downloads = 0.1
+        growth_scaling = {}
+        growth_scaling["downloads"] =   [1.10, 1.21, 1.34, 1.49, 1.65]
+        growth_scaling["oa"] =          [1.16, 1.24, 1.57, 1.83, 2.12]
+        my_dict["downloads_by_year"]["total"] = [row["downloads_total"]*growth_scaling["downloads"][year] for year in range(0, 5)]
+        my_dict["downloads_by_year"]["oa"] = [int(oa_recall_scaling_factor * row["downloads_total_oa"] * growth_scaling["oa"][year]) for year in range(0, 5)]
+        my_dict["downloads_by_year"]["oa"] = [max(my_dict["downloads_by_year"]["oa"][year], my_dict["downloads_by_year"]["total"][year]) for year in range(0, 5)]
+        my_dict["downloads_by_year"]["researchgate"] = [int(my_dict["downloads_by_year"]["oa"][year]) for year in range(0, 5)]
+
+        my_dict["downloads_by_year"]["researchgate"] = [int(researchgate_proportion_of_downloads * my_dict["downloads_by_year"]["total"][projected_year]) for projected_year in range(0, 5)]
+        my_dict["downloads_by_year"]["researchgate_orig"] = my_dict["downloads_by_year"]["researchgate"]
+
+        total_downloads_by_age = [row["downloads_{}y".format(age)] for age in range(0, 5)]
+        oa_downloads_by_age = [row["downloads_{}y_oa".format(age)] for age in range(0, 5)]
+
+        my_dict["downloads_by_year"]["turnaways"] = [0 for year in range(0, 5)]
+        for year in range(0,5):
+            my_dict["downloads_by_year"]["turnaways"][year] = (1 - researchgate_proportion_of_downloads) *\
+                sum([(total_downloads_by_age[age]*growth_scaling["downloads"][year] - oa_downloads_by_age[age]*growth_scaling["oa"][year])
+                     for age in range(0, year+1)])
+
+        my_dict["downloads_by_year"]["back_catalog"] = [my_dict["downloads_by_year"]["total"][projected_year]\
+                                                        - (my_dict["downloads_by_year"]["turnaways"][projected_year]
+                                                           + my_dict["downloads_by_year"]["oa"][projected_year]
+                                                           + my_dict["downloads_by_year"]["researchgate"][projected_year])\
+                                                        for projected_year in range(0, 5)]
+        my_dict["downloads_by_year"]["back_catalog"] = [max(0, num) for num in my_dict["downloads_by_year"]["back_catalog"]]
+
+
+        my_dict["downloads_by_year"]["total_orig"] = [row["downloads_total"] for projected_year in range(0, 5)]
+        my_dict["downloads_by_year"]["oa_orig"] = [0 for projected_year in range(0, 5)]
+        my_dict["downloads_by_year"]["oa_orig"][0] = row["downloads_0y_oa"]
+        my_dict["downloads_by_year"]["oa_orig"][1] = row["downloads_0y_oa"] + row["downloads_1y_oa"]
+        my_dict["downloads_by_year"]["oa_orig"][2] = row["downloads_0y_oa"] + row["downloads_1y_oa"] + row["downloads_2y_oa"]
+        my_dict["downloads_by_year"]["oa_orig"][3] = row["downloads_0y_oa"] + row["downloads_1y_oa"] + row["downloads_2y_oa"] + row["downloads_3y_oa"]
+        my_dict["downloads_by_year"]["oa_orig"][4] = row["downloads_0y_oa"] + row["downloads_1y_oa"] + row["downloads_2y_oa"] + row["downloads_3y_oa"] + row["downloads_4y_oa"]
+        my_dict["downloads_by_year"]["back_catalog_orig"] = [0 for projected_year in range(0, 5)]
+        my_dict["downloads_by_year"]["back_catalog_orig"][0] = row["downloads_total"] - (row["downloads_0y"])
+        my_dict["downloads_by_year"]["back_catalog_orig"][1] = row["downloads_total"] - (row["downloads_0y"] + row["downloads_1y"])
+        my_dict["downloads_by_year"]["back_catalog_orig"][2] = row["downloads_total"] - (row["downloads_0y"] + row["downloads_1y"] + row["downloads_2y"])
+        my_dict["downloads_by_year"]["back_catalog_orig"][3] = row["downloads_total"] - (row["downloads_0y"] + row["downloads_1y"] + row["downloads_2y"] + row["downloads_3y"])
+        my_dict["downloads_by_year"]["back_catalog_orig"][4] = row["downloads_total"] - (row["downloads_0y"] + row["downloads_1y"] + row["downloads_2y"] + row["downloads_3y"] + row["downloads_4y"])
+        my_dict["downloads_by_year"]["turnaways_orig"] = [my_dict["downloads_by_year"]["total_orig"][projected_year] - (my_dict["downloads_by_year"]["back_catalog_orig"][projected_year] + my_dict["downloads_by_year"]["oa_orig"][projected_year])
             for projected_year in range(0, 5)]
 
         # now scale for the org
@@ -1064,26 +1104,15 @@ def get_jump_response(package="mit_elsevier", min=None):
         except:
             total_org_downloads_multiple = 0
 
-        for field in ["total", "oa", "back_catalog", "turnaways"]:
+        for field in ["total", "oa", "researchgate", "back_catalog", "turnaways"]:
             for projected_year in range(0, 5):
-                my_dict["downloads_by_year"][field][projected_year] *= total_org_downloads_multiple
+                my_dict["downloads_by_year"][field][projected_year] *= float(total_org_downloads_multiple)
                 my_dict["downloads_by_year"][field][projected_year] = int(my_dict["downloads_by_year"][field][projected_year])
+                my_dict["downloads_by_year"][field+"_orig"][projected_year] *= float(total_org_downloads_multiple)
+                my_dict["downloads_by_year"][field+"_orig"][projected_year] = int(my_dict["downloads_by_year"][field+"_orig"][projected_year])
 
-        # now accumulate
-        my_dict["downloads_next_3_years"] = {
-            "total": sum(my_dict["downloads_by_year"]["total"][0:3]),
-            "oa": sum(my_dict["downloads_by_year"]["oa"][0:3]),
-            "back_catalog": sum(my_dict["downloads_by_year"]["back_catalog"][0:3]),
-            "turnaways": sum(my_dict["downloads_by_year"]["turnaways"][0:3])
-        }
-        # my_dict["downloads_next_5_years"] = {
-        #     "total": sum(my_dict["downloads_by_year"]["total"][0:5]),
-        #     "oa": sum(my_dict["downloads_by_year"]["oa"][0:5]),
-        #     "back_catalog": sum(my_dict["downloads_by_year"]["back_catalog"][0:5]),
-        #     "turnaways": sum(my_dict["downloads_by_year"]["turnaways"][0:5])
-        # }
 
-        for field in ["total", "oa", "back_catalog", "turnaways"]:
+        for field in ["total", "oa", "researchgate", "back_catalog", "turnaways"]:
             for projected_year in range(0, 5):
                 summary_dict[field][projected_year] += my_dict["downloads_by_year"][field][projected_year]
 
@@ -1097,7 +1126,7 @@ def get_jump_response(package="mit_elsevier", min=None):
     timing.append(("loop", elapsed(section_time, 2)))
     section_time = time()
 
-    sorted_rows = sorted(rows_to_export, key=lambda x: x["downloads_next_3_years"]["total"], reverse=True)
+    sorted_rows = sorted(rows_to_export, key=lambda x: x["downloads_by_year"]["total"][0], reverse=True)
     timing.append(("after sort", elapsed(section_time, 2)))
 
     timing_messages = ["{}: {}s".format(*item) for item in timing]
