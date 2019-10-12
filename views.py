@@ -1135,7 +1135,7 @@ def get_jump_response(package="mit_elsevier", min=None):
     return {"_timing": timing_messages, "list": sorted_rows, "total": summary_dict, "count": len(sorted_rows)}
 
 jump_cache = {}
-store_cache = True
+store_cache = False
 if store_cache:
     print "building cache"
     for package in [None, "cdl_elsevier", "mit_elsevier", "uva_elsevier"]:
