@@ -1060,7 +1060,7 @@ def get_jump_response(package="mit_elsevier", min=None):
         growth_scaling["oa"] =          [1.16, 1.24, 1.57, 1.83, 2.12]
         my_dict["downloads_by_year"]["total"] = [row["downloads_total"]*growth_scaling["downloads"][year] for year in range(0, 5)]
         my_dict["downloads_by_year"]["oa"] = [int(oa_recall_scaling_factor * row["downloads_total_oa"] * growth_scaling["oa"][year]) for year in range(0, 5)]
-        my_dict["downloads_by_year"]["oa"] = [max(my_dict["downloads_by_year"]["oa"][year], my_dict["downloads_by_year"]["total"][year]) for year in range(0, 5)]
+        # my_dict["downloads_by_year"]["oa"] = [min(my_dict["downloads_by_year"]["oa"][year], my_dict["downloads_by_year"]["total"][year]) for year in range(0, 5)]
         my_dict["downloads_by_year"]["researchgate"] = [int(my_dict["downloads_by_year"]["oa"][year]) for year in range(0, 5)]
 
         my_dict["downloads_by_year"]["researchgate"] = [int(researchgate_proportion_of_downloads * my_dict["downloads_by_year"]["total"][projected_year]) for projected_year in range(0, 5)]
@@ -1135,7 +1135,7 @@ def get_jump_response(package="mit_elsevier", min=None):
     return {"_timing": timing_messages, "list": sorted_rows, "total": summary_dict, "count": len(sorted_rows)}
 
 jump_cache = {}
-store_cache = False
+store_cache = True
 if store_cache:
     print "building cache"
     for package in [None, "cdl_elsevier", "mit_elsevier", "uva_elsevier"]:
