@@ -1047,6 +1047,8 @@ def get_jump_response(package="mit_elsevier", min=None):
         value = round(row["downloads_total"] + 100*row["num_citations_from_mit_2018"], 0)
         my_dict["papers_2018"] = row["num_papers_2018"]
         my_dict["citations_from_mit_in_2018"] = row["num_citations_from_mit_2018"]
+        my_dict["num_citations"] = row["num_citations_from_mit_2018"]
+        my_dict["num_authorships"] = int(0.1*row["num_citations_from_mit_2018"])
 
         my_dict["downloads_by_year"] = {}
         my_dict["downloads_by_year"]["year"] = [2020 + projected_year for projected_year in range(0, 5)]
