@@ -982,14 +982,14 @@ def get_issn_ls_for_package(package):
 @app.route("/jump/temp", methods=["GET"])
 def jump_get():
     use_cache = str2bool(request.args.get("use_cache", "true"))
-    package = request.args.get("package", None)
-    min = request.args.get("min", None)
+    package = request.args.get("package", "uva_elsevier")
+    min_arg = request.args.get("min", None)
 
     if use_cache:
         global jump_cache
         return jsonify_fast(jump_cache[package])
     else:
-        return jsonify_fast(get_jump_response(package, min))
+        return jsonify_fast(get_jump_response(package, min_arg))
 
 # observation_year 	total views 	total views percent of 2018 	total oa views 	total oa views percent of 2018
 # 2018 	25,565,054.38 	1.00 	12,664,693.62 	1.00
@@ -1000,7 +1000,7 @@ def jump_get():
 # 2023 	42,304,671.82 	1.65 	26,895,794.03 	2.12
 
 
-def get_jump_response(package="mit_elsevier", min=None):
+def get_jump_response(package="mit_elsevier", min_arg=None):
     timing = []
 
     start_time = time()
@@ -1118,7 +1118,7 @@ def get_jump_response(package="mit_elsevier", min=None):
             for projected_year in range(0, 5):
                 summary_dict[field][projected_year] += my_dict["downloads_by_year"][field][projected_year]
 
-        if min:
+        if min_arg:
             del my_dict["downloads_by_year"]
 
         if value:
