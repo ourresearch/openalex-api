@@ -1061,7 +1061,7 @@ def get_jump_response(package="mit_elsevier", min_arg=None):
         my_dict["downloads_by_year"]["total"] = [row["downloads_total"]*growth_scaling["downloads"][year] for year in range(0, 5)]
         my_dict["downloads_by_year"]["oa"] = [int(oa_recall_scaling_factor * row["downloads_total_oa"] * growth_scaling["oa"][year]) for year in range(0, 5)]
 
-        my_dict["downloads_by_year"]["oa"] = [a if a<b else b for a, b in zip(my_dict["downloads_by_year"]["total"], my_dict["downloads_by_year"]["oa"])]
+        # my_dict["downloads_by_year"]["oa"] = [a if a<b else b for a, b in zip(my_dict["downloads_by_year"]["total"], my_dict["downloads_by_year"]["oa"])]
 
         my_dict["downloads_by_year"]["researchgate"] = [int(researchgate_proportion_of_downloads * my_dict["downloads_by_year"]["total"][projected_year]) for projected_year in range(0, 5)]
         my_dict["downloads_by_year"]["researchgate_orig"] = my_dict["downloads_by_year"]["researchgate"]
@@ -1074,6 +1074,8 @@ def get_jump_response(package="mit_elsevier", min_arg=None):
             my_dict["downloads_by_year"]["turnaways"][year] = (1 - researchgate_proportion_of_downloads) *\
                 sum([(total_downloads_by_age[age]*growth_scaling["downloads"][year] - oa_downloads_by_age[age]*growth_scaling["oa"][year])
                      for age in range(0, year+1)])
+
+        my_dict["downloads_by_year"]["oa"] = [min(my_dict["downloads_by_year"]["total"][year] - my_dict["downloads_by_year"]["turnaways"][year], my_dict["downloads_by_year"]["oa"][year]) for year in range(0,5)]
 
         my_dict["downloads_by_year"]["back_catalog"] = [my_dict["downloads_by_year"]["total"][projected_year]\
                                                         - (my_dict["downloads_by_year"]["turnaways"][projected_year]
