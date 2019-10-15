@@ -1027,6 +1027,13 @@ def get_jump_response(package="mit_elsevier", min_arg=None):
         counter_rows = cursor.fetchall()
     counter_dict = dict((a["issn_l"], a["total"]) for a in counter_rows)
 
+    command = "select * from journal_delayed_oa_active"
+    embargo_rows = None
+    with get_db_cursor() as cursor:
+        cursor.execute(command)
+        embargo_rows = cursor.fetchall()
+    embargo_dict = dict((a["issn_l"], a["embargo"]) for a in embargo_rows)
+
     command = """select cites.journal_issn_l, sum(num_citations) as num_citations_2018
         from ricks_temp_num_cites_by_uva cites
         join unpaywall u on u.doi=cites.doi
@@ -1074,6 +1081,7 @@ def get_jump_response(package="mit_elsevier", min_arg=None):
         my_dict["citations_from_mit_in_2018"] = citation_dict.get(my_dict["issn_l"], 0)
         my_dict["num_citations"] = citation_dict.get(my_dict["issn_l"], 0)
         my_dict["num_authorships"] = int(0.1*citation_dict.get(my_dict["issn_l"], 0))
+        my_dict["oa_embargo_months"] = embargo_dict.get(my_dict["issn_l"], None)
 
         my_dict["downloads_by_year"] = {}
         my_dict["downloads_by_year"]["year"] = [2020 + projected_year for projected_year in range(0, 5)]
