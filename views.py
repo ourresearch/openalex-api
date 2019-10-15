@@ -1032,7 +1032,7 @@ def get_jump_response(package="mit_elsevier", min_arg=None):
     with get_db_cursor() as cursor:
         cursor.execute(command)
         embargo_rows = cursor.fetchall()
-    embargo_dict = dict((a["issn_l"], a["embargo"]) for a in embargo_rows)
+    embargo_dict = dict((a["issn_l"], int(a["embargo"])) for a in embargo_rows)
 
     command = """select cites.journal_issn_l, sum(num_citations) as num_citations_2018
         from ricks_temp_num_cites_by_uva cites
