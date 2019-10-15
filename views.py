@@ -1048,6 +1048,19 @@ def get_jump_response(package="mit_elsevier", min_arg=None):
         citation_rows = cursor.fetchall()
     citation_dict = dict((a["journal_issn_l"], a["num_citations_2018"]) for a in citation_rows)
 
+    command = """select u.journal_issn_l as journal_issn_l, count(u.doi) as num_authorships
+        from unpaywall u 
+        join ricks_affiliation affil on u.doi = affil.doi
+        where affil.org = 'University of Virginia'
+        and u.year = 2018
+        group by u.journal_issn_l""".format(package)
+    authorship_rows = None
+    with get_db_cursor() as cursor:
+        cursor.execute(command)
+        authorship_rows = cursor.fetchall()
+    authorship_dict = dict((a["journal_issn_l"], a["num_authorships"]) for a in authorship_rows)
+
+
     command = "select * from jump_elsevier_unpaywall_downloads"
     jump_elsevier_unpaywall_downloads_rows = None
     with get_db_cursor() as cursor:
@@ -1080,7 +1093,7 @@ def get_jump_response(package="mit_elsevier", min_arg=None):
         my_dict["papers_2018"] = row["num_papers_2018"]
         my_dict["citations_from_mit_in_2018"] = citation_dict.get(my_dict["issn_l"], 0)
         my_dict["num_citations"] = citation_dict.get(my_dict["issn_l"], 0)
-        my_dict["num_authorships"] = int(0.1*citation_dict.get(my_dict["issn_l"], 0))
+        my_dict["num_authorships"] = authorship_dict.get(my_dict["issn_l"], 0)
         my_dict["oa_embargo_months"] = embargo_dict.get(my_dict["issn_l"], None)
 
         my_dict["downloads_by_year"] = {}
