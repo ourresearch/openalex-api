@@ -27,6 +27,7 @@ import hashlib
 import unicodecsv as csv
 import dateutil.parser
 from monthdelta import monthdelta
+import requests
 
 from app import app
 from app import db
@@ -686,6 +687,46 @@ def split_clean_list(text, use_controlled_vocab=False):
         pass
     return my_response
 
+
+
+
+
+
+
+
+def build_permission_row_from_unpaywall_row(row):
+    versions_archivable = "Publisher PDF, Postprint, Preprint"
+    if row["best_version"] == "submittedVersion":
+        versions_archivable = "Preprint"
+    deposit_statement_required = row.get("best_license", "unknown")
+    response = {
+        "institution_name": row["doi"],
+        "has_policy": "Yes",
+        "versions_archivable": versions_archivable,
+        "archiving_locations_allowed": "Institutional Repository",
+        "post_print_embargo": "unknown",
+        "licences_allowed": row["best_license"],
+        "permission_type": "article",
+        "policy_landing_page": row["best_url"],
+        "monitoring_type": "on demand",
+        "added_by": "support@unpaywall.org",
+        "contributed_by": "support@unpaywall.org",
+        "reviewers": "Unpaywall",
+        "deposit_statement_required": deposit_statement_required,
+        "postpublication_preprint_update_allowed": "unknown",
+        "funding_proportion_required": None,
+        "record_last_updated": datetime.datetime.utcnow().isoformat(),
+        "archived_full_text_link": row["best_url"],
+        "author_requirement": None,
+        "author_affiliation_requirement": None,
+        "permissions_request_contact_email": None,
+        "u_i_d": None,
+        "policy_full_text": None,
+        "policy_landing_page": None,
+        "notes": None,
+    }
+    return response
+
 def get_permission_rows(permission_type=None, issuer=None):
     if issuer:
         command = "select * from permissions_input where institution_name ilike '%{}%' order by institution_name;".format(issuer)
@@ -721,6 +762,22 @@ def get_journal_permission_rows_from_doi(dirty_doi):
     rows = get_permission_rows("journal", doi_row["journal_issn_l"])
     return (rows, doi_row["published_date"], doi_row["journal_name"])
 
+
+def get_unpaywall_permission_rows_from_doi(dirty_doi):
+    my_doi = clean_doi(dirty_doi)
+    command = """select doi, is_oa, oa_status, best_license, best_version, best_url
+    from unpaywall 
+    where doi = '{}'
+    and oa_status in ('gold', 'green', 'hybrid')
+    ;""".format(my_doi)
+    with get_db_cursor() as cursor:
+        cursor.execute(command)
+        doi_row = cursor.fetchone()
+    if not doi_row:
+        return []
+    rows = [build_permission_row_from_unpaywall_row(doi_row)]
+    return rows
+
 def get_institution_permission_rows(institution):
     rows = get_permission_rows("institution", institution)
     return rows
@@ -730,16 +787,26 @@ def get_funder_permission_rows(funder):
     return rows
 
 def get_journal_rows_from_issn(issn):
-    command = "select * from permissions_input where issn = '{}';".format(issn)
+    command = "select * from permissions_input where institution_name = '%{}%';".format(issn)
     with get_db_cursor() as cursor:
         cursor.execute(command)
         rows = cursor.fetchall()
     return rows
 
+def get_citation_from_crossref(dirty_doi):
+    my_doi = clean_doi(dirty_doi)
+    headers = {"Accept": "text/bibliography; style=cell; locale=en-US"}
+    r = requests.get(u"https://doi.org/{}".format(my_doi), headers=headers)
+    if r.status_code == 200:
+        my_citation = r.content.decode('utf-8').strip()
+        return u"[{}]".format(my_citation)
+    return u"https://doi.org/{}".format(my_doi)
+
 def row_dict_to_api(row, doi=None, published_date=None, journal_name=None):
 
     # if not row["has_policy"] or not (u"Yes" in row["has_policy"]):
     #     return None
+
 
     public_notes = row.get("public_notes")
     if not public_notes:
@@ -789,7 +856,7 @@ def row_dict_to_api(row, doi=None, published_date=None, journal_name=None):
             "versions_archivable": split_clean_list(row["versions_archivable"], use_controlled_vocab=True),
             "archiving_locations_allowed": split_clean_list(row["archiving_locations_allowed"], use_controlled_vocab=True),
             "licences_allowed": licenses_allowed,
-            "postpublication_preprint_update_allowed": row["postpublication_preprint_update_allowed"] and (u"Yes" in row["postpublication_preprint_update_allowed"]),
+            "postpublication_preprint_update_allowed": row["postpublication_preprint_update_allowed"],
             "funding_proportion_required": row["funding_proportion_required"],
             "author_requirement": row["author_requirement"],
             "author_affiliation_requirement": row["author_affiliation_requirement"],
@@ -807,9 +874,10 @@ def row_dict_to_api(row, doi=None, published_date=None, journal_name=None):
 
     if doi:
         can_post_now = False
-        if enforcement_date:
-            if enforcement_date < datetime.datetime.now():
-                can_post_now = True
+        if enforcement_date and enforcement_date < datetime.datetime.now():
+            can_post_now = True
+        if row["permission_type"] == "article":
+            can_post_now = True
 
         author_affiliation = "any"
         if controlled_vocab(row["permission_type"]) == "university":
@@ -819,18 +887,19 @@ def row_dict_to_api(row, doi=None, published_date=None, journal_name=None):
             author_funding = issuer_id
 
 
-        deposit_statement_required_completed = row["deposit_statement_required"]
+        deposit_statement_required_completed = unicode(row["deposit_statement_required"])
         if deposit_statement_required_completed:
-            deposit_statement_required_completed = deposit_statement_required_completed.replace("<<URL>>", "{doi_url}")
-            deposit_statement_required_completed = deposit_statement_required_completed.replace("<<Date of Publication>>", "{publication_date}")
-            deposit_statement_required_completed = deposit_statement_required_completed.replace("<<Citation>>", "{citation}")
-            deposit_statement_required_completed = deposit_statement_required_completed.replace("<<DOI>>", "{doi}")
-            deposit_statement_required_completed = deposit_statement_required_completed.replace("<<(c)>>", "{year}")
-            deposit_statement_required_completed = deposit_statement_required_completed.replace("<<Year>>", "{year}")
-            deposit_statement_required_completed = deposit_statement_required_completed.replace("<<Journal Title>>", "'{journal_name}'")
+            deposit_statement_required_completed = deposit_statement_required_completed.replace(u"<<URL>>", u"{doi_url}")
+            deposit_statement_required_completed = deposit_statement_required_completed.replace(u"<<Date of Publication>>", u"{publication_date}")
+            deposit_statement_required_completed = deposit_statement_required_completed.replace(u"<<Citation>>", u"{citation}")
+            deposit_statement_required_completed = deposit_statement_required_completed.replace(u"<<DOI>>", u"{doi}")
+            deposit_statement_required_completed = deposit_statement_required_completed.replace(u"<<(c)>>", u"{year}")
+            deposit_statement_required_completed = deposit_statement_required_completed.replace(u"<<Year>>", u"{year}")
+            deposit_statement_required_completed = deposit_statement_required_completed.replace(u"<<Journal Title>>", u"'{journal_name}'")
             citation = None
             if doi and ("{citation}" in deposit_statement_required_completed):
-                citation = "GetCitationFromCrossref"
+                citation = get_citation_from_crossref(doi)
+                print citation
             my_data = {"doi": doi,
                        "citation": citation,
                        "year": published_date[0:4] if published_date else None,
@@ -843,7 +912,7 @@ def row_dict_to_api(row, doi=None, published_date=None, journal_name=None):
         my_dict["application"] = {
             "can_post_now": can_post_now,
             "can_post_now_conditions": {
-                "postpublication_preprint_update_allowed": row["postpublication_preprint_update_allowed"] and (u"Yes" in row["postpublication_preprint_update_allowed"]),
+                "postpublication_preprint_update_allowed": row["postpublication_preprint_update_allowed"],
                 "deposit_statement_required_calculated": deposit_statement_required_completed,
                 "versions_archivable": split_clean_list(row["versions_archivable"], use_controlled_vocab=True),
                 "archiving_locations_allowed": split_clean_list(row["archiving_locations_allowed"], use_controlled_vocab=True),
@@ -901,29 +970,35 @@ def permissions_doi_get(doi):
     permissions_list = []
     query = {"doi": doi, "query_time": datetime.datetime.now().isoformat()}
 
-    # doi first
+    # first doi
     (doi_permission_rows, published_date, journal_name) = get_journal_permission_rows_from_doi(doi)
     query["published_date"] =  published_date
-    permissions_list += [row_dict_to_api(p, doi=doi, published_date=published_date, journal_name=journal_name) for p in doi_permission_rows]
+    if doi_permission_rows:
+        permissions_list += [row_dict_to_api(p, doi=doi, published_date=published_date, journal_name=journal_name) for p in doi_permission_rows]
+
+    # then unpaywall
+    doi_permission_rows = get_unpaywall_permission_rows_from_doi(doi)
+    if doi_permission_rows:
+        permissions_list += [row_dict_to_api(p, doi=doi, published_date=published_date, journal_name=journal_name) for p in doi_permission_rows]
 
     # then publisher
     (publisher_permission_rows, publisher) = get_publisher_permission_rows_from_doi(doi)
     query["publisher"] = publisher
-    permissions_list += [row_dict_to_api(p, doi=doi, published_date=published_date) for p in publisher_permission_rows]
+    permissions_list += [row_dict_to_api(p, doi=doi, published_date=published_date, journal_name=journal_name) for p in publisher_permission_rows]
 
     # then funder
     funder = request.args.get("funder", None)
     if funder:
         query["funder"] = funder
         funder_permission_rows = get_funder_permission_rows(funder)
-        permissions_list += [row_dict_to_api(p, doi=doi, published_date=published_date) for p in funder_permission_rows]
+        permissions_list += [row_dict_to_api(p, doi=doi, published_date=published_date, journal_name=journal_name) for p in funder_permission_rows]
 
     # then institution
     institution = request.args.get("institution", None)
     if institution:
         query["institution"] = institution
         institution_permission_rows = get_institution_permission_rows(institution)
-        permissions_list += [row_dict_to_api(p, doi=doi, published_date=published_date) for p in institution_permission_rows]
+        permissions_list += [row_dict_to_api(p, doi=doi, published_date=published_date, journal_name=journal_name) for p in institution_permission_rows]
 
     # now pick the authoritative one
     authoritative_policy = get_authoritative_permission(permissions_list)
@@ -932,8 +1007,19 @@ def permissions_doi_get(doi):
 
 @app.route("/permissions/issn/<issn>", methods=["GET"])
 def permissions_issn_get(issn):
-    rows = get_journal_rows_from_issn()
+    rows = get_journal_rows_from_issn(issn)
     return jsonify([row_dict_to_api(row) for row in rows])
+
+
+
+
+
+
+
+
+
+
+
 
 @app.route("/jump/temp/package/<package>", methods=["GET"])
 def jump_package_get(package):
@@ -1002,15 +1088,6 @@ def jump_get():
         return jsonify_fast(jump_cache[package])
     else:
         return jsonify_fast(get_jump_response(package, min_arg))
-
-# observation_year 	total views 	total views percent of 2018 	total oa views 	total oa views percent of 2018
-# 2018 	25,565,054.38 	1.00 	12,664,693.62 	1.00
-# 2019 	28,162,423.76 	1.10 	14,731,000.96 	1.16
-# 2020 	30,944,070.68 	1.21 	17,033,520.59 	1.34
-# 2021 	34,222,756.60 	1.34 	19,830,049.25 	1.57
-# 2022 	38,000,898.80 	1.49 	23,092,284.75 	1.82
-# 2023 	42,304,671.82 	1.65 	26,895,794.03 	2.12
-
 
 def get_jump_response(package="mit_elsevier", min_arg=None):
     timing = []
