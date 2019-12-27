@@ -695,14 +695,22 @@ def split_clean_list(text, use_controlled_vocab=False):
 
 
 def build_permission_row_from_unpaywall_row(row):
+    best_license = row.get("best_license", "unknown")
+    if row["oa_status"]=="green" and not best_license:
+        return None
+
     versions_archivable = "Publisher PDF, Postprint, Preprint"
-    if row["best_version"] == "submittedVersion":
-        versions_archivable = "Preprint"
-    deposit_statement_required = row.get("best_license", "unknown")
+    if not best_license:
+        if row["best_version"] == "submittedVersion":
+            versions_archivable = "Preprint"
+        if row["best_version"] == "acceptedVersion":
+            versions_archivable = "Postprint, Preprint"
+    deposit_statement_required = best_license
     response = {
         "institution_name": row["doi"],
         "has_policy": "Yes",
         "versions_archivable": versions_archivable,
+        "versions_archivable_standard": get_standard_versions(versions_archivable),
         "archiving_locations_allowed": "Institutional Repository",
         "post_print_embargo": "unknown",
         "licences_allowed": row["best_license"],
@@ -733,8 +741,8 @@ def get_permission_rows(permission_type=None, issuer=None):
     elif permission_type:
         command = "select * from permissions_input where permission_type ilike '%{}%' order by institution_name;".format(permission_type)
     else:
-        command = "select * from permissions_input order by random() limit 1000 order by institution_name;"
-    print command
+        command = "select * from permissions_input order by random() limit 1000;"
+    # print command
     with get_db_cursor() as cursor:
         cursor.execute(command)
         rows = cursor.fetchall()
@@ -775,7 +783,37 @@ def get_unpaywall_permission_rows_from_doi(dirty_doi):
         doi_row = cursor.fetchone()
     if not doi_row:
         return []
-    rows = [build_permission_row_from_unpaywall_row(doi_row)]
+    permission_row = build_permission_row_from_unpaywall_row(doi_row)
+    if not permission_row:
+        return []
+    return [permission_row]
+
+def get_institution_permission_rows_from_ror_ids(ror_ids):
+    if not ror_ids:
+        return []
+    ror_ids_string = u",".join([u"'{}'".format(ror_id) for ror_id in ror_ids])
+    command = """select * from permissions_input 
+        where institution_name in ({})
+        and permission_type = 'Affiliation' 
+        order by institution_name;""".format(ror_ids_string)
+    # print command
+    with get_db_cursor() as cursor:
+        cursor.execute(command)
+        rows = cursor.fetchall()
+    return rows
+
+def get_institution_permission_rows_from_countries(country_ids):
+    if not country_ids:
+        return []
+    country_ids_string = u",".join([u"'{}'".format(country_id) for country_id in country_ids])
+    command = """select * from permissions_input 
+        where institution_name in ({}) 
+        and permission_type = 'Affiliation'         
+        order by institution_name;""".format(country_ids_string)
+    # print command
+    with get_db_cursor() as cursor:
+        cursor.execute(command)
+        rows = cursor.fetchall()
     return rows
 
 def get_institution_permission_rows(institution):
@@ -787,7 +825,15 @@ def get_funder_permission_rows(funder):
     return rows
 
 def get_journal_rows_from_issn(issn):
-    command = "select * from permissions_input where institution_name = '%{}%';".format(issn)
+    command = "select * from permissions_input where institution_name = '%{}%' limit 1;".format(issn)
+    with get_db_cursor() as cursor:
+        cursor.execute(command)
+        rows = cursor.fetchall()
+    return rows
+
+def get_affiliation_rows_from_doi(dirty_doi):
+    my_doi = clean_doi(dirty_doi)
+    command = "select * from mag_doi_affiliations_details_view where doi='{}'".format(my_doi)
     with get_db_cursor() as cursor:
         cursor.execute(command)
         rows = cursor.fetchall()
@@ -802,7 +848,7 @@ def get_citation_from_crossref(dirty_doi):
         return u"[{}]".format(my_citation)
     return u"https://doi.org/{}".format(my_doi)
 
-def row_dict_to_api(row, doi=None, published_date=None, journal_name=None):
+def row_dict_to_api(row, doi=None, published_date=None, journal_name=None, policy_name=None):
 
     # if not row["has_policy"] or not (u"Yes" in row["has_policy"]):
     #     return None
@@ -825,15 +871,17 @@ def row_dict_to_api(row, doi=None, published_date=None, journal_name=None):
         if row["post_print_embargo"]:
             public_notes += "embargo: {}. ".format(row["post_print_embargo"])
 
-    issuer_id = split_clean_list(row["institution_name"])[0]
     issuer = {
-            "id": issuer_id,
-            "name": issuer_id,
-            "permission_type": controlled_vocab(row["permission_type"]),
-            "has_policy": row["has_policy"]
-         }
-    if journal_name:
-        issuer["name"] = journal_name
+        "permission_type": controlled_vocab(row["permission_type"]),
+        "has_policy": str2bool(row["has_policy"])
+    }
+    issuer_ids = split_clean_list(row["institution_name"])
+    if issuer_ids:
+        issuer_id = issuer_ids[0]
+        issuer["id"] = issuer_id,
+        issuer["name"] = issuer_id,
+    if policy_name:
+        issuer["name"] = policy_name
 
     licenses_allowed = split_clean_list(row["licences_allowed"], use_controlled_vocab=True)
     if licenses_allowed:
@@ -854,6 +902,7 @@ def row_dict_to_api(row, doi=None, published_date=None, journal_name=None):
             "deposit_statement_required": row["deposit_statement_required"],
             "post_print_embargo_months": embargo,
             "versions_archivable": split_clean_list(row["versions_archivable"], use_controlled_vocab=True),
+            "versions_archivable_standard": get_standard_versions(split_clean_list(row["versions_archivable"], use_controlled_vocab=True)),
             "archiving_locations_allowed": split_clean_list(row["archiving_locations_allowed"], use_controlled_vocab=True),
             "licences_allowed": licenses_allowed,
             "postpublication_preprint_update_allowed": row["postpublication_preprint_update_allowed"],
@@ -886,8 +935,9 @@ def row_dict_to_api(row, doi=None, published_date=None, journal_name=None):
         if controlled_vocab(row["permission_type"]) == "funder":
             author_funding = issuer_id
 
-
-        deposit_statement_required_completed = unicode(row["deposit_statement_required"])
+        deposit_statement_required_completed = None
+        if row["deposit_statement_required"]:
+            deposit_statement_required_completed = row["deposit_statement_required"].decode("utf-8")
         if deposit_statement_required_completed:
             deposit_statement_required_completed = deposit_statement_required_completed.replace(u"<<URL>>", u"{doi_url}")
             deposit_statement_required_completed = deposit_statement_required_completed.replace(u"<<Date of Publication>>", u"{publication_date}")
@@ -915,6 +965,7 @@ def row_dict_to_api(row, doi=None, published_date=None, journal_name=None):
                 "postpublication_preprint_update_allowed": row["postpublication_preprint_update_allowed"],
                 "deposit_statement_required_calculated": deposit_statement_required_completed,
                 "versions_archivable": split_clean_list(row["versions_archivable"], use_controlled_vocab=True),
+                "versions_archivable_standard": get_standard_versions(split_clean_list(row["versions_archivable"], use_controlled_vocab=True)),
                 "archiving_locations_allowed": split_clean_list(row["archiving_locations_allowed"], use_controlled_vocab=True),
                 "licences_allowed": licenses_allowed,
                 "author_affiliation": author_affiliation,
@@ -923,12 +974,20 @@ def row_dict_to_api(row, doi=None, published_date=None, journal_name=None):
             },
             "post_print_embargo_end_calculated": enforcement_date_display,
         }
+
     return my_dict
 
 
-@app.route("/permissions/funders", methods=["GET"])
-def permissions_funders():
-    rows = get_permission_rows("funder")
+@app.route("/permissions/affiliations", methods=["GET"])
+def permissions_affiliations():
+    rows = get_permission_rows("affiliation")
+    # return jsonify([row["institution_name"] for row in rows])
+    my_dicts = [row_dict_to_api(row) for row in rows]
+    return jsonify([d for d in my_dicts if d])
+
+@app.route("/permissions/journals", methods=["GET"])
+def permissions_journals():
+    rows = get_permission_rows("journal")
     # return jsonify([row["institution_name"] for row in rows])
     my_dicts = [row_dict_to_api(row) for row in rows]
     return jsonify([d for d in my_dicts if d])
@@ -940,70 +999,116 @@ def permissions_publishers():
     my_dicts = [row_dict_to_api(row) for row in rows]
     return jsonify([d for d in my_dicts if d])
 
-@app.route("/permissions/universities", methods=["GET"])
-def permissions_universities():
-    rows = get_permission_rows("university")
-    # return jsonify([row["institution_name"] for row in rows])
-    my_dicts = [row_dict_to_api(row) for row in rows]
-    return jsonify([d for d in my_dicts if d])
-
-@app.route("/permissions", methods=["GET"])
+@app.route("/permissions/random", methods=["GET"])
 def permissions_all():
     rows = get_permission_rows()
     my_dicts = [row_dict_to_api(row) for row in rows]
     return jsonify([d for d in my_dicts if d])
 
+def get_standard_versions(dirty_list):
+    if not dirty_list:
+        return []
+
+    lookup = {
+        "preprint": "submittedVersion",
+        "postprint": "acceptedVersion",
+        "publisher pdf": "publishedVersion"
+    }
+    return [lookup.get(v.lower(), v.lower()) for v in dirty_list if v]
+
+def get_sort_key(p):
+    # sorts high to the top
+
+    score = 0
+    if p["application"]["can_post_now"]:
+        score += 100
+
+    if "publisher pdf" in p["requirements"]["versions_archivable"]:
+        score += 1000
+
+    if p["requirements"]["author_affiliation_requirement"] is not None:
+        score += -10
+
+    if p["issuer"]["permission_type"] == "journal":
+        score += 5
+    if p["issuer"]["permission_type"] == "publisher":
+        score += 4
+    if p["issuer"]["permission_type"] == "university":
+        score += 3
+    if p["issuer"]["permission_type"] == "article":
+        score += 2
+    if p["issuer"]["permission_type"] == "affiliation":
+        score += 0
+
+    return score
 
 def get_authoritative_permission(permissions_list):
     if not permissions_list:
         return None
 
-    allowable_permissions = [p for p in permissions_list if p["application"]["can_post_now"]]
-    if allowable_permissions:
-        return allowable_permissions[0]
+    sorted_permissions = sorted(permissions_list, key=lambda x: x["sort_key"], reverse=True)
 
-    return permissions_list[0]
+    return sorted_permissions[0]
 
 
-@app.route("/permissions/doi/<path:doi>", methods=["GET"])
-def permissions_doi_get(doi):
+@app.route("/permissions/doi/<path:dirty_doi>", methods=["GET"])
+def permissions_doi_get(dirty_doi):
     permissions_list = []
+    doi = clean_doi(dirty_doi)
     query = {"doi": doi, "query_time": datetime.datetime.now().isoformat()}
 
     # first doi
     (doi_permission_rows, published_date, journal_name) = get_journal_permission_rows_from_doi(doi)
     query["published_date"] =  published_date
     if doi_permission_rows:
-        permissions_list += [row_dict_to_api(p, doi=doi, published_date=published_date, journal_name=journal_name) for p in doi_permission_rows]
+        permissions_list += [row_dict_to_api(p, doi=doi, published_date=published_date, journal_name=journal_name, policy_name=journal_name) for p in doi_permission_rows]
 
     # then unpaywall
     doi_permission_rows = get_unpaywall_permission_rows_from_doi(doi)
     if doi_permission_rows:
-        permissions_list += [row_dict_to_api(p, doi=doi, published_date=published_date, journal_name=journal_name) for p in doi_permission_rows]
+        permissions_list += [row_dict_to_api(p, doi=doi, published_date=published_date, journal_name=journal_name, policy_name="OA article") for p in doi_permission_rows]
 
     # then publisher
     (publisher_permission_rows, publisher) = get_publisher_permission_rows_from_doi(doi)
     query["publisher"] = publisher
-    permissions_list += [row_dict_to_api(p, doi=doi, published_date=published_date, journal_name=journal_name) for p in publisher_permission_rows]
+    permissions_list += [row_dict_to_api(p, doi=doi, published_date=published_date, journal_name=journal_name, policy_name=publisher) for p in publisher_permission_rows]
 
     # then funder
     funder = request.args.get("funder", None)
     if funder:
         query["funder"] = funder
         funder_permission_rows = get_funder_permission_rows(funder)
-        permissions_list += [row_dict_to_api(p, doi=doi, published_date=published_date, journal_name=journal_name) for p in funder_permission_rows]
+        permissions_list += [row_dict_to_api(p, doi=doi, published_date=published_date, journal_name=journal_name, policy_name=funder) for p in funder_permission_rows]
 
     # then institution
     institution = request.args.get("institution", None)
     if institution:
         query["institution"] = institution
         institution_permission_rows = get_institution_permission_rows(institution)
-        permissions_list += [row_dict_to_api(p, doi=doi, published_date=published_date, journal_name=journal_name) for p in institution_permission_rows]
+        permissions_list += [row_dict_to_api(p, doi=doi, published_date=published_date, journal_name=journal_name, policy_name=institution) for p in institution_permission_rows]
+
+    # then from affiliations
+    affiliation_rows = get_affiliation_rows_from_doi(doi)
+    query["affiliations"] = affiliation_rows
+    if affiliation_rows:
+        ror_ids = list(set([row["ror_id"] for row in affiliation_rows if row["ror_id"]]))
+        institution_permission_rows = get_institution_permission_rows_from_ror_ids(ror_ids)
+        for row in institution_permission_rows:
+            institution = [affil_row["org"] for affil_row in affiliation_rows if affil_row["ror_id"]==row["institution_name"]][0]
+            permissions_list += [row_dict_to_api(row, doi=doi, published_date=published_date, journal_name=journal_name, policy_name=institution)]
+
+        countries = list(set([row["country_iso2"] for row in affiliation_rows if row["country_iso2"]]))
+        institution_permission_rows = get_institution_permission_rows_from_countries(countries)
+        for row in institution_permission_rows:
+            country = [affil_row["country"] for affil_row in affiliation_rows if affil_row["country_iso2"]==row["institution_name"]][0]
+            permissions_list += [row_dict_to_api(row, doi=doi, published_date=published_date, journal_name=journal_name, policy_name=country)]
 
     # now pick the authoritative one
+    for p in permissions_list:
+        p["sort_key"] = get_sort_key(p)
     authoritative_policy = get_authoritative_permission(permissions_list)
 
-    return jsonify({"_query": query, "all_permissions": permissions_list, "authoritative_permission": authoritative_policy})
+    return jsonify({"query": query, "all_permissions": permissions_list, "authoritative_permission": authoritative_policy})
 
 @app.route("/permissions/issn/<issn>", methods=["GET"])
 def permissions_issn_get(issn):
