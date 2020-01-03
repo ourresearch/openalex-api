@@ -727,6 +727,9 @@ def build_permission_row_from_unpaywall_row(row):
         "archived_full_text_link": row["best_url"],
         "author_requirement": None,
         "author_affiliation_requirement": None,
+        "author_affiliation_department_requirement": None,
+        "can_opt_out": None,
+        "parent_policy": None,
         "permissions_request_contact_email": None,
         "u_i_d": None,
         "policy_full_text": None,
@@ -909,6 +912,8 @@ def row_dict_to_api(row, doi=None, published_date=None, journal_name=None, polic
             "funding_proportion_required": row["funding_proportion_required"],
             "author_requirement": row["author_requirement"],
             "author_affiliation_requirement": row["author_affiliation_requirement"],
+            "author_affiliation_department_requirement": row["author_affiliation_department_requirement"],
+            "can_opt_out": row["can_opt_out"],
             "permissions_request_contact_email": row["permissions_request_contact_email"],
         },
         "provenance": {
@@ -917,6 +922,7 @@ def row_dict_to_api(row, doi=None, published_date=None, journal_name=None, polic
             "policy_landing_page": row["policy_landing_page"],
             "public_notes": public_notes,
             "notes": row["notes"],
+            "parent_policy": row["parent_policy"],
         },
         "issuer": issuer,
     }
@@ -968,7 +974,8 @@ def row_dict_to_api(row, doi=None, published_date=None, journal_name=None, polic
                 "versions_archivable_standard": get_standard_versions(split_clean_list(row["versions_archivable"], use_controlled_vocab=True)),
                 "archiving_locations_allowed": split_clean_list(row["archiving_locations_allowed"], use_controlled_vocab=True),
                 "licences_allowed": licenses_allowed,
-                "author_affiliation": author_affiliation,
+                "author_affiliation_requirement": author_affiliation,
+                "author_affiliation_department_requirement": row["author_affiliation_department_requirement"],
                 "author_funding": author_funding,
                 "doi": doi,
             },
@@ -1027,6 +1034,8 @@ def get_sort_key(p):
         score += 1000
 
     if p["requirements"]["author_affiliation_requirement"] is not None:
+        score += -10
+    if p["requirements"]["author_affiliation_department_requirement"] is not None:
         score += -10
 
     if p["issuer"]["permission_type"] == "journal":
