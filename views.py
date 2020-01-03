@@ -1354,19 +1354,19 @@ def get_jump_response(package="mit_elsevier", min_arg=None):
 
     timing_messages = ["{}: {}s".format(*item) for item in timing]
     return {"_timing": timing_messages, "list": sorted_rows, "total": summary_dict, "count": len(sorted_rows)}
-
-jump_cache = {}
-store_cache = False
-if store_cache:
-    print "building cache"
-    for package in ["cdl_elsevier", "mit_elsevier", "uva_elsevier"]:
-        print package
-        jump_cache[package] = get_jump_response(package)
-        pickle.dump(jump_cache, open( "data/jump_cache.pkl", "wb" ), -1)
-    print "done"
-else:
-    print "loading cache"
-    jump_cache = pickle.load(open( "data/jump_cache.pkl", "rb" ))
+#
+# jump_cache = {}
+# store_cache = False
+# if store_cache:
+#     print "building cache"
+#     for package in ["cdl_elsevier", "mit_elsevier", "uva_elsevier"]:
+#         print package
+#         jump_cache[package] = get_jump_response(package)
+#         pickle.dump(jump_cache, open( "data/jump_cache.pkl", "wb" ), -1)
+#     print "done"
+# else:
+#     print "loading cache"
+#     jump_cache = pickle.load(open( "data/jump_cache.pkl", "rb" ))
 
 
 
