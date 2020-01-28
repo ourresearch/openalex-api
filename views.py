@@ -713,7 +713,7 @@ def build_permission_row_from_unpaywall_row(row):
         "versions_archivable_standard": get_standard_versions(versions_archivable),
         "archiving_locations_allowed": "Institutional Repository",
         "post_print_embargo": "unknown",
-        "licences_allowed": row["best_license"],
+        "licenses_required": row["best_license"],
         "permission_type": "article",
         "policy_landing_page": row["best_url"],
         "monitoring_type": "on demand",
@@ -886,11 +886,11 @@ def row_dict_to_api(row, doi=None, published_date=None, journal_name=None, polic
     if policy_name:
         issuer["name"] = policy_name
 
-    licenses_allowed = split_clean_list(row["licences_allowed"], use_controlled_vocab=True)
-    if licenses_allowed:
-        licenses_allowed_normalized = [find_normalized_license(license) for license in licenses_allowed if find_normalized_license(license)]
-        if licenses_allowed_normalized:
-            licenses_allowed = licenses_allowed_normalized
+    licenses_required = split_clean_list(row["licenses_required"], use_controlled_vocab=True)
+    if licenses_required:
+        licenses_required_normalized = [find_normalized_license(license) for license in licenses_required if find_normalized_license(license)]
+        if licenses_required_normalized:
+            licenses_required = licenses_required_normalized
 
     my_dict = {
         "meta": {
@@ -907,7 +907,7 @@ def row_dict_to_api(row, doi=None, published_date=None, journal_name=None, polic
             "versions_archivable": split_clean_list(row["versions_archivable"], use_controlled_vocab=True),
             "versions_archivable_standard": get_standard_versions(split_clean_list(row["versions_archivable"], use_controlled_vocab=True)),
             "archiving_locations_allowed": split_clean_list(row["archiving_locations_allowed"], use_controlled_vocab=True),
-            "licences_allowed": licenses_allowed,
+            "licenses_required": licenses_required,
             "postpublication_preprint_update_allowed": row["postpublication_preprint_update_allowed"],
             "funding_proportion_required": row["funding_proportion_required"],
             "author_requirement": row["author_requirement"],
@@ -928,11 +928,11 @@ def row_dict_to_api(row, doi=None, published_date=None, journal_name=None, polic
     }
 
     if doi:
-        can_post_now = False
+        can_post = False
         if enforcement_date and enforcement_date < datetime.datetime.now():
-            can_post_now = True
+            can_post = True
         if row["permission_type"] == "article":
-            can_post_now = True
+            can_post = True
 
         author_affiliation = "any"
         if controlled_vocab(row["permission_type"]) == "university":
@@ -966,14 +966,14 @@ def row_dict_to_api(row, doi=None, published_date=None, journal_name=None, polic
             deposit_statement_required_completed = deposit_statement_required_completed.format(**my_data)
 
         my_dict["application"] = {
-            "can_post_now": can_post_now,
-            "can_post_now_conditions": {
+            "can_post": can_post,
+            "can_post_conditions": {
                 "postpublication_preprint_update_allowed": row["postpublication_preprint_update_allowed"],
                 "deposit_statement_required_calculated": deposit_statement_required_completed,
                 "versions_archivable": split_clean_list(row["versions_archivable"], use_controlled_vocab=True),
                 "versions_archivable_standard": get_standard_versions(split_clean_list(row["versions_archivable"], use_controlled_vocab=True)),
                 "archiving_locations_allowed": split_clean_list(row["archiving_locations_allowed"], use_controlled_vocab=True),
-                "licences_allowed": licenses_allowed,
+                "licenses_required": licenses_required,
                 "author_affiliation_requirement": author_affiliation,
                 "author_affiliation_department_requirement": row["author_affiliation_department_requirement"],
                 "author_funding": author_funding,
@@ -1027,7 +1027,7 @@ def get_sort_key(p):
     # sorts high to the top
 
     score = 0
-    if p["application"]["can_post_now"]:
+    if p["application"]["can_post"]:
         score += 100
 
     if "publisher pdf" in p["requirements"]["versions_archivable"]:
