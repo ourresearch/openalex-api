@@ -705,7 +705,7 @@ def build_permission_row_from_unpaywall_row(row):
             versions_archivable = "Preprint"
         if row["best_version"] == "acceptedVersion":
             versions_archivable = "Postprint, Preprint"
-    deposit_statement_required = best_license
+    deposit_statement_required = None
     response = {
         "institution_name": row["doi"],
         "has_policy": "Yes",
