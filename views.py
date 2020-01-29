@@ -928,11 +928,11 @@ def row_dict_to_api(row, doi=None, published_date=None, journal_name=None, polic
     }
 
     if doi:
-        can_post = False
+        can_archive = False
         if enforcement_date and enforcement_date < datetime.datetime.now():
-            can_post = True
+            can_archive = True
         if row["permission_type"] == "article":
-            can_post = True
+            can_archive = True
 
         author_affiliation = "any"
         if controlled_vocab(row["permission_type"]) == "university":
@@ -966,8 +966,8 @@ def row_dict_to_api(row, doi=None, published_date=None, journal_name=None, polic
             deposit_statement_required_completed = deposit_statement_required_completed.format(**my_data)
 
         my_dict["application"] = {
-            "can_post": can_post,
-            "can_post_conditions": {
+            "can_archive": can_archive,
+            "can_archive_conditions": {
                 "postpublication_preprint_update_allowed": row["postpublication_preprint_update_allowed"],
                 "deposit_statement_required_calculated": deposit_statement_required_completed,
                 "versions_archivable": split_clean_list(row["versions_archivable"], use_controlled_vocab=True),
@@ -1027,7 +1027,7 @@ def get_sort_key(p):
     # sorts high to the top
 
     score = 0
-    if p["application"]["can_post"]:
+    if p["application"]["can_archive"]:
         score += 100
 
     if "publisher pdf" in p["requirements"]["versions_archivable"]:
