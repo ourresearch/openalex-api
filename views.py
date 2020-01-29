@@ -718,7 +718,7 @@ def build_permission_row_from_unpaywall_row(row):
         "licenses_required": row["best_license"],
         "permission_type": "article",
         "policy_landing_page": row["best_url"],
-        "monitoring_type": "on demand",
+        "monitoring_type": "automatic",
         "added_by": "support@unpaywall.org",
         "contributed_by": "support@unpaywall.org",
         "reviewers": "Unpaywall",
@@ -853,6 +853,22 @@ def get_citation_from_crossref(dirty_doi):
         return u"[{}]".format(my_citation)
     return u"https://doi.org/{}".format(my_doi)
 
+def get_citation_elements_from_crossref(dirty_doi):
+    my_doi = clean_doi(dirty_doi)
+    headers = {"Accept": "application/json", "User-Agent": "team@ourresearch.org"}
+    r = requests.get(u"https://api.crossref.org/works/{}".format(my_doi), headers=headers)
+    if r.status_code == 200:
+        data = r.json()["message"]
+        response = {
+            "volume": data["volume"],
+            "issue": data["issue"],
+            "pages": data["page"],
+            "article_title": data["title"][0],
+            "author": data["author"][0]["family"]
+        }
+        return response
+    return {}
+
 def row_dict_to_api(row, doi=None, published_date=None, journal_name=None, policy_name=None):
 
     # if not row["has_policy"] or not (u"Yes" in row["has_policy"]):
@@ -894,16 +910,18 @@ def row_dict_to_api(row, doi=None, published_date=None, journal_name=None, polic
         if licenses_required_normalized:
             licenses_required = licenses_required_normalized
 
-    my_dict = {
-        "meta": {
+    my_dict = OrderedDict()
+    my_dict["application"] = "TBD"
+    my_dict["issuer"] = issuer
+    my_dict["meta"] = {
             "added_by": split_clean_list(row["added_by"]),
             "contributed_by": split_clean_list(row["contributed_by"]),
             "reviewers": row["reviewers"],
             "monitoring_type": controlled_vocab(row["monitoring_type"]),
             "record_last_updated": max(split_clean_list(row["record_last_updated"])),
             "archived_full_text_link": row["archived_full_text_link"],
-        },
-        "requirements": {
+        }
+    my_dict["requirements"] = {
             "deposit_statement_required": row["deposit_statement_required"],
             "post_print_embargo_months": embargo,
             "versions_archivable": split_clean_list(row["versions_archivable"], use_controlled_vocab=True),
@@ -917,17 +935,15 @@ def row_dict_to_api(row, doi=None, published_date=None, journal_name=None, polic
             "author_affiliation_department_requirement": row["author_affiliation_department_requirement"],
             "can_opt_out": row["can_opt_out"],
             "permissions_request_contact_email": row["permissions_request_contact_email"],
-        },
-        "provenance": {
+        }
+    my_dict["provenance"] = {
             "policy_id": row["u_i_d"],
             "policy_full_text": split_clean_list(row["policy_full_text"]),
             "policy_landing_page": row["policy_landing_page"],
             "public_notes": public_notes,
             "notes": row["notes"],
             "parent_policy": row["parent_policy"],
-        },
-        "issuer": issuer,
-    }
+        }
 
     if doi:
         can_archive = False
@@ -947,24 +963,34 @@ def row_dict_to_api(row, doi=None, published_date=None, journal_name=None, polic
         if row["deposit_statement_required"]:
             deposit_statement_required_completed = row["deposit_statement_required"].decode("utf-8")
         if deposit_statement_required_completed:
-            deposit_statement_required_completed = deposit_statement_required_completed.replace(u"<<URL>>", u"{doi_url}")
-            deposit_statement_required_completed = deposit_statement_required_completed.replace(u"<<Date of Publication>>", u"{published_date}")
-            deposit_statement_required_completed = deposit_statement_required_completed.replace(u"<<Citation>>", u"{citation}")
-            deposit_statement_required_completed = deposit_statement_required_completed.replace(u"<<DOI>>", u"{doi}")
-            deposit_statement_required_completed = deposit_statement_required_completed.replace(u"<<(c)>>", u"{year}")
-            deposit_statement_required_completed = deposit_statement_required_completed.replace(u"<<Year>>", u"{year}")
-            deposit_statement_required_completed = deposit_statement_required_completed.replace(u"<<Journal Title>>", u"'{journal_name}'")
+            deposit_statement_required_completed = re.sub( u"<<URL>>", u"{doi_url}", deposit_statement_required_completed, flags=re.IGNORECASE)
+            deposit_statement_required_completed = re.sub( u"<<Date of Publication>>", u"{published_date}", deposit_statement_required_completed, flags=re.IGNORECASE)
+            deposit_statement_required_completed = re.sub( u"<<Citation>>", u"{citation}", deposit_statement_required_completed, flags=re.IGNORECASE)
+            deposit_statement_required_completed = re.sub( u"<<DOI>>", u"{doi}", deposit_statement_required_completed, flags=re.IGNORECASE)
+            deposit_statement_required_completed = re.sub( u"<<(c)>>", u"{year}", deposit_statement_required_completed, flags=re.IGNORECASE)
+            deposit_statement_required_completed = re.sub( u"<<Year>>", u"{year}", deposit_statement_required_completed, flags=re.IGNORECASE)
+            deposit_statement_required_completed = re.sub( u"<<Journal Title>>", u"'{journal_name}'", deposit_statement_required_completed, flags=re.IGNORECASE)
+            deposit_statement_required_completed = re.sub( u"<<Author>>", u"{author}", deposit_statement_required_completed, flags=re.IGNORECASE)
+            deposit_statement_required_completed = re.sub( u"<<Article title>>", u"{article_title}", deposit_statement_required_completed, flags=re.IGNORECASE)
+            deposit_statement_required_completed = re.sub( u"<<Vol>>", u"{volume}", deposit_statement_required_completed, flags=re.IGNORECASE)
+            deposit_statement_required_completed = re.sub( u"<<Issue>>", u"{issue}", deposit_statement_required_completed, flags=re.IGNORECASE)
+            deposit_statement_required_completed = re.sub( u"<<Pages>>", u"{pages}", deposit_statement_required_completed, flags=re.IGNORECASE)
             citation = None
             if doi and ("{citation}" in deposit_statement_required_completed):
                 citation = get_citation_from_crossref(doi)
-                # print citation
-            my_data = {"doi": doi,
+            my_data = {}
+            crossref_elements_list = ["{pages}", "{issue}", "{volume}", "{article_title}", "{author}"]
+            need_crossref_elements = len([word for word in crossref_elements_list if word in deposit_statement_required_completed]) != 0
+            if doi and need_crossref_elements:
+                my_data.update(get_citation_elements_from_crossref(doi))
+            my_data.update({"doi": doi,
                        "citation": citation,
                        "year": published_date[0:4] if published_date else None,
                        "doi_url": u"https://doi.org/{}".format(doi) if doi else None,
                        "published_date": published_date,
                        "journal_name": journal_name
-                       }
+                       })
+
             deposit_statement_required_completed = deposit_statement_required_completed.format(**my_data)
 
         my_dict["application"] = {
@@ -1122,8 +1148,8 @@ def permissions_doi_get(dirty_doi):
     # return authoritative policy first
     response = OrderedDict()
     response["authoritative_permission"] = authoritative_policy
-    response["query"] = query
     response["all_permissions"] = permissions_list
+    response["query"] = query
     return jsonify_fast_no_sort(response)
 
 @app.route("/permissions/issn/<issn>", methods=["GET"])
