@@ -946,7 +946,7 @@ def row_dict_to_api(row, doi=None, published_date=None, journal_name=None, polic
             deposit_statement_required_completed = row["deposit_statement_required"].decode("utf-8")
         if deposit_statement_required_completed:
             deposit_statement_required_completed = deposit_statement_required_completed.replace(u"<<URL>>", u"{doi_url}")
-            deposit_statement_required_completed = deposit_statement_required_completed.replace(u"<<Date of Publication>>", u"{publication_date}")
+            deposit_statement_required_completed = deposit_statement_required_completed.replace(u"<<Date of Publication>>", u"{published_date}")
             deposit_statement_required_completed = deposit_statement_required_completed.replace(u"<<Citation>>", u"{citation}")
             deposit_statement_required_completed = deposit_statement_required_completed.replace(u"<<DOI>>", u"{doi}")
             deposit_statement_required_completed = deposit_statement_required_completed.replace(u"<<(c)>>", u"{year}")
