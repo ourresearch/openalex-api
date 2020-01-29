@@ -28,6 +28,7 @@ import unicodecsv as csv
 import dateutil.parser
 from monthdelta import monthdelta
 import requests
+from collections import OrderedDict
 
 from app import app
 from app import db
@@ -52,6 +53,7 @@ from util import get_sql_answer
 from util import jsonify_fast
 from util import find_normalized_license
 from util import str2bool
+from util import jsonify_fast_no_sort
 
 
 
@@ -955,7 +957,7 @@ def row_dict_to_api(row, doi=None, published_date=None, journal_name=None, polic
             citation = None
             if doi and ("{citation}" in deposit_statement_required_completed):
                 citation = get_citation_from_crossref(doi)
-                print citation
+                # print citation
             my_data = {"doi": doi,
                        "citation": citation,
                        "year": published_date[0:4] if published_date else None,
@@ -1117,7 +1119,12 @@ def permissions_doi_get(dirty_doi):
         p["sort_key"] = get_sort_key(p)
     authoritative_policy = get_authoritative_permission(permissions_list)
 
-    return jsonify({"query": query, "all_permissions": permissions_list, "authoritative_permission": authoritative_policy})
+    # return authoritative policy first
+    response = OrderedDict()
+    response["authoritative_permission"] = authoritative_policy
+    response["query"] = query
+    response["all_permissions"] = permissions_list
+    return jsonify_fast_no_sort(response)
 
 @app.route("/permissions/issn/<issn>", methods=["GET"])
 def permissions_issn_get(issn):
