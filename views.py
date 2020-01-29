@@ -1075,7 +1075,7 @@ def permissions_doi_get(dirty_doi):
     # then unpaywall
     doi_permission_rows = get_unpaywall_permission_rows_from_doi(doi)
     if doi_permission_rows:
-        permissions_list += [row_dict_to_api(p, doi=doi, published_date=published_date, journal_name=journal_name, policy_name="OA article") for p in doi_permission_rows]
+        permissions_list += [row_dict_to_api(p, doi=doi, published_date=published_date, journal_name=journal_name, policy_name="Open Access Article") for p in doi_permission_rows]
 
     # then publisher
     (publisher_permission_rows, publisher) = get_publisher_permission_rows_from_doi(doi)
