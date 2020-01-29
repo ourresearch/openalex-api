@@ -978,8 +978,8 @@ def row_dict_to_api(row, doi=None, published_date=None, journal_name=None, polic
                 "author_affiliation_department_requirement": row["author_affiliation_department_requirement"],
                 "author_funding": author_funding,
                 "doi": doi,
+                "post_print_embargo_end_calculated": enforcement_date_display
             },
-            "post_print_embargo_end_calculated": enforcement_date_display,
         }
 
     return my_dict
