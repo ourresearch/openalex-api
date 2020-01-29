@@ -758,7 +758,7 @@ def get_publisher_permission_rows_from_doi(dirty_doi):
         cursor.execute(command)
         doi_row = cursor.fetchone()
     if not doi_row or not doi_row["publisher"]:
-        return None
+        return ([], None)
     rows = get_permission_rows("publisher", doi_row["publisher"])
     return (rows, doi_row["publisher"])
 
@@ -769,7 +769,7 @@ def get_journal_permission_rows_from_doi(dirty_doi):
         cursor.execute(command)
         doi_row = cursor.fetchone()
     if not doi_row or not doi_row["journal_issn_l"]:
-        return None
+        return ([], None, None)
     rows = get_permission_rows("journal", doi_row["journal_issn_l"])
     return (rows, doi_row["published_date"], doi_row["journal_name"])
 
