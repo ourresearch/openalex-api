@@ -721,7 +721,7 @@ def build_permission_row_from_unpaywall_row(row):
         "contributed_by": "support@unpaywall.org",
         "reviewers": "Unpaywall",
         "deposit_statement_required": deposit_statement_required,
-        "postpublication_preprint_update_allowed": "unknown",
+        "postpublication_preprint_update_allowed": "Yes",
         "funding_proportion_required": None,
         "record_last_updated": datetime.datetime.utcnow().isoformat(),
         "archived_full_text_link": row["best_url"],
@@ -898,7 +898,7 @@ def row_dict_to_api(row, doi=None, published_date=None, journal_name=None, polic
             "contributed_by": split_clean_list(row["contributed_by"]),
             "reviewers": row["reviewers"],
             "monitoring_type": controlled_vocab(row["monitoring_type"]),
-            "record_last_updated": split_clean_list(row["record_last_updated"]),
+            "record_last_updated": max(split_clean_list(row["record_last_updated"])),
             "archived_full_text_link": row["archived_full_text_link"],
         },
         "requirements": {
