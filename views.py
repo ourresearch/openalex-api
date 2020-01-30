@@ -952,10 +952,10 @@ def row_dict_to_api(row, doi=None, published_date=None, journal_name=None, polic
         if row["permission_type"] == "article":
             can_archive = True
 
-        author_affiliation = "any"
+        author_affiliation = None
         if controlled_vocab(row["permission_type"]) == "university":
             author_affiliation = issuer_id
-        author_funding = "any"
+        author_funding = None
         if controlled_vocab(row["permission_type"]) == "funder":
             author_funding = issuer_id
 
