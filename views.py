@@ -788,6 +788,7 @@ def get_unpaywall_permission_rows_from_doi(dirty_doi):
     from unpaywall 
     where doi = '{}'
     and oa_status in ('gold', 'green', 'hybrid')
+    and best_license ilike 'cc%'
     ;""".format(my_doi)
     with get_db_cursor() as cursor:
         cursor.execute(command)
@@ -1114,7 +1115,7 @@ def permissions_doi_get(dirty_doi):
     except NoDoiException:
         abort_json(404, u"Not a valid doi: https://doi.org/{}".format(dirty_doi))
     except NotJournalArticleException:
-        abort_json(501, u"This doesn't appear to be a journal article.")
+        abort_json(501, u"The service currently only provide permissions for journal articles.")
 
     query["published_date"] = published_date
     if doi_permission_rows:
