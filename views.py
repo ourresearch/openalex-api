@@ -677,7 +677,7 @@ def controlled_vocab(text):
 
 def split_clean_list(text, use_controlled_vocab=False):
     if not text:
-        return None
+        return []
     my_response = [a.strip() for a in text.split(",") if a]
     my_response = list(set(my_response))
     if use_controlled_vocab:
@@ -884,7 +884,7 @@ def row_dict_to_api(row, doi=None, published_date=None, journal_name=None, polic
     enforcement_date = None
     try:
         embargo = int(row["post_print_embargo"])
-        if published_date:
+        if published_date and embargo > 0:
             published_date_datetime = dateutil.parser.parse(published_date)
             enforcement_date = published_date_datetime + monthdelta(embargo)
             enforcement_date_display = enforcement_date.isoformat()[0:10]
@@ -910,6 +910,10 @@ def row_dict_to_api(row, doi=None, published_date=None, journal_name=None, polic
         if licenses_required_normalized:
             licenses_required = licenses_required_normalized
 
+    record_last_updated = None
+    if row["record_last_updated"]:
+        record_last_updated = max(split_clean_list(row["record_last_updated"]))
+
     my_dict = OrderedDict()
     my_dict["application"] = "TBD"
     my_dict["issuer"] = issuer
@@ -918,7 +922,7 @@ def row_dict_to_api(row, doi=None, published_date=None, journal_name=None, polic
             "contributed_by": split_clean_list(row["contributed_by"]),
             "reviewers": row["reviewers"],
             "monitoring_type": controlled_vocab(row["monitoring_type"]),
-            "record_last_updated": max(split_clean_list(row["record_last_updated"])),
+            "record_last_updated": record_last_updated,
             "archived_full_text_link": row["archived_full_text_link"],
         }
     my_dict["requirements"] = {
@@ -1091,7 +1095,11 @@ def get_authoritative_permission(permissions_list):
 @app.route("/permissions/doi/<path:dirty_doi>", methods=["GET"])
 def permissions_doi_get(dirty_doi):
     permissions_list = []
-    doi = clean_doi(dirty_doi)
+    try:
+        doi = clean_doi(dirty_doi)
+    except:
+        abort_json(404, u"Not a valid doi: https://doi.org/{}".format(dirty_doi))
+
     query = {"doi": doi, "query_time": datetime.datetime.now().isoformat()}
 
     # first doi
