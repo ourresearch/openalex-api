@@ -714,7 +714,7 @@ def build_permission_row_from_unpaywall_row(row):
         "institution_name": row["doi"],
         "has_policy": "Yes",
         "versions_archivable": versions_archivable,
-        "versions_archivable_standard": get_standard_versions(versions_archivable),
+        "versions_archivable_standard": get_standard_versions(split_clean_list(versions_archivable)),
         "archiving_locations_allowed": "Institutional Repository",
         "post_print_embargo": "unknown",
         "licenses_required": row["best_license"],
@@ -739,6 +739,7 @@ def build_permission_row_from_unpaywall_row(row):
         "policy_full_text": None,
         "policy_landing_page": None,
         "notes": None,
+        "enforcement_date": None
     }
     return response
 
@@ -881,20 +882,28 @@ def row_dict_to_api(row, doi=None, published_date=None, journal_name=None, polic
     # if not row["has_policy"] or not (u"Yes" in row["has_policy"]):
     #     return None
 
+    display_enforcement_date = None
+    if row["enforcement_date"]:
+        published_date_datetime = dateutil.parser.parse(published_date)
+        enforcement_date_datetime = dateutil.parser.parse(row["enforcement_date"])
+        display_enforcement_date = enforcement_date_datetime.isoformat()[0:10]
+        if enforcement_date_datetime > published_date_datetime:
+            # is prior to enforcement date and isn't a valid policy
+            return None
 
     public_notes = row.get("public_notes")
     if not public_notes:
         public_notes = ""
 
     embargo = None
-    enforcement_date_display = None
-    enforcement_date = None
+    embargo_date_display = None
+    embargo_date = None
     try:
         embargo = int(row["post_print_embargo"])
         if published_date and embargo > 0:
             published_date_datetime = dateutil.parser.parse(published_date)
-            enforcement_date = published_date_datetime + monthdelta(embargo)
-            enforcement_date_display = enforcement_date.isoformat()[0:10]
+            embargo_date = published_date_datetime + monthdelta(embargo)
+            embargo_date_display = embargo_date.isoformat()[0:10]
     except (ValueError, TypeError):
         if row["post_print_embargo"]:
             public_notes += "embargo: {}. ".format(row["post_print_embargo"])
@@ -954,11 +963,14 @@ def row_dict_to_api(row, doi=None, published_date=None, journal_name=None, polic
             "public_notes": public_notes,
             "notes": row["notes"],
             "parent_policy": row["parent_policy"],
+            "enforcement_date": display_enforcement_date
         }
 
     if doi:
         can_archive = False
-        if enforcement_date and enforcement_date < datetime.datetime.now():
+        if not embargo_date:
+            can_archive = True
+        if embargo_date and embargo_date <= datetime.datetime.now():
             can_archive = True
         if row["permission_type"] == "article":
             can_archive = True
@@ -1017,7 +1029,7 @@ def row_dict_to_api(row, doi=None, published_date=None, journal_name=None, polic
                 "author_affiliation_department_requirement": row["author_affiliation_department_requirement"],
                 "author_funding": author_funding,
                 "doi": doi,
-                "post_print_embargo_end_calculated": enforcement_date_display
+                "post_print_embargo_end_calculated": embargo_date_display
             },
         }
 
@@ -1062,7 +1074,7 @@ def get_standard_versions(dirty_list):
     }
     return [lookup.get(v.lower(), v.lower()) for v in dirty_list if v]
 
-def get_sort_key(p):
+def get_permissions_sort_key(p):
     # sorts high to the top
 
     score = 0
@@ -1076,6 +1088,8 @@ def get_sort_key(p):
         score += -10
     if p["requirements"]["author_affiliation_department_requirement"] is not None:
         score += -10
+    if p["requirements"]["licenses_required"] != []:
+        score += -5
 
     if p["issuer"]["permission_type"] == "journal":
         score += 5
@@ -1139,7 +1153,7 @@ def permissions_doi_get(dirty_doi):
         permissions_list += [row_dict_to_api(p, doi=doi, published_date=published_date, journal_name=journal_name, policy_name=funder) for p in funder_permission_rows]
 
     # then institution
-    institution = request.args.get("institution", None)
+    institution = request.args.get("affiliation", None)
     if institution:
         query["institution"] = institution
         institution_permission_rows = get_institution_permission_rows(institution)
@@ -1161,9 +1175,11 @@ def permissions_doi_get(dirty_doi):
             country = [affil_row["country"] for affil_row in affiliation_rows if affil_row["country_iso2"]==row["institution_name"]][0]
             permissions_list += [row_dict_to_api(row, doi=doi, published_date=published_date, journal_name=journal_name, policy_name=country)]
 
+    permissions_list = [d for d in permissions_list if d]
+
     # now pick the authoritative one
     for p in permissions_list:
-        p["sort_key"] = get_sort_key(p)
+        p["sort_key"] = get_permissions_sort_key(p)
     authoritative_policy = get_authoritative_permission(permissions_list)
 
     # return authoritative policy first
@@ -1427,10 +1443,6 @@ def get_jump_response(package="mit_elsevier", min_arg=None):
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5003))
     app.run(host='0.0.0.0', port=port, debug=True, threaded=True)
-
-
-
-
 
 
 

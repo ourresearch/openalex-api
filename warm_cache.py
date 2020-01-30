@@ -16,7 +16,7 @@ from util import elapsed
 from util import chunks
 
 def warm_the_cache():
-    q = """select doi from unpaywall where genre='journal-article' and year > 2015 order by random() limit 1000"""
+    q = """select doi from unpaywall where genre='journal-article' and year > 2017 order by random() limit 1000"""
     with get_db_cursor() as cursor:
         cursor.execute(q)
         rows = cursor.fetchall()
