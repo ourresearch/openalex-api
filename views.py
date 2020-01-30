@@ -54,6 +54,8 @@ from util import jsonify_fast
 from util import find_normalized_license
 from util import str2bool
 from util import jsonify_fast_no_sort
+from util import NotJournalArticleException
+from util import NoDoiException
 
 
 
@@ -766,11 +768,15 @@ def get_publisher_permission_rows_from_doi(dirty_doi):
 
 def get_journal_permission_rows_from_doi(dirty_doi):
     my_doi = clean_doi(dirty_doi)
-    command = "select journal_issn_l, published_date, journal_name from unpaywall where doi = '{}';".format(my_doi)
+    command = "select journal_issn_l, published_date, journal_name, genre from unpaywall where doi = '{}';".format(my_doi)
     with get_db_cursor() as cursor:
         cursor.execute(command)
         doi_row = cursor.fetchone()
-    if not doi_row or not doi_row["journal_issn_l"]:
+    if not doi_row:
+        raise NoDoiException
+    if doi_row["genre"] != "journal-article":
+        raise NotJournalArticleException
+    if not doi_row["journal_issn_l"]:
         return ([], None, None)
     rows = get_permission_rows("journal", doi_row["journal_issn_l"])
     return (rows, doi_row["published_date"], doi_row["journal_name"])
@@ -1103,8 +1109,14 @@ def permissions_doi_get(dirty_doi):
     query = {"doi": doi, "query_time": datetime.datetime.now().isoformat()}
 
     # first doi
-    (doi_permission_rows, published_date, journal_name) = get_journal_permission_rows_from_doi(doi)
-    query["published_date"] =  published_date
+    try:
+        (doi_permission_rows, published_date, journal_name) = get_journal_permission_rows_from_doi(doi)
+    except NoDoiException:
+        abort_json(404, u"Not a valid doi: https://doi.org/{}".format(dirty_doi))
+    except NotJournalArticleException:
+        abort_json(501, u"This doesn't appear to be a journal article.")
+
+    query["published_date"] = published_date
     if doi_permission_rows:
         permissions_list += [row_dict_to_api(p, doi=doi, published_date=published_date, journal_name=journal_name, policy_name=journal_name) for p in doi_permission_rows]
 

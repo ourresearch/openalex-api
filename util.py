@@ -28,6 +28,9 @@ def str2bool(v):
 class NoDoiException(Exception):
     pass
 
+class NotJournalArticleException(Exception):
+    pass
+
 class DelayedAdapter(HTTPAdapter):
     def send(self, request, stream=False, timeout=None, verify=True, cert=None, proxies=None):
         # logger.info(u"in DelayedAdapter getting {}, sleeping for 2 seconds".format(request.url))
