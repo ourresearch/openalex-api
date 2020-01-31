@@ -1081,8 +1081,12 @@ def get_permissions_sort_key(p):
     if p["application"]["can_archive"]:
         score += 100
 
-    if "publisher pdf" in p["requirements"]["versions_archivable"]:
-        score += 1000
+    if p["requirements"]["versions_archivable_standard"] == "submittedVersion":
+        score += 0
+    if p["requirements"]["versions_archivable_standard"] == "acceptedVersion":
+        score += 100
+    if p["requirements"]["versions_archivable_standard"] == "publishedVersion":
+        score += 200
 
     if p["requirements"]["author_affiliation_requirement"] is not None:
         score += -10
@@ -1181,6 +1185,7 @@ def permissions_doi_get(dirty_doi):
     for p in permissions_list:
         p["sort_key"] = get_permissions_sort_key(p)
     authoritative_policy = get_authoritative_permission(permissions_list)
+    permissions_list = sorted(permissions_list, key=lambda x: x["sort_key"], reverse=True)
 
     # return authoritative policy first
     response = OrderedDict()
