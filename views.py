@@ -1079,7 +1079,7 @@ def get_permissions_sort_key(p):
 
     score = 0
     if p["application"]["can_archive"]:
-        score += 100
+        score += 1000
 
     if p["requirements"]["versions_archivable_standard"] == "submittedVersion":
         score += 0
