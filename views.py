@@ -713,8 +713,8 @@ def build_permission_row_from_unpaywall_row(row):
     response = {
         "institution_name": row["doi"],
         "has_policy": "Yes",
-        "versions_archivable": versions_archivable,
-        "versions_archivable_standard": get_standard_versions(split_clean_list(versions_archivable)),
+        "versions_archivable": split_clean_list(versions_archivable, use_controlled_vocab=True),
+        "versions_archivable_standard": get_standard_versions(split_clean_list(versions_archivable, use_controlled_vocab=True)),
         "archiving_locations_allowed": "Institutional Repository",
         "post_print_embargo": "unknown",
         "licenses_required": row["best_license"],
@@ -930,6 +930,9 @@ def row_dict_to_api(row, doi=None, published_date=None, journal_name=None, polic
     if row["record_last_updated"]:
         record_last_updated = max(split_clean_list(row["record_last_updated"]))
 
+    versions_archivable = split_clean_list(row["versions_archivable"], use_controlled_vocab=True)
+    versions_archivable = [version for version in versions_archivable if version and version != "none"]
+
     my_dict = OrderedDict()
     my_dict["application"] = "TBD"
     my_dict["issuer"] = issuer
@@ -944,8 +947,8 @@ def row_dict_to_api(row, doi=None, published_date=None, journal_name=None, polic
     my_dict["requirements"] = {
             "deposit_statement_required": row["deposit_statement_required"],
             "post_print_embargo_months": embargo,
-            "versions_archivable": split_clean_list(row["versions_archivable"], use_controlled_vocab=True),
-            "versions_archivable_standard": get_standard_versions(split_clean_list(row["versions_archivable"], use_controlled_vocab=True)),
+            "versions_archivable": versions_archivable,
+            "versions_archivable_standard": get_standard_versions(versions_archivable),
             "archiving_locations_allowed": split_clean_list(row["archiving_locations_allowed"], use_controlled_vocab=True),
             "licenses_required": licenses_required,
             "postpublication_preprint_update_allowed": row["postpublication_preprint_update_allowed"],
@@ -968,12 +971,13 @@ def row_dict_to_api(row, doi=None, published_date=None, journal_name=None, polic
 
     if doi:
         can_archive = False
-        if not embargo_date:
-            can_archive = True
-        if embargo_date and embargo_date <= datetime.datetime.now():
-            can_archive = True
-        if row["permission_type"] == "article":
-            can_archive = True
+        if len(versions_archivable) > 0:
+            if not embargo_date:
+                can_archive = True
+            if embargo_date and embargo_date <= datetime.datetime.now():
+                can_archive = True
+            if row["permission_type"] == "article":
+                can_archive = True
 
         author_affiliation = None
         if controlled_vocab(row["permission_type"]) == "university":
@@ -1021,8 +1025,8 @@ def row_dict_to_api(row, doi=None, published_date=None, journal_name=None, polic
             "can_archive_conditions": {
                 "postpublication_preprint_update_allowed": row["postpublication_preprint_update_allowed"],
                 "deposit_statement_required_calculated": deposit_statement_required_completed,
-                "versions_archivable": split_clean_list(row["versions_archivable"], use_controlled_vocab=True),
-                "versions_archivable_standard": get_standard_versions(split_clean_list(row["versions_archivable"], use_controlled_vocab=True)),
+                "versions_archivable": versions_archivable,
+                "versions_archivable_standard": get_standard_versions(versions_archivable),
                 "archiving_locations_allowed": split_clean_list(row["archiving_locations_allowed"], use_controlled_vocab=True),
                 "licenses_required": licenses_required,
                 "author_affiliation_requirement": author_affiliation,
@@ -1081,11 +1085,11 @@ def get_permissions_sort_key(p):
     if p["application"]["can_archive"]:
         score += 1000
 
-    if p["requirements"]["versions_archivable_standard"] == "submittedVersion":
+    if "submittedVersion" in p["requirements"]["versions_archivable_standard"]:
         score += 0
-    if p["requirements"]["versions_archivable_standard"] == "acceptedVersion":
+    if "acceptedVersion" in p["requirements"]["versions_archivable_standard"]:
         score += 100
-    if p["requirements"]["versions_archivable_standard"] == "publishedVersion":
+    if "publishedVersion" in p["requirements"]["versions_archivable_standard"]:
         score += 200
 
     if p["requirements"]["author_affiliation_requirement"] is not None:
