@@ -1116,9 +1116,42 @@ def get_authoritative_permission(permissions_list):
     if not permissions_list:
         return None
 
-    sorted_permissions = sorted(permissions_list, key=lambda x: x["sort_key"], reverse=True)
+    if len(permissions_list) == 1:
+        return permissions_list[0]
 
-    return sorted_permissions[0]
+    sorted_permissions = sorted(permissions_list, key=lambda x: x["sort_key"], reverse=True)
+    base_permissions = [p for p in sorted_permissions if p["issuer"]["permission_type"] != "affiliation"]
+    mixin_permissions = [p for p in sorted_permissions if p["issuer"]["permission_type"] == "affiliation"]
+
+    if not base_permissions:
+        return mixin_permissions[0]
+
+    if not mixin_permissions:
+        return base_permissions[0]
+
+    authoritative_permission = base_permissions[0]
+    mixin_permission_to_apply = mixin_permissions[0]
+
+    # union
+    for key in ["licenses_required", "versions_archivable", "versions_archivable_standard"]:
+        authoritative_permission["application"]["can_archive_conditions"][key] += mixin_permission_to_apply["application"]["can_archive_conditions"][key]
+        authoritative_permission["application"]["can_archive_conditions"][key] = list(set(authoritative_permission["application"]["can_archive_conditions"][key]))
+
+    # minimum
+    if authoritative_permission["application"]["can_archive_conditions"]["post_print_embargo_end_calculated"]:
+        if mixin_permission_to_apply["application"]["can_archive_conditions"]["post_print_embargo_end_calculated"]:
+            authoritative_permission["application"]["can_archive_conditions"]["post_print_embargo_end_calculated"] = min(authoritative_permission["application"]["can_archive_conditions"]["post_print_embargo_end_calculated"],
+                                                                                               mixin_permission_to_apply["application"]["can_archive_conditions"]["post_print_embargo_end_calculated"])
+        else:
+            authoritative_permission["application"]["can_archive_conditions"]["post_print_embargo_end_calculated"] = None
+
+    # either True
+    authoritative_permission["application"]["can_archive"] = authoritative_permission["application"]["can_archive"] or mixin_permission_to_apply["application"]["can_archive"]
+
+    authoritative_permission["issuer_affiliation_modifier"] = mixin_permission_to_apply["issuer"]
+    authoritative_permission["meta_affiliation_modifier"] = mixin_permission_to_apply["meta"]
+
+    return authoritative_permission
 
 
 @app.route("/permissions/doi/<path:dirty_doi>", methods=["GET"])
@@ -1188,12 +1221,19 @@ def permissions_doi_get(dirty_doi):
     # now pick the authoritative one
     for p in permissions_list:
         p["sort_key"] = get_permissions_sort_key(p)
-    authoritative_policy = get_authoritative_permission(permissions_list)
+
+    authoritative_permission = get_authoritative_permission(permissions_list)
+    del(authoritative_permission["requirements"])
+    if not "issuer_affiliation_modifier" in authoritative_permission:
+        authoritative_permission["issuer_affiliation_modifier"] = None
+    if not "meta_affiliation_modifier" in authoritative_permission:
+        authoritative_permission["meta_affiliation_modifier"] = None
+
     permissions_list = sorted(permissions_list, key=lambda x: x["sort_key"], reverse=True)
 
     # return authoritative policy first
     response = OrderedDict()
-    response["authoritative_permission"] = authoritative_policy
+    response["authoritative_permission"] = authoritative_permission
     response["all_permissions"] = permissions_list
     response["query"] = query
     return jsonify_fast_no_sort(response)
