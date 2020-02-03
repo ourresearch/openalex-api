@@ -1223,11 +1223,12 @@ def permissions_doi_get(dirty_doi):
         p["sort_key"] = get_permissions_sort_key(p)
 
     authoritative_permission = get_authoritative_permission(permissions_list)
-    del(authoritative_permission["requirements"])
-    if not "issuer_affiliation_modifier" in authoritative_permission:
-        authoritative_permission["issuer_affiliation_modifier"] = None
-    if not "meta_affiliation_modifier" in authoritative_permission:
-        authoritative_permission["meta_affiliation_modifier"] = None
+    if authoritative_permission:
+        del(authoritative_permission["requirements"])
+        if not "issuer_affiliation_modifier" in authoritative_permission:
+            authoritative_permission["issuer_affiliation_modifier"] = None
+        if not "meta_affiliation_modifier" in authoritative_permission:
+            authoritative_permission["meta_affiliation_modifier"] = None
 
     permissions_list = sorted(permissions_list, key=lambda x: x["sort_key"], reverse=True)
 
