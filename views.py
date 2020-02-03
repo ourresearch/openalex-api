@@ -29,6 +29,7 @@ import dateutil.parser
 from monthdelta import monthdelta
 import requests
 from collections import OrderedDict
+import copy
 
 from app import app
 from app import db
@@ -907,6 +908,8 @@ def row_dict_to_api(row, doi=None, published_date=None, journal_name=None, polic
     except (ValueError, TypeError):
         if row["post_print_embargo"]:
             public_notes += "embargo: {}. ".format(row["post_print_embargo"])
+            embargo_date = dateutil.parser.parse("2999-01-01")
+            embargo_date_display = embargo_date.isoformat()[0:10]
 
     issuer = {
         "permission_type": controlled_vocab(row["permission_type"]),
@@ -984,7 +987,6 @@ def row_dict_to_api(row, doi=None, published_date=None, journal_name=None, polic
         if controlled_vocab(row["permission_type"]) == "university" or controlled_vocab(row["permission_type"]) == "affiliation":
             author_affiliation = issuer_id
             author_affiliation_requirement = my_dict["issuer"]["name"]
-            print "******", author_affiliation_requirement
         author_funding_requirement = None
         if controlled_vocab(row["permission_type"]) == "funder":
             author_funding_requirement = issuer_id
@@ -1116,6 +1118,9 @@ def get_permissions_sort_key(p):
     if p["issuer"]["permission_type"] == "affiliation":
         score += 0
 
+    if p["application"]["can_archive_conditions"]["post_print_embargo_end_calculated"] == "2999-01-01":
+        score += -25
+
     return score
 
 def get_authoritative_permission(permissions_list):
@@ -1135,7 +1140,7 @@ def get_authoritative_permission(permissions_list):
     if not mixin_permissions:
         return base_permissions[0]
 
-    authoritative_permission = base_permissions[0]
+    authoritative_permission = copy.deepcopy(base_permissions[0])
     mixin_permission_to_apply = mixin_permissions[0]
 
     # union
