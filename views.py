@@ -713,8 +713,7 @@ def build_permission_row_from_unpaywall_row(row):
     response = {
         "institution_name": row["doi"],
         "has_policy": "Yes",
-        "versions_archivable": split_clean_list(versions_archivable, use_controlled_vocab=True),
-        "versions_archivable_standard": get_standard_versions(split_clean_list(versions_archivable, use_controlled_vocab=True)),
+        "versions_archivable": versions_archivable,
         "archiving_locations_allowed": "Institutional Repository",
         "post_print_embargo": "unknown",
         "licenses_required": row["best_license"],
