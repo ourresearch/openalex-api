@@ -716,7 +716,7 @@ def build_permission_row_from_unpaywall_row(row):
         "has_policy": "Yes",
         "versions_archivable": versions_archivable,
         "archiving_locations_allowed": "Institutional Repository",
-        "post_print_embargo": "unknown",
+        "postprint_embargo": "unknown",
         "licenses_required": row["best_license"],
         "permission_type": "article",
         "policy_landing_page": row["best_url"],
@@ -900,15 +900,16 @@ def row_dict_to_api(row, doi=None, published_date=None, journal_name=None, polic
     embargo_date_display = None
     embargo_date = None
     try:
-        embargo = int(row["post_print_embargo"])
+        embargo = int(row["postprint_embargo"])
         if published_date and embargo > 0:
             published_date_datetime = dateutil.parser.parse(published_date)
             embargo_date = published_date_datetime + monthdelta(embargo)
             embargo_date_display = embargo_date.isoformat()[0:10]
     except (ValueError, TypeError):
-        if row["post_print_embargo"]:
-            public_notes += "embargo: {}. ".format(row["post_print_embargo"])
-            embargo_date = dateutil.parser.parse("2999-01-01")
+        if row["postprint_embargo"]:
+            public_notes += "embargo: {}; assuming 36 months for embargo calculations.".format(row["postprint_embargo"])
+            published_date_datetime = dateutil.parser.parse(published_date)
+            embargo_date = published_date_datetime + monthdelta(36)
             embargo_date_display = embargo_date.isoformat()[0:10]
 
     issuer = {
@@ -949,7 +950,7 @@ def row_dict_to_api(row, doi=None, published_date=None, journal_name=None, polic
         }
     my_dict["requirements"] = {
             "deposit_statement_required": row["deposit_statement_required"],
-            "post_print_embargo_months": embargo,
+            "postprint_embargo_months": embargo,
             "versions_archivable": versions_archivable,
             "versions_archivable_standard": get_standard_versions(versions_archivable),
             "archiving_locations_allowed": split_clean_list(row["archiving_locations_allowed"], use_controlled_vocab=True),
@@ -1027,7 +1028,7 @@ def row_dict_to_api(row, doi=None, published_date=None, journal_name=None, polic
 
         can_archive_conditions = OrderedDict()
         can_archive_conditions["doi"] = doi
-        can_archive_conditions["post_print_embargo_end_calculated"] = embargo_date_display
+        can_archive_conditions["postprint_embargo_end_calculated"] = embargo_date_display
         can_archive_conditions["archiving_locations_allowed"] = split_clean_list(row["archiving_locations_allowed"], use_controlled_vocab=True)
         can_archive_conditions["licenses_required"] = licenses_required
         can_archive_conditions["versions_archivable"] = versions_archivable
@@ -1118,7 +1119,8 @@ def get_permissions_sort_key(p):
     if p["issuer"]["permission_type"] == "affiliation":
         score += 0
 
-    if p["application"]["can_archive_conditions"]["post_print_embargo_end_calculated"] == "2999-01-01":
+    # likely we guessed at the embargo length
+    if p["requirements"]["postprint_embargo_months"] == 36 and len(p["provenance"]["public_notes"]) > 1:
         score += -25
 
     return score
@@ -1149,12 +1151,12 @@ def get_authoritative_permission(permissions_list):
         authoritative_permission["application"]["can_archive_conditions"][key] = list(set(authoritative_permission["application"]["can_archive_conditions"][key]))
 
     # minimum
-    if authoritative_permission["application"]["can_archive_conditions"]["post_print_embargo_end_calculated"]:
-        if mixin_permission_to_apply["application"]["can_archive_conditions"]["post_print_embargo_end_calculated"]:
-            authoritative_permission["application"]["can_archive_conditions"]["post_print_embargo_end_calculated"] = min(authoritative_permission["application"]["can_archive_conditions"]["post_print_embargo_end_calculated"],
-                                                                                               mixin_permission_to_apply["application"]["can_archive_conditions"]["post_print_embargo_end_calculated"])
+    if authoritative_permission["application"]["can_archive_conditions"]["postprint_embargo_end_calculated"]:
+        if mixin_permission_to_apply["application"]["can_archive_conditions"]["postprint_embargo_end_calculated"]:
+            authoritative_permission["application"]["can_archive_conditions"]["postprint_embargo_end_calculated"] = min(authoritative_permission["application"]["can_archive_conditions"]["postprint_embargo_end_calculated"],
+                                                                                               mixin_permission_to_apply["application"]["can_archive_conditions"]["postprint_embargo_end_calculated"])
         else:
-            authoritative_permission["application"]["can_archive_conditions"]["post_print_embargo_end_calculated"] = None
+            authoritative_permission["application"]["can_archive_conditions"]["postprint_embargo_end_calculated"] = None
 
     # either True
     authoritative_permission["application"]["can_archive"] = authoritative_permission["application"]["can_archive"] or mixin_permission_to_apply["application"]["can_archive"]
