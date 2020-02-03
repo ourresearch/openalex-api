@@ -729,6 +729,7 @@ def build_permission_row_from_unpaywall_row(row):
         "record_last_updated": datetime.datetime.utcnow().isoformat(),
         "archived_full_text_link": row["best_url"],
         "author_requirement": None,
+        "author_affiliation_requirement": None,
         "author_affiliation_role_requirement": None,
         "author_affiliation_department_requirement": None,
         "can_opt_out": None,
@@ -978,9 +979,12 @@ def row_dict_to_api(row, doi=None, published_date=None, journal_name=None, polic
             if row["permission_type"] == "article":
                 can_archive = True
 
+        author_affiliation_requirement = None
         author_affiliation = None
-        if controlled_vocab(row["permission_type"]) == "university":
+        if controlled_vocab(row["permission_type"]) == "university" or controlled_vocab(row["permission_type"]) == "affiliation":
             author_affiliation = issuer_id
+            author_affiliation_requirement = my_dict["issuer"]["name"]
+            print "******", author_affiliation_requirement
         author_funding_requirement = None
         if controlled_vocab(row["permission_type"]) == "funder":
             author_funding_requirement = issuer_id
@@ -1019,21 +1023,24 @@ def row_dict_to_api(row, doi=None, published_date=None, journal_name=None, polic
 
             deposit_statement_required_completed = deposit_statement_required_completed.format(**my_data)
 
+        can_archive_conditions = OrderedDict()
+        can_archive_conditions["doi"] = doi
+        can_archive_conditions["post_print_embargo_end_calculated"] = embargo_date_display
+        can_archive_conditions["archiving_locations_allowed"] = split_clean_list(row["archiving_locations_allowed"], use_controlled_vocab=True)
+        can_archive_conditions["licenses_required"] = licenses_required
+        can_archive_conditions["versions_archivable"] = versions_archivable
+        can_archive_conditions["versions_archivable_standard"] = get_standard_versions(versions_archivable)
+        can_archive_conditions["author_affiliation_requirement"] = author_affiliation_requirement
+        can_archive_conditions["author_affiliation_role_requirement"] = row["author_affiliation_role_requirement"]
+        can_archive_conditions["author_affiliation_department_requirement"] = row["author_affiliation_department_requirement"]
+        can_archive_conditions["author_funding_requirement"] = author_funding_requirement
+        can_archive_conditions["deposit_statement_required_calculated"] = deposit_statement_required_completed
+        can_archive_conditions["postpublication_preprint_update_allowed"] = row["postpublication_preprint_update_allowed"]
+
         my_dict["application"] = {
             "can_archive": can_archive,
-            "can_archive_conditions": {
-                "postpublication_preprint_update_allowed": row["postpublication_preprint_update_allowed"],
-                "deposit_statement_required_calculated": deposit_statement_required_completed,
-                "versions_archivable": versions_archivable,
-                "versions_archivable_standard": get_standard_versions(versions_archivable),
-                "archiving_locations_allowed": split_clean_list(row["archiving_locations_allowed"], use_controlled_vocab=True),
-                "licenses_required": licenses_required,
-                "author_affiliation_role_requirement": author_affiliation,
-                "author_affiliation_department_requirement": row["author_affiliation_department_requirement"],
-                "author_funding_requirement": author_funding_requirement,
-                "doi": doi,
-                "post_print_embargo_end_calculated": embargo_date_display
-            },
+            "can_archive_conditions": can_archive_conditions,
+
         }
 
     return my_dict
@@ -1149,6 +1156,8 @@ def get_authoritative_permission(permissions_list):
 
     authoritative_permission["issuer_affiliation_modifier"] = mixin_permission_to_apply["issuer"]
     authoritative_permission["meta_affiliation_modifier"] = mixin_permission_to_apply["meta"]
+
+    authoritative_permission["application"]["can_archive_conditions"]["author_affiliation_requirement"] = authoritative_permission["issuer_affiliation_modifier"]["name"]
 
     return authoritative_permission
 
