@@ -729,7 +729,7 @@ def build_permission_row_from_unpaywall_row(row):
         "record_last_updated": datetime.datetime.utcnow().isoformat(),
         "archived_full_text_link": row["best_url"],
         "author_requirement": None,
-        "author_affiliation_requirement": None,
+        "author_affiliation_role_requirement": None,
         "author_affiliation_department_requirement": None,
         "can_opt_out": None,
         "parent_policy": None,
@@ -953,7 +953,7 @@ def row_dict_to_api(row, doi=None, published_date=None, journal_name=None, polic
             "postpublication_preprint_update_allowed": row["postpublication_preprint_update_allowed"],
             "funding_proportion_required": row["funding_proportion_required"],
             "author_requirement": row["author_requirement"],
-            "author_affiliation_requirement": row["author_affiliation_requirement"],
+            "author_affiliation_role_requirement": row["author_affiliation_role_requirement"],
             "author_affiliation_department_requirement": row["author_affiliation_department_requirement"],
             "can_opt_out": row["can_opt_out"],
             "permissions_request_contact_email": row["permissions_request_contact_email"],
@@ -981,9 +981,9 @@ def row_dict_to_api(row, doi=None, published_date=None, journal_name=None, polic
         author_affiliation = None
         if controlled_vocab(row["permission_type"]) == "university":
             author_affiliation = issuer_id
-        author_funding = None
+        author_funding_requirement = None
         if controlled_vocab(row["permission_type"]) == "funder":
-            author_funding = issuer_id
+            author_funding_requirement = issuer_id
 
         deposit_statement_required_completed = None
         if row["deposit_statement_required"]:
@@ -1028,9 +1028,9 @@ def row_dict_to_api(row, doi=None, published_date=None, journal_name=None, polic
                 "versions_archivable_standard": get_standard_versions(versions_archivable),
                 "archiving_locations_allowed": split_clean_list(row["archiving_locations_allowed"], use_controlled_vocab=True),
                 "licenses_required": licenses_required,
-                "author_affiliation_requirement": author_affiliation,
+                "author_affiliation_role_requirement": author_affiliation,
                 "author_affiliation_department_requirement": row["author_affiliation_department_requirement"],
-                "author_funding": author_funding,
+                "author_funding_requirement": author_funding_requirement,
                 "doi": doi,
                 "post_print_embargo_end_calculated": embargo_date_display
             },
@@ -1091,7 +1091,7 @@ def get_permissions_sort_key(p):
     if "publishedVersion" in p["requirements"]["versions_archivable_standard"]:
         score += 200
 
-    if p["requirements"]["author_affiliation_requirement"] is not None:
+    if p["requirements"]["author_affiliation_role_requirement"] is not None:
         score += -10
     if p["requirements"]["author_affiliation_department_requirement"] is not None:
         score += -10
