@@ -940,6 +940,7 @@ def row_dict_to_api(row, doi=None, published_date=None, journal_name=None, polic
     if u"No" in row["has_policy"]:
         can_archive = False
     if "Permission Required" in row["has_policy"]:
+        can_archive = False
         permission_required = True
 
 
