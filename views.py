@@ -942,6 +942,7 @@ def row_dict_to_api(row, doi=None, published_date=None, journal_name=None, polic
     if "Permission Required" in row["has_policy"]:
         permission_required = True
 
+
     my_dict = OrderedDict()
     my_dict["application"] = "TBD"
     my_dict["issuer"] = issuer
