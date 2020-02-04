@@ -880,8 +880,6 @@ def get_citation_elements_from_crossref(dirty_doi):
 
 def row_dict_to_api(row, doi=None, published_date=None, journal_name=None, policy_name=None):
 
-    # if not row["has_policy"] or not (u"Yes" in row["has_policy"]):
-    #     return None
 
     display_enforcement_date = None
     if row["enforcement_date"]:
@@ -937,6 +935,13 @@ def row_dict_to_api(row, doi=None, published_date=None, journal_name=None, polic
     versions_archivable = split_clean_list(row["versions_archivable"], use_controlled_vocab=True)
     versions_archivable = [version for version in versions_archivable if version and version != "none"]
 
+    can_archive = True
+    permission_required = False
+    if u"No" in row["has_policy"]:
+        can_archive = False
+    if "Permission Required" in row["has_policy"]:
+        permission_required = True
+
     my_dict = OrderedDict()
     my_dict["application"] = "TBD"
     my_dict["issuer"] = issuer
@@ -949,6 +954,8 @@ def row_dict_to_api(row, doi=None, published_date=None, journal_name=None, polic
             "archived_full_text_link": row["archived_full_text_link"],
         }
     my_dict["requirements"] = {
+            "permission_required": permission_required,
+            "permission_required_contact": row["permissions_request_contact_email"],
             "deposit_statement_required": row["deposit_statement_required"],
             "postprint_embargo_months": embargo,
             "versions_archivable": versions_archivable,
@@ -974,15 +981,6 @@ def row_dict_to_api(row, doi=None, published_date=None, journal_name=None, polic
         }
 
     if doi:
-        can_archive = False
-        if len(versions_archivable) > 0:
-            if not embargo_date:
-                can_archive = True
-            if embargo_date and embargo_date <= datetime.datetime.now():
-                can_archive = True
-            if row["permission_type"] == "article":
-                can_archive = True
-
         author_affiliation_requirement = None
         author_affiliation = None
         if controlled_vocab(row["permission_type"]) == "university" or controlled_vocab(row["permission_type"]) == "affiliation":
@@ -1028,6 +1026,8 @@ def row_dict_to_api(row, doi=None, published_date=None, journal_name=None, polic
 
         can_archive_conditions = OrderedDict()
         can_archive_conditions["doi"] = doi
+        can_archive_conditions["permission_required"] = permission_required
+        can_archive_conditions["permission_required_contact"] = row["permissions_request_contact_email"]
         can_archive_conditions["postprint_embargo_end_calculated"] = embargo_date_display
         can_archive_conditions["archiving_locations_allowed"] = split_clean_list(row["archiving_locations_allowed"], use_controlled_vocab=True)
         can_archive_conditions["licenses_required"] = licenses_required
@@ -1043,7 +1043,6 @@ def row_dict_to_api(row, doi=None, published_date=None, journal_name=None, polic
         my_dict["application"] = {
             "can_archive": can_archive,
             "can_archive_conditions": can_archive_conditions,
-
         }
 
     return my_dict
@@ -1237,7 +1236,7 @@ def permissions_doi_get(dirty_doi):
     for p in permissions_list:
         p["sort_key"] = get_permissions_sort_key(p)
 
-    authoritative_permission = get_authoritative_permission(permissions_list)
+    authoritative_permission = copy.deepcopy(get_authoritative_permission(permissions_list))
     if authoritative_permission:
         del(authoritative_permission["requirements"])
         if not "issuer_affiliation_modifier" in authoritative_permission:
