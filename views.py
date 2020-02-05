@@ -935,13 +935,18 @@ def row_dict_to_api(row, doi=None, published_date=None, journal_name=None, polic
     versions_archivable = split_clean_list(row["versions_archivable"], use_controlled_vocab=True)
     versions_archivable = [version for version in versions_archivable if version and version != "none"]
 
-    can_archive = True
+
     permission_required = False
-    if u"No" in row["has_policy"]:
+    if row["has_policy"]:
+        if u"No" in row["has_policy"]:
+            can_archive = False
+        elif "Permission Required" in row["has_policy"]:
+            can_archive = False
+            permission_required = True
+        else:
+            can_archive = True
+    else:
         can_archive = False
-    if "Permission Required" in row["has_policy"]:
-        can_archive = False
-        permission_required = True
 
 
     my_dict = OrderedDict()
