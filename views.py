@@ -868,12 +868,16 @@ def get_citation_elements_from_crossref(dirty_doi):
     r = requests.get(u"https://api.crossref.org/works/{}".format(my_doi), headers=headers)
     if r.status_code == 200:
         data = r.json()["message"]
+        try:
+            author = data["author"][0]["family"]
+        except:
+            author = None
         response = {
             "volume": data["volume"],
             "issue": data["issue"],
             "pages": data["page"],
             "article_title": data["title"][0],
-            "author": data["author"][0]["family"]
+            "author": author
         }
         return response
     return {}
