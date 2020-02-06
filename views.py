@@ -903,7 +903,7 @@ def row_dict_to_api(row, doi=None, published_date=None, journal_name=None, polic
     embargo_date = None
     try:
         if row["postprint_embargo"] == "unknown":
-            embargo = "unknown; article is currently Open Access"
+            embargo = "original embargo unknown, but article is currently Open Access"
         else:
             embargo = int(row["postprint_embargo"])
             if published_date and embargo > 0:
