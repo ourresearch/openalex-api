@@ -902,11 +902,14 @@ def row_dict_to_api(row, doi=None, published_date=None, journal_name=None, polic
     embargo_date_display = None
     embargo_date = None
     try:
-        embargo = int(row["postprint_embargo"])
-        if published_date and embargo > 0:
-            published_date_datetime = dateutil.parser.parse(published_date)
-            embargo_date = published_date_datetime + monthdelta(embargo)
-            embargo_date_display = embargo_date.isoformat()[0:10]
+        if row["postprint_embargo"] == "unknown":
+            embargo = "unknown; article is currently Open Access"
+        else:
+            embargo = int(row["postprint_embargo"])
+            if published_date and embargo > 0:
+                published_date_datetime = dateutil.parser.parse(published_date)
+                embargo_date = published_date_datetime + monthdelta(embargo)
+                embargo_date_display = embargo_date.isoformat()[0:10]
     except (ValueError, TypeError):
         if row["postprint_embargo"]:
             public_notes += "embargo: {}; assuming 36 months for embargo calculations.".format(row["postprint_embargo"])
