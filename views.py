@@ -1000,6 +1000,8 @@ def row_dict_to_api(row, doi=None, published_date=None, journal_name=None, polic
         deposit_statement_required_completed = None
         if row["deposit_statement_required"]:
             deposit_statement_required_completed = row["deposit_statement_required"].decode("utf-8")
+        deposit_statement_required_completed = deposit_statement_required_completed.replace("{", "")
+        deposit_statement_required_completed = deposit_statement_required_completed.replace("}", "")
         if deposit_statement_required_completed:
             deposit_statement_required_completed = re.sub( u"<<URL>>", u"{doi_url}", deposit_statement_required_completed, flags=re.IGNORECASE)
             deposit_statement_required_completed = re.sub( u"<<Date of Publication>>", u"{published_date}", deposit_statement_required_completed, flags=re.IGNORECASE)
@@ -1026,7 +1028,7 @@ def row_dict_to_api(row, doi=None, published_date=None, journal_name=None, polic
                        "year": published_date[0:4] if published_date else None,
                        "doi_url": u"https://doi.org/{}".format(doi) if doi else None,
                        "published_date": published_date,
-                       "journal_name": journal_name
+                       "journal_name": journal_name.decode("utf-8")
                        })
 
             deposit_statement_required_completed = deposit_statement_required_completed.format(**my_data)
