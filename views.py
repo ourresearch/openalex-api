@@ -747,9 +747,9 @@ def build_permission_row_from_unpaywall_row(row):
 
 def get_permission_rows(permission_type=None, issuer=None):
     if issuer:
-        command = "select * from permissions_input where institution_name ilike '%{}%' order by institution_name;".format(issuer)
+        command = "select * from permissions_input where institution_name ilike '{}' order by institution_name;".format(issuer)
     elif permission_type:
-        command = "select * from permissions_input where permission_type ilike '%{}%' order by institution_name;".format(permission_type)
+        command = "select * from permissions_input where permission_type ilike '{}' order by institution_name;".format(permission_type)
     else:
         command = "select * from permissions_input order by random() limit 1000;"
     # print command
@@ -1046,6 +1046,7 @@ def row_dict_to_api(row, doi=None, published_date=None, journal_name=None, polic
         can_archive_conditions = OrderedDict()
         can_archive_conditions["doi"] = doi
         can_archive_conditions["doi_url"] = u"https://doi.org/{}".format(doi) if doi else None
+        can_archive_conditions["published_date"] = published_date
         can_archive_conditions["permission_required"] = permission_required
         can_archive_conditions["permission_required_contact"] = row["permissions_request_contact_email"]
         can_archive_conditions["postprint_embargo_end_calculated"] = embargo_date_display
@@ -1145,19 +1146,15 @@ def get_permissions_sort_key(p):
 
     return score
 
-def get_authoritative_permission(permissions_list):
+def get_authoritative_permission(permissions_list, mixin_permissions=None):
     if not permissions_list:
         return None
 
-    if len(permissions_list) == 1:
-        return permissions_list[0]
-
     sorted_permissions = sorted(permissions_list, key=lambda x: x["sort_key"], reverse=True)
     base_permissions = [p for p in sorted_permissions if p["issuer"]["permission_type"] != "affiliation"]
-    mixin_permissions = [p for p in sorted_permissions if p["issuer"]["permission_type"] == "affiliation"]
 
     if not base_permissions:
-        return mixin_permissions[0]
+        return None
 
     if not mixin_permissions:
         return base_permissions[0]
@@ -1230,10 +1227,13 @@ def permissions_doi_get(dirty_doi):
 
     # then institution
     institution = request.args.get("affiliation", None)
+    provided_affiliation_permissions_list = None
     if institution:
         query["institution"] = institution
         institution_permission_rows = get_institution_permission_rows(institution)
-        permissions_list += [row_dict_to_api(p, doi=doi, published_date=published_date, journal_name=journal_name, policy_name=institution) for p in institution_permission_rows]
+        provided_affiliation_permissions_list = [row_dict_to_api(p, doi=doi, published_date=published_date, journal_name=journal_name, policy_name=institution) for p in institution_permission_rows]
+        print provided_affiliation_permissions_list
+        permissions_list += provided_affiliation_permissions_list
 
     # then from affiliations
     affiliation_rows = get_affiliation_rows_from_doi(doi)
@@ -1257,7 +1257,7 @@ def permissions_doi_get(dirty_doi):
     for p in permissions_list:
         p["sort_key"] = get_permissions_sort_key(p)
 
-    authoritative_permission = copy.deepcopy(get_authoritative_permission(permissions_list))
+    authoritative_permission = copy.deepcopy(get_authoritative_permission(permissions_list, provided_affiliation_permissions_list))
     if authoritative_permission:
         del(authoritative_permission["requirements"])
         if not "issuer_affiliation_modifier" in authoritative_permission:
