@@ -740,7 +740,8 @@ def build_permission_row_from_unpaywall_row(row):
         "policy_full_text": None,
         "policy_landing_page": None,
         "notes": None,
-        "enforcement_date": None
+        "enforcement_date": None,
+        "if_funded_by": None
     }
     return response
 
@@ -884,14 +885,18 @@ def get_citation_elements_from_crossref(dirty_doi):
 
 def row_dict_to_api(row, doi=None, published_date=None, journal_name=None, policy_name=None):
 
+    # print row
 
     display_enforcement_date = None
     if row["enforcement_date"]:
         published_date_datetime = dateutil.parser.parse(published_date)
         enforcement_date_datetime = dateutil.parser.parse(row["enforcement_date"])
         display_enforcement_date = enforcement_date_datetime.isoformat()[0:10]
+        # print "enforcement_date_datetime", enforcement_date_datetime
+        # print "published_date_datetime", published_date_datetime
         if enforcement_date_datetime > published_date_datetime:
             # is prior to enforcement date and isn't a valid policy
+            print "published date is prior to enforcement date for this permission so it isn't applicable"
             return None
 
     public_notes = row.get("public_notes")
@@ -977,10 +982,11 @@ def row_dict_to_api(row, doi=None, published_date=None, journal_name=None, polic
             "archiving_locations_allowed": split_clean_list(row["archiving_locations_allowed"], use_controlled_vocab=True),
             "licenses_required": licenses_required,
             "postpublication_preprint_update_allowed": row["postpublication_preprint_update_allowed"],
-            "funding_proportion_required": row["funding_proportion_required"],
             "author_requirement": row["author_requirement"],
             "author_affiliation_role_requirement": row["author_affiliation_role_requirement"],
             "author_affiliation_department_requirement": row["author_affiliation_department_requirement"],
+            "author_funding_requirement": row["if_funded_by"],
+            "author_funding_proportion_requirement": row["funding_proportion_required"],
             "can_opt_out": row["can_opt_out"],
             "permissions_request_contact_email": row["permissions_request_contact_email"],
         }
@@ -1000,9 +1006,6 @@ def row_dict_to_api(row, doi=None, published_date=None, journal_name=None, polic
         if controlled_vocab(row["permission_type"]) == "university" or controlled_vocab(row["permission_type"]) == "affiliation":
             author_affiliation = issuer_id
             author_affiliation_requirement = my_dict["issuer"]["name"]
-        author_funding_requirement = None
-        if controlled_vocab(row["permission_type"]) == "funder":
-            author_funding_requirement = issuer_id
 
         deposit_statement_required_completed = None
         if row["deposit_statement_required"]:
@@ -1052,7 +1055,8 @@ def row_dict_to_api(row, doi=None, published_date=None, journal_name=None, polic
         can_archive_conditions["author_affiliation_requirement"] = author_affiliation_requirement
         can_archive_conditions["author_affiliation_role_requirement"] = row["author_affiliation_role_requirement"]
         can_archive_conditions["author_affiliation_department_requirement"] = row["author_affiliation_department_requirement"]
-        can_archive_conditions["author_funding_requirement"] = author_funding_requirement
+        can_archive_conditions["author_funding_requirement"] = row["if_funded_by"]
+        can_archive_conditions["author_funding_proportion_requirement"] = row["funding_proportion_required"]
         can_archive_conditions["deposit_statement_required_calculated"] = deposit_statement_required_completed
         can_archive_conditions["postpublication_preprint_update_allowed"] = row["postpublication_preprint_update_allowed"]
 
@@ -1135,7 +1139,7 @@ def get_permissions_sort_key(p):
         score += 0
 
     # likely we guessed at the embargo length
-    if p["requirements"]["postprint_embargo_months"] == 36 and len(p["provenance"]["public_notes"]) > 1:
+    if p["requirements"]["postprint_embargo_months"] >= 36:
         score += -25
 
     return score
