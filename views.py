@@ -1045,6 +1045,7 @@ def row_dict_to_api(row, doi=None, published_date=None, journal_name=None, polic
 
         can_archive_conditions = OrderedDict()
         can_archive_conditions["doi"] = doi
+        can_archive_conditions["doi_url"] = u"https://doi.org/{}".format(doi) if doi else None
         can_archive_conditions["permission_required"] = permission_required
         can_archive_conditions["permission_required_contact"] = row["permissions_request_contact_email"]
         can_archive_conditions["postprint_embargo_end_calculated"] = embargo_date_display
