@@ -747,7 +747,8 @@ def build_permission_row_from_unpaywall_row(row):
 
 def get_permission_rows(permission_type=None, issuer=None):
     if issuer:
-        if permission_type == "publisher":
+        # fuzzy matches because might have a comma
+        if permission_type == "publisher" or permission_type == "journal":
             command = "select * from permissions_input where institution_name ilike '%{}%' and permission_type ilike '{}' order by institution_name;".format(issuer, permission_type)
         else:
             command = "select * from permissions_input where institution_name ilike '{}' and permission_type ilike '{}' order by institution_name;".format(issuer, permission_type)
