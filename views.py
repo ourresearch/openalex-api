@@ -747,7 +747,10 @@ def build_permission_row_from_unpaywall_row(row):
 
 def get_permission_rows(permission_type=None, issuer=None):
     if issuer:
-        command = "select * from permissions_input where institution_name ilike '{}' order by institution_name;".format(issuer)
+        if permission_type == "publisher":
+            command = "select * from permissions_input where institution_name ilike '%{}%' and permission_type ilike '{}' order by institution_name;".format(issuer, permission_type)
+        else:
+            command = "select * from permissions_input where institution_name ilike '{}' and permission_type ilike '{}' order by institution_name;".format(issuer, permission_type)
     elif permission_type:
         command = "select * from permissions_input where permission_type ilike '{}' order by institution_name;".format(permission_type)
     else:
