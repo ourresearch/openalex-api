@@ -807,7 +807,7 @@ def get_unpaywall_permission_rows_from_doi(dirty_doi):
         return []
     return [permission_row]
 
-def get_institution_permission_rows_from_ror_ids(ror_ids):
+def get_affiliation_permission_rows_from_ror_ids(ror_ids):
     if not ror_ids:
         return []
     ror_ids_string = u",".join([u"'{}'".format(ror_id) for ror_id in ror_ids])
@@ -821,7 +821,7 @@ def get_institution_permission_rows_from_ror_ids(ror_ids):
         rows = cursor.fetchall()
     return rows
 
-def get_institution_permission_rows_from_countries(country_ids):
+def get_affiliation_permission_rows_from_countries(country_ids):
     if not country_ids:
         return []
     country_ids_string = u",".join([u"'{}'".format(country_id) for country_id in country_ids])
@@ -835,8 +835,8 @@ def get_institution_permission_rows_from_countries(country_ids):
         rows = cursor.fetchall()
     return rows
 
-def get_institution_permission_rows(institution):
-    rows = get_permission_rows("institution", institution)
+def get_affiliation_permission_rows(affiliation):
+    rows = get_permission_rows("affiliation", affiliation)
     return rows
 
 def get_funder_permission_rows(funder):
@@ -1229,13 +1229,14 @@ def permissions_doi_get(dirty_doi):
         funder_permission_rows = get_funder_permission_rows(funder)
         permissions_list += [row_dict_to_api(p, doi=doi, published_date=published_date, journal_name=journal_name, policy_name=funder) for p in funder_permission_rows]
 
-    # then institution
-    institution = request.args.get("affiliation", None)
+    # then affiliation
+    affiliation = request.args.get("affiliation", None)
     provided_affiliation_permissions_list = None
-    if institution:
-        query["institution"] = institution
-        institution_permission_rows = get_institution_permission_rows(institution)
-        provided_affiliation_permissions_list = [row_dict_to_api(p, doi=doi, published_date=published_date, journal_name=journal_name, policy_name=institution) for p in institution_permission_rows]
+    if affiliation:
+        query["institution"] = affiliation
+
+        affiliation_permission_rows = get_affiliation_permission_rows(affiliation)
+        provided_affiliation_permissions_list = [row_dict_to_api(p, doi=doi, published_date=published_date, journal_name=journal_name, policy_name=affiliation) for p in affiliation_permission_rows]
         print provided_affiliation_permissions_list
         permissions_list += provided_affiliation_permissions_list
 
@@ -1244,14 +1245,14 @@ def permissions_doi_get(dirty_doi):
     query["affiliations"] = affiliation_rows
     if affiliation_rows:
         ror_ids = list(set([row["ror_id"] for row in affiliation_rows if row["ror_id"]]))
-        institution_permission_rows = get_institution_permission_rows_from_ror_ids(ror_ids)
-        for row in institution_permission_rows:
-            institution = [affil_row["org"] for affil_row in affiliation_rows if affil_row["ror_id"]==row["institution_name"]][0]
-            permissions_list += [row_dict_to_api(row, doi=doi, published_date=published_date, journal_name=journal_name, policy_name=institution)]
+        affiliation_permission_rows = get_affiliation_permission_rows_from_ror_ids(ror_ids)
+        for row in affiliation_permission_rows:
+            affiliation = [affil_row["org"] for affil_row in affiliation_rows if affil_row["ror_id"]==row["institution_name"]][0]
+            permissions_list += [row_dict_to_api(row, doi=doi, published_date=published_date, journal_name=journal_name, policy_name=affiliation)]
 
         countries = list(set([row["country_iso2"] for row in affiliation_rows if row["country_iso2"]]))
-        institution_permission_rows = get_institution_permission_rows_from_countries(countries)
-        for row in institution_permission_rows:
+        affiliation_permission_rows = get_affiliation_permission_rows_from_countries(countries)
+        for row in affiliation_permission_rows:
             country = [affil_row["country"] for affil_row in affiliation_rows if affil_row["country_iso2"]==row["institution_name"]][0]
             permissions_list += [row_dict_to_api(row, doi=doi, published_date=published_date, journal_name=journal_name, policy_name=country)]
 
