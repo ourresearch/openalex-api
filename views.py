@@ -876,11 +876,11 @@ def get_citation_elements_from_crossref(dirty_doi):
         try:
             author = data["author"][0]["family"]
         except:
-            author = None
+            author = ""
         response = {
-            "volume": data["volume"],
-            "issue": data["issue"],
-            "pages": data["page"],
+            "volume": data.get("volume", ""),
+            "issue": data.get("issue", ""),
+            "pages": data.get("page", ""),
             "article_title": data["title"][0],
             "author": author
         }
