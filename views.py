@@ -770,8 +770,14 @@ def get_publisher_permission_rows_from_doi(dirty_doi):
         doi_row = cursor.fetchone()
     if not doi_row or not doi_row["publisher"]:
         return ([], None)
-    rows = get_permission_rows("publisher", doi_row["publisher"])
-    return (rows, doi_row["publisher"])
+    publisher = doi_row["publisher"]
+    updated_publishers = {
+        "American Psychiatric Publishing": "American Psychiatric Association Publishing"
+    }
+    publisher = updated_publishers.get(publisher, publisher)
+    rows = get_permission_rows("publisher", publisher)
+
+    return (rows, publisher)
 
 def get_journal_permission_rows_from_doi(dirty_doi):
     my_doi = clean_doi(dirty_doi)
@@ -1233,7 +1239,7 @@ def permissions_doi_get(dirty_doi):
     affiliation = request.args.get("affiliation", None)
     provided_affiliation_permissions_list = None
     if affiliation:
-        query["institution"] = affiliation
+        query["affiliation"] = affiliation
 
         affiliation_permission_rows = get_affiliation_permission_rows(affiliation)
         provided_affiliation_permissions_list = [row_dict_to_api(p, doi=doi, published_date=published_date, journal_name=journal_name, policy_name=affiliation) for p in affiliation_permission_rows]
