@@ -900,7 +900,7 @@ def row_dict_to_api(row, doi=None, published_date=None, journal_name=None, polic
     # print row
 
     display_enforcement_date = None
-    if row["enforcement_date"]:
+    if row["enforcement_date"] and published_date:
         published_date_datetime = dateutil.parser.parse(published_date)
         enforcement_date_datetime = dateutil.parser.parse(row["enforcement_date"])
         display_enforcement_date = enforcement_date_datetime.isoformat()[0:10]
@@ -928,7 +928,7 @@ def row_dict_to_api(row, doi=None, published_date=None, journal_name=None, polic
                 embargo_date = published_date_datetime + monthdelta(embargo)
                 embargo_date_display = embargo_date.isoformat()[0:10]
     except (ValueError, TypeError):
-        if row["postprint_embargo"]:
+        if row["postprint_embargo"] and published_date:
             public_notes += "embargo: {}; assuming 36 months for embargo calculations.".format(row["postprint_embargo"])
             published_date_datetime = dateutil.parser.parse(published_date)
             embargo_date = published_date_datetime + monthdelta(36)
