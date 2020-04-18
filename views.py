@@ -1081,6 +1081,7 @@ def row_dict_to_api(row, doi=None, published_date=None, journal_name=None, polic
 
 
 @app.route("/permissions/affiliations", methods=["GET"])
+@app.route("/affiliations", methods=["GET"])
 def permissions_affiliations():
     rows = get_permission_rows("affiliation")
     # return jsonify([row["institution_name"] for row in rows])
@@ -1088,6 +1089,7 @@ def permissions_affiliations():
     return jsonify([d for d in my_dicts if d])
 
 @app.route("/permissions/journals", methods=["GET"])
+@app.route("/journals", methods=["GET"])
 def permissions_journals():
     rows = get_permission_rows("journal")
     # return jsonify([row["institution_name"] for row in rows])
@@ -1095,6 +1097,7 @@ def permissions_journals():
     return jsonify([d for d in my_dicts if d])
 
 @app.route("/permissions/publishers", methods=["GET"])
+@app.route("/publishers", methods=["GET"])
 def permissions_publishers():
     rows = get_permission_rows("publisher")
     # return jsonify([row["institution_name"] for row in rows])
@@ -1102,6 +1105,7 @@ def permissions_publishers():
     return jsonify([d for d in my_dicts if d])
 
 @app.route("/permissions/random", methods=["GET"])
+@app.route("/random", methods=["GET"])
 def permissions_all():
     rows = get_permission_rows()
     my_dicts = [row_dict_to_api(row) for row in rows]
@@ -1197,6 +1201,7 @@ def get_authoritative_permission(permissions_list, mixin_permissions=None):
 
 
 @app.route("/permissions/doi/<path:dirty_doi>", methods=["GET"])
+@app.route("/doi/<path:dirty_doi>", methods=["GET"])
 def permissions_doi_get(dirty_doi):
     permissions_list = []
     try:
