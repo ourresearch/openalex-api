@@ -728,7 +728,8 @@ def build_permission_row_from_unpaywall_row(row):
         "postpublication_preprint_update_allowed": "Yes",
         "funding_proportion_required": None,
         "record_last_updated": datetime.datetime.utcnow().isoformat(),
-        "archived_full_text_link": row["best_url"],
+        "archived_full_text_link": row["best_url"],  # remove once updated,  use policy_full_text_archived below instead
+        "policy_full_text_archived": row["best_url"],
         "author_requirement": None,
         "author_affiliation_requirement": None,
         "author_affiliation_role_requirement": None,
@@ -787,12 +788,12 @@ def get_journal_permission_rows_from_doi(dirty_doi):
         doi_row = cursor.fetchone()
     if not doi_row:
         raise NoDoiException
-    if doi_row["genre"] != "journal-article":
+    if not doi_row["genre"] in ["journal-article", "proceedings-article"]:
         raise NotJournalArticleException
     if not doi_row["journal_issn_l"]:
-        return ([], None, None)
+        return ([], None, None, None)
     rows = get_permission_rows("journal", doi_row["journal_issn_l"])
-    return (rows, doi_row["published_date"], doi_row["journal_name"])
+    return (rows, doi_row["published_date"], doi_row["journal_name"], doi_row["journal_issn_l"])
 
 
 def get_unpaywall_permission_rows_from_doi(dirty_doi):
@@ -887,6 +888,7 @@ def get_citation_elements_from_crossref(dirty_doi):
             "volume": data.get("volume", ""),
             "issue": data.get("issue", ""),
             "pages": data.get("page", ""),
+            "container_title": data.get("container_title", [""])[0],
             "article_title": data["title"][0],
             "author": author
         }
@@ -981,6 +983,7 @@ def row_dict_to_api(row, doi=None, published_date=None, journal_name=None, polic
             "monitoring_type": controlled_vocab(row["monitoring_type"]),
             "record_last_updated": record_last_updated,
             "archived_full_text_link": row["archived_full_text_link"],
+            "policy_full_text_archived": row["archived_full_text_link"],
         }
     my_dict["requirements"] = {
             "permission_required": permission_required,
@@ -1009,6 +1012,20 @@ def row_dict_to_api(row, doi=None, published_date=None, journal_name=None, polic
             "parent_policy": row["parent_policy"],
             "enforcement_date": display_enforcement_date
         }
+
+    my_dict["application"] = {}
+
+    can_archive_conditions = OrderedDict()
+    can_archive_conditions["doi"] = doi
+    can_archive_conditions["doi_url"] = u"https://doi.org/{}".format(doi) if doi else None
+    can_archive_conditions["published_date"] = published_date
+    can_archive_conditions["permission_required"] = permission_required
+    can_archive_conditions["permission_required_contact"] = row["permissions_request_contact_email"]
+    can_archive_conditions["postprint_embargo_end_calculated"] = embargo_date_display
+    can_archive_conditions["archiving_locations_allowed"] = split_clean_list(row["archiving_locations_allowed"], use_controlled_vocab=True)
+    can_archive_conditions["licenses_required"] = licenses_required
+    can_archive_conditions["versions_archivable"] = versions_archivable
+    can_archive_conditions["versions_archivable_standard"] = get_standard_versions(versions_archivable)
 
     if doi:
         author_affiliation_requirement = None
@@ -1041,8 +1058,12 @@ def row_dict_to_api(row, doi=None, published_date=None, journal_name=None, polic
             my_data = {}
             crossref_elements_list = ["{pages}", "{issue}", "{volume}", "{article_title}", "{author}"]
             need_crossref_elements = len([word for word in crossref_elements_list if word in deposit_statement_required_completed]) != 0
+            if not journal_name:
+                need_crossref_elements = True
             if doi and need_crossref_elements:
                 my_data.update(get_citation_elements_from_crossref(doi))
+            if not journal_name:
+                journal_name = my_data["container_title"]
             my_data.update({"doi": doi,
                        "citation": citation,
                        "year": published_date[0:4] if published_date else None,
@@ -1052,31 +1073,17 @@ def row_dict_to_api(row, doi=None, published_date=None, journal_name=None, polic
                        })
 
             deposit_statement_required_completed = deposit_statement_required_completed.format(**my_data)
+            can_archive_conditions["author_affiliation_requirement"] = author_affiliation_requirement
+            can_archive_conditions["author_affiliation_role_requirement"] = row["author_affiliation_role_requirement"]
+            can_archive_conditions["author_affiliation_department_requirement"] = row["author_affiliation_department_requirement"]
+            can_archive_conditions["author_funding_requirement"] = row["if_funded_by"]
+            can_archive_conditions["author_funding_proportion_requirement"] = row["funding_proportion_required"]
+            can_archive_conditions["deposit_statement_required_calculated"] = deposit_statement_required_completed
+            can_archive_conditions["postpublication_preprint_update_allowed"] = row["postpublication_preprint_update_allowed"]
 
-        can_archive_conditions = OrderedDict()
-        can_archive_conditions["doi"] = doi
-        can_archive_conditions["doi_url"] = u"https://doi.org/{}".format(doi) if doi else None
-        can_archive_conditions["published_date"] = published_date
-        can_archive_conditions["permission_required"] = permission_required
-        can_archive_conditions["permission_required_contact"] = row["permissions_request_contact_email"]
-        can_archive_conditions["postprint_embargo_end_calculated"] = embargo_date_display
-        can_archive_conditions["archiving_locations_allowed"] = split_clean_list(row["archiving_locations_allowed"], use_controlled_vocab=True)
-        can_archive_conditions["licenses_required"] = licenses_required
-        can_archive_conditions["versions_archivable"] = versions_archivable
-        can_archive_conditions["versions_archivable_standard"] = get_standard_versions(versions_archivable)
-        can_archive_conditions["author_affiliation_requirement"] = author_affiliation_requirement
-        can_archive_conditions["author_affiliation_role_requirement"] = row["author_affiliation_role_requirement"]
-        can_archive_conditions["author_affiliation_department_requirement"] = row["author_affiliation_department_requirement"]
-        can_archive_conditions["author_funding_requirement"] = row["if_funded_by"]
-        can_archive_conditions["author_funding_proportion_requirement"] = row["funding_proportion_required"]
-        can_archive_conditions["deposit_statement_required_calculated"] = deposit_statement_required_completed
-        can_archive_conditions["postpublication_preprint_update_allowed"] = row["postpublication_preprint_update_allowed"]
+            my_dict["application"]["can_archive"] = can_archive
 
-        my_dict["application"] = {
-            "can_archive": can_archive,
-            "can_archive_conditions": can_archive_conditions,
-        }
-
+    my_dict["application"]["can_archive_conditions"] = can_archive_conditions
     return my_dict
 
 
@@ -1213,13 +1220,16 @@ def permissions_doi_get(dirty_doi):
 
     # first doi
     try:
-        (doi_permission_rows, published_date, journal_name) = get_journal_permission_rows_from_doi(doi)
+        (doi_permission_rows, published_date, journal_name, issn) = get_journal_permission_rows_from_doi(doi)
     except NoDoiException:
         abort_json(404, u"Not a valid doi: https://doi.org/{}".format(dirty_doi))
     except NotJournalArticleException:
-        abort_json(501, u"The service currently only provide permissions for journal articles.")
+        abort_json(501, u"The service currently only provide permissions for journal articles and conference papers.")
 
     query["published_date"] = published_date
+    query["journal_name"] = journal_name
+    query["issn"] = issn
+
     if doi_permission_rows:
         permissions_list += [row_dict_to_api(p, doi=doi, published_date=published_date, journal_name=journal_name, policy_name=journal_name) for p in doi_permission_rows]
 
@@ -1283,6 +1293,7 @@ def permissions_doi_get(dirty_doi):
 
     permissions_list = sorted(permissions_list, key=lambda x: x["sort_key"], reverse=True)
 
+
     # return authoritative policy first
     response = OrderedDict()
     response["authoritative_permission"] = authoritative_permission
@@ -1291,6 +1302,7 @@ def permissions_doi_get(dirty_doi):
     return jsonify_fast_no_sort(response)
 
 @app.route("/permissions/issn/<issn>", methods=["GET"])
+@app.route("/issn/<issn>", methods=["GET"])
 def permissions_issn_get(issn):
     rows = get_journal_rows_from_issn(issn)
     return jsonify([row_dict_to_api(row) for row in rows])
