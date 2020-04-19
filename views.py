@@ -850,12 +850,6 @@ def get_funder_permission_rows(funder):
     rows = get_permission_rows("funder", funder)
     return rows
 
-def get_journal_rows_from_issn(issn):
-    command = "select * from permissions_input where institution_name = '%{}%' limit 1;".format(issn)
-    with get_db_cursor() as cursor:
-        cursor.execute(command)
-        rows = cursor.fetchall()
-    return rows
 
 def get_affiliation_rows_from_doi(dirty_doi):
     my_doi = clean_doi(dirty_doi)
@@ -1091,7 +1085,13 @@ def row_dict_to_api(row, doi=None, published_date=None, journal_name=None, polic
 @app.route("/affiliations", methods=["GET"])
 def permissions_affiliations():
     rows = get_permission_rows("affiliation")
-    # return jsonify([row["institution_name"] for row in rows])
+    my_dicts = [row_dict_to_api(row) for row in rows]
+    return jsonify([d for d in my_dicts if d])
+
+@app.route("/permissions/affiliations/<ror>", methods=["GET"])
+@app.route("/affiliations/<ror>", methods=["GET"])
+def permissions_affiliations_single(ror):
+    rows = get_permission_rows("affiliation", ror)
     my_dicts = [row_dict_to_api(row) for row in rows]
     return jsonify([d for d in my_dicts if d])
 
@@ -1099,17 +1099,34 @@ def permissions_affiliations():
 @app.route("/journals", methods=["GET"])
 def permissions_journals():
     rows = get_permission_rows("journal")
-    # return jsonify([row["institution_name"] for row in rows])
     my_dicts = [row_dict_to_api(row) for row in rows]
     return jsonify([d for d in my_dicts if d])
+
+@app.route("/permissions/journals/<issn>", methods=["GET"])
+@app.route("/journals/<issn>", methods=["GET"])
+def permissions_journals_single(issn):
+    rows = get_permission_rows("journal", issn)
+    print rows[0]
+    my_dicts = [row_dict_to_api(row) for row in rows]
+    return jsonify([d for d in my_dicts if d])
+
 
 @app.route("/permissions/publishers", methods=["GET"])
 @app.route("/publishers", methods=["GET"])
 def permissions_publishers():
     rows = get_permission_rows("publisher")
-    # return jsonify([row["institution_name"] for row in rows])
     my_dicts = [row_dict_to_api(row) for row in rows]
     return jsonify([d for d in my_dicts if d])
+
+@app.route("/permissions/publishers/<publisher_name>", methods=["GET"])
+@app.route("/publishers/<publisher_name>", methods=["GET"])
+def permissions_publishers_single(publisher_name):
+    rows = get_permission_rows("publisher", publisher_name)
+    my_dicts = [row_dict_to_api(row) for row in rows]
+    return jsonify([d for d in my_dicts if d])
+
+
+
 
 @app.route("/permissions/random", methods=["GET"])
 @app.route("/random", methods=["GET"])
@@ -1301,11 +1318,6 @@ def permissions_doi_get(dirty_doi):
     response["query"] = query
     return jsonify_fast_no_sort(response)
 
-@app.route("/permissions/issn/<issn>", methods=["GET"])
-@app.route("/issn/<issn>", methods=["GET"])
-def permissions_issn_get(issn):
-    rows = get_journal_rows_from_issn(issn)
-    return jsonify([row_dict_to_api(row) for row in rows])
 
 
 
