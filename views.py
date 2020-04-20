@@ -1007,28 +1007,16 @@ def row_dict_to_api(row, doi=None, published_date=None, journal_name=None, polic
             "enforcement_date": display_enforcement_date
         }
 
-    my_dict["application"] = {}
 
-    can_archive_conditions = OrderedDict()
-    can_archive_conditions["doi"] = doi
-    can_archive_conditions["doi_url"] = u"https://doi.org/{}".format(doi) if doi else None
-    can_archive_conditions["published_date"] = published_date
-    can_archive_conditions["permission_required"] = permission_required
-    can_archive_conditions["permission_required_contact"] = row["permissions_request_contact_email"]
-    can_archive_conditions["postprint_embargo_end_calculated"] = embargo_date_display
-    can_archive_conditions["archiving_locations_allowed"] = split_clean_list(row["archiving_locations_allowed"], use_controlled_vocab=True)
-    can_archive_conditions["licenses_required"] = licenses_required
-    can_archive_conditions["versions_archivable"] = versions_archivable
-    can_archive_conditions["versions_archivable_standard"] = get_standard_versions(versions_archivable)
+    author_affiliation_requirement = None
+    deposit_statement_required_completed = None
 
     if doi:
-        author_affiliation_requirement = None
         author_affiliation = None
         if controlled_vocab(row["permission_type"]) == "university" or controlled_vocab(row["permission_type"]) == "affiliation":
             author_affiliation = issuer_id
             author_affiliation_requirement = my_dict["issuer"]["name"]
 
-        deposit_statement_required_completed = None
         if row["deposit_statement_required"]:
             deposit_statement_required_completed = row["deposit_statement_required"].decode("utf-8")
         if deposit_statement_required_completed:
@@ -1067,14 +1055,27 @@ def row_dict_to_api(row, doi=None, published_date=None, journal_name=None, polic
                        })
 
             deposit_statement_required_completed = deposit_statement_required_completed.format(**my_data)
-        can_archive_conditions["author_affiliation_requirement"] = author_affiliation_requirement
-        can_archive_conditions["author_affiliation_role_requirement"] = row["author_affiliation_role_requirement"]
-        can_archive_conditions["author_affiliation_department_requirement"] = row["author_affiliation_department_requirement"]
-        can_archive_conditions["author_funding_requirement"] = row["if_funded_by"]
-        can_archive_conditions["author_funding_proportion_requirement"] = row["funding_proportion_required"]
-        can_archive_conditions["deposit_statement_required_calculated"] = deposit_statement_required_completed
-        can_archive_conditions["postpublication_preprint_update_allowed"] = row["postpublication_preprint_update_allowed"]
 
+    can_archive_conditions = OrderedDict()
+    can_archive_conditions["doi"] = doi
+    can_archive_conditions["doi_url"] = u"https://doi.org/{}".format(doi) if doi else None
+    can_archive_conditions["published_date"] = published_date
+    can_archive_conditions["permission_required"] = permission_required
+    can_archive_conditions["permission_required_contact"] = row["permissions_request_contact_email"]
+    can_archive_conditions["postprint_embargo_end_calculated"] = embargo_date_display
+    can_archive_conditions["archiving_locations_allowed"] = split_clean_list(row["archiving_locations_allowed"], use_controlled_vocab=True)
+    can_archive_conditions["licenses_required"] = licenses_required
+    can_archive_conditions["versions_archivable"] = versions_archivable
+    can_archive_conditions["versions_archivable_standard"] = get_standard_versions(versions_archivable)
+    can_archive_conditions["author_affiliation_requirement"] = author_affiliation_requirement
+    can_archive_conditions["author_affiliation_role_requirement"] = row["author_affiliation_role_requirement"]
+    can_archive_conditions["author_affiliation_department_requirement"] = row["author_affiliation_department_requirement"]
+    can_archive_conditions["author_funding_requirement"] = row["if_funded_by"]
+    can_archive_conditions["author_funding_proportion_requirement"] = row["funding_proportion_required"]
+    can_archive_conditions["deposit_statement_required_calculated"] = deposit_statement_required_completed
+    can_archive_conditions["postpublication_preprint_update_allowed"] = row["postpublication_preprint_update_allowed"]
+
+    my_dict["application"] = {}
     my_dict["application"]["can_archive"] = can_archive
     my_dict["application"]["can_archive_conditions"] = can_archive_conditions
     return my_dict
@@ -1105,7 +1106,6 @@ def permissions_journals():
 @app.route("/journals/<issn>", methods=["GET"])
 def permissions_journals_single(issn):
     rows = get_permission_rows("journal", issn)
-    print rows[0]
     my_dicts = [row_dict_to_api(row) for row in rows]
     return jsonify([d for d in my_dicts if d])
 
@@ -1183,7 +1183,7 @@ def get_permissions_sort_key(p):
 
     return score
 
-def get_authoritative_permission(permissions_list, mixin_permissions=None):
+def get_authoritative_permission(permissions_list, mixin_permissions=[]):
     if not permissions_list:
         return None
 
@@ -1266,18 +1266,18 @@ def permissions_doi_get(dirty_doi):
         funder_permission_rows = get_funder_permission_rows(funder)
         permissions_list += [row_dict_to_api(p, doi=doi, published_date=published_date, journal_name=journal_name, policy_name=funder) for p in funder_permission_rows]
 
-    # then affiliation
+    # then affiliation from query
     affiliation = request.args.get("affiliation", None)
     provided_affiliation_permissions_list = None
     if affiliation:
         query["affiliation"] = affiliation
 
-        affiliation_permission_rows = get_affiliation_permission_rows(affiliation)
+        affiliation_permission_rows = get_affiliation_permission_rows_from_ror_ids(affiliation)
+
         provided_affiliation_permissions_list = [row_dict_to_api(p, doi=doi, published_date=published_date, journal_name=journal_name, policy_name=affiliation) for p in affiliation_permission_rows]
-        print provided_affiliation_permissions_list
         permissions_list += provided_affiliation_permissions_list
 
-    # then from affiliations
+    # then from affiliations from dois
     affiliation_rows = get_affiliation_rows_from_doi(doi)
     query["affiliations"] = affiliation_rows
     if affiliation_rows:
