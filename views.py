@@ -1075,8 +1075,7 @@ def row_dict_to_api(row, doi=None, published_date=None, journal_name=None, polic
             can_archive_conditions["deposit_statement_required_calculated"] = deposit_statement_required_completed
             can_archive_conditions["postpublication_preprint_update_allowed"] = row["postpublication_preprint_update_allowed"]
 
-        my_dict["application"]["can_archive"] = can_archive
-
+    my_dict["application"]["can_archive"] = can_archive
     my_dict["application"]["can_archive_conditions"] = can_archive_conditions
     return my_dict
 
