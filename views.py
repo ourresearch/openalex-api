@@ -1067,13 +1067,13 @@ def row_dict_to_api(row, doi=None, published_date=None, journal_name=None, polic
                        })
 
             deposit_statement_required_completed = deposit_statement_required_completed.format(**my_data)
-            can_archive_conditions["author_affiliation_requirement"] = author_affiliation_requirement
-            can_archive_conditions["author_affiliation_role_requirement"] = row["author_affiliation_role_requirement"]
-            can_archive_conditions["author_affiliation_department_requirement"] = row["author_affiliation_department_requirement"]
-            can_archive_conditions["author_funding_requirement"] = row["if_funded_by"]
-            can_archive_conditions["author_funding_proportion_requirement"] = row["funding_proportion_required"]
-            can_archive_conditions["deposit_statement_required_calculated"] = deposit_statement_required_completed
-            can_archive_conditions["postpublication_preprint_update_allowed"] = row["postpublication_preprint_update_allowed"]
+        can_archive_conditions["author_affiliation_requirement"] = author_affiliation_requirement
+        can_archive_conditions["author_affiliation_role_requirement"] = row["author_affiliation_role_requirement"]
+        can_archive_conditions["author_affiliation_department_requirement"] = row["author_affiliation_department_requirement"]
+        can_archive_conditions["author_funding_requirement"] = row["if_funded_by"]
+        can_archive_conditions["author_funding_proportion_requirement"] = row["funding_proportion_required"]
+        can_archive_conditions["deposit_statement_required_calculated"] = deposit_statement_required_completed
+        can_archive_conditions["postpublication_preprint_update_allowed"] = row["postpublication_preprint_update_allowed"]
 
     my_dict["application"]["can_archive"] = can_archive
     my_dict["application"]["can_archive_conditions"] = can_archive_conditions
