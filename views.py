@@ -814,15 +814,14 @@ def get_unpaywall_permission_rows_from_doi(dirty_doi):
         return []
     return [permission_row]
 
-def get_affiliation_permission_rows_from_ror_ids(ror_ids):
-    if not ror_ids:
+def get_affiliation_permission_rows_from_ror_id(ror_id):
+    if not ror_id:
         return []
-    ror_ids_string = u",".join([u"'{}'".format(ror_id) for ror_id in ror_ids])
     command = """select * from permissions_input 
-        where institution_name in ({})
+        where institution_name = '{}'
         and permission_type = 'Affiliation' 
-        order by institution_name;""".format(ror_ids_string)
-    # print command
+        order by institution_name;""".format(ror_id)
+    # print "\ncommand:\m", command, "\n\n"
     with get_db_cursor() as cursor:
         cursor.execute(command)
         rows = cursor.fetchall()
@@ -1272,17 +1271,22 @@ def permissions_doi_get(dirty_doi):
     if affiliation:
         query["affiliation"] = affiliation
 
-        affiliation_permission_rows = get_affiliation_permission_rows_from_ror_ids(affiliation)
+        affiliation_permission_rows = get_affiliation_permission_rows_from_ror_id(affiliation)
+        # print "affiliation_permission_rows", affiliation_permission_rows
 
         provided_affiliation_permissions_list = [row_dict_to_api(p, doi=doi, published_date=published_date, journal_name=journal_name, policy_name=affiliation) for p in affiliation_permission_rows]
         permissions_list += provided_affiliation_permissions_list
+        # print "permissions_list", permissions_list
 
     # then from affiliations from dois
     affiliation_rows = get_affiliation_rows_from_doi(doi)
     query["affiliations"] = affiliation_rows
     if affiliation_rows:
         ror_ids = list(set([row["ror_id"] for row in affiliation_rows if row["ror_id"]]))
-        affiliation_permission_rows = get_affiliation_permission_rows_from_ror_ids(ror_ids)
+        affiliation_permission_rows = []
+        for ror_id in ror_ids:
+            affiliation_permission_rows += get_affiliation_permission_rows_from_ror_id(ror_id)
+
         for row in affiliation_permission_rows:
             affiliation = [affil_row["org"] for affil_row in affiliation_rows if affil_row["ror_id"]==row["institution_name"]][0]
             permissions_list += [row_dict_to_api(row, doi=doi, published_date=published_date, journal_name=journal_name, policy_name=affiliation)]
