@@ -827,14 +827,13 @@ def get_affiliation_permission_rows_from_ror_id(ror_id):
         rows = cursor.fetchall()
     return rows
 
-def get_affiliation_permission_rows_from_countries(country_ids):
-    if not country_ids:
+def get_affiliation_permission_rows_from_country(country_id):
+    if not country_id:
         return []
-    country_ids_string = u",".join([u"'{}'".format(country_id) for country_id in country_ids])
     command = """select * from permissions_input 
-        where institution_name in ({}) 
+        where institution_name = '{}'
         and permission_type = 'Affiliation'         
-        order by institution_name;""".format(country_ids_string)
+        order by institution_name;""".format(country_id)
     # print command
     with get_db_cursor() as cursor:
         cursor.execute(command)
@@ -1292,7 +1291,8 @@ def permissions_doi_get(dirty_doi):
             permissions_list += [row_dict_to_api(row, doi=doi, published_date=published_date, journal_name=journal_name, policy_name=affiliation)]
 
         countries = list(set([row["country_iso2"] for row in affiliation_rows if row["country_iso2"]]))
-        affiliation_permission_rows = get_affiliation_permission_rows_from_countries(countries)
+        for country in countries:
+            affiliation_permission_rows += get_affiliation_permission_rows_from_country(country)
         for row in affiliation_permission_rows:
             country = [affil_row["country"] for affil_row in affiliation_rows if affil_row["country_iso2"]==row["institution_name"]][0]
             permissions_list += [row_dict_to_api(row, doi=doi, published_date=published_date, journal_name=journal_name, policy_name=country)]
