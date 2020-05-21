@@ -1294,8 +1294,11 @@ def permissions_doi_get(dirty_doi):
         for country in countries:
             affiliation_permission_rows += get_affiliation_permission_rows_from_country(country)
         for row in affiliation_permission_rows:
-            country = [affil_row["country"] for affil_row in affiliation_rows if affil_row["country_iso2"]==row["institution_name"]][0]
-            permissions_list += [row_dict_to_api(row, doi=doi, published_date=published_date, journal_name=journal_name, policy_name=country)]
+            try:
+                country = [affil_row["country"] for affil_row in affiliation_rows if affil_row["country_iso2"]==row["institution_name"]][0]
+                permissions_list += [row_dict_to_api(row, doi=doi, published_date=published_date, journal_name=journal_name, policy_name=country)]
+            except IndexError:
+                pass
 
     permissions_list = [d for d in permissions_list if d]
 
