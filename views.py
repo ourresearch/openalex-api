@@ -1199,8 +1199,11 @@ def get_authoritative_permission(permissions_list, mixin_permissions=[]):
 
     # union
     for key in ["licenses_required", "versions_archivable", "versions_archivable_standard", "archiving_locations_allowed"]:
-        authoritative_permission["application"]["can_archive_conditions"][key] += mixin_permission_to_apply["application"]["can_archive_conditions"][key]
-        authoritative_permission["application"]["can_archive_conditions"][key] = list(set(authoritative_permission["application"]["can_archive_conditions"][key]))
+        try:
+            authoritative_permission["application"]["can_archive_conditions"][key] += mixin_permission_to_apply["application"]["can_archive_conditions"][key]
+            authoritative_permission["application"]["can_archive_conditions"][key] = list(set(authoritative_permission["application"]["can_archive_conditions"][key]))
+        except TypeError:
+            pass
 
     # minimum
     if authoritative_permission["application"]["can_archive_conditions"]["postprint_embargo_end_calculated"]:
