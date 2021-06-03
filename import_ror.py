@@ -70,7 +70,8 @@ def loop_through_lines():
             else:
                 link = None
             my_ror.ror_id = ror_id
-            my_ror.name = my_dict["name"].encode("utf-8", "ignore").decode("utf-8")
+            # my_ror.name = my_dict["name"].encode("utf-8", "ignore").decode("utf-8")
+            my_ror.name = my_dict["name"]
             my_ror.grid_id = my_dict["external_ids"]["GRID"]["preferred"]
             my_ror.country = my_dict["country"]["country_name"]
             my_ror.country_code = my_dict["country"]["country_code"].lower()

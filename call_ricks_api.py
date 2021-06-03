@@ -50,7 +50,8 @@ def get_column_values(column):
             value = row[column_solo]
             values.append(value)
         else:
-            value = row[column_solo].decode('utf-8')
+            # value = row[column_solo].decode('utf-8')
+            value = row[column_solo]
             value = value.replace("'", "''")
             if value:
                 value = "'{}'".format(value)
