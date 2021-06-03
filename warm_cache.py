@@ -44,8 +44,8 @@ def warm_the_cache():
         my_thread_pool.close()
         my_thread_pool.join()
         my_thread_pool.terminate()
-        print list(responses)
-        print "took {} seconds".format(elapsed(start_time))
+        print(list(responses))
+        print("took {} seconds".format(elapsed(start_time)))
 
 
 
