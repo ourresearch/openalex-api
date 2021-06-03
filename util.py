@@ -720,3 +720,22 @@ def jsonify_fast_no_sort(*args, **kwargs):
               # separators=None,
               sort_keys=sort_keys) + '\n', mimetype=current_app.config['JSONIFY_MIMETYPE']
     )
+
+
+class Timer(object):
+    def __init__(self):
+        self.timing_messages = []
+        self.start_time = time.time()
+        self.section_time = time.time()
+
+    def log_timing(self, message):
+        self.timing_messages.append("{: <30} {: >6}s".format(message, elapsed(self.section_time, 2)))
+        self.section_time = time.time()
+
+    @property
+    def elapsed_total(self):
+        return elapsed(self.start_time, 2)
+
+    def to_dict(self):
+        self.timing_messages.append("{: <30} {: >6}s".format("TOTAL", self.elapsed_total))
+        return self.timing_messages
