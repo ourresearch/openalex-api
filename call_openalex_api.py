@@ -78,7 +78,7 @@ def do_query(filters, groupby=None, details=False, details_limit=100, verbose=Tr
 
     # chosen_columns = ["has_green", "state"]
     # print num_columns, chosen_columns
-    join_with_a = any([filter.startswith("(a.") for filter in filters])
+    join_with_a = any([filter.startswith("(a.") for filter in filters]) or groupby.startswith("a.")
 
     join_clause = " "
     if join_with_a:
