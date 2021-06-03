@@ -32,7 +32,7 @@ all_columns = ['v.doi', 'v.is_oa', 'v.has_hybrid', 'v.has_green', 'v.has_gold', 
 # 3.5 seconds per = 3.5*1940 = 6790 seconds = 1.9 hours until everything has been primed once
 
 def get_column_values(column):
-    print u"getting values for column {}".format(column)
+    print("getting values for column {}".format(column))
     (column_table, column_solo) = column.split(".")
     if (column_table == "a"):
         table = "mag_authors_paperid3 a"
@@ -46,14 +46,14 @@ def get_column_values(column):
         rows = cursor.fetchall()
     values = []
     for row in rows:
-        if isinstance(row[column_solo], bool) or isinstance(row[column_solo], int) or isinstance(row[column_solo], long):
+        if isinstance(row[column_solo], bool) or isinstance(row[column_solo], int) or isinstance(row[column_solo], int):
             value = row[column_solo]
             values.append(value)
         else:
             value = row[column_solo].decode('utf-8')
             value = value.replace("'", "''")
             if value:
-                value = u"'{}'".format(value)
+                value = "'{}'".format(value)
                 values.append(value)  # don't include empty strings
     return values
 
@@ -73,12 +73,12 @@ if __name__ == "__main__":
         random.shuffle(chosen_columns_combinations_remaining)
 
     start_time = time()
-    print "getting valid column values"
+    print("getting valid column values")
     column_values = {}
     random.shuffle(all_columns)   # helps be fast in parallel
     for c in all_columns:
         column_values[c] = get_column_values(c)
-    print u"done, took {} seconds".format(elapsed(start_time))
+    print("done, took {} seconds".format(elapsed(start_time)))
 
 
     keep_running = True
@@ -94,16 +94,16 @@ if __name__ == "__main__":
 
         # chosen_columns = ["has_green", "state"]
         # print num_columns, chosen_columns
-        join_with_a = any([c.startswith(u"a.") for c in chosen_columns])
+        join_with_a = any([c.startswith("a.") for c in chosen_columns])
 
-        join_clause = u" "
+        join_clause = " "
         if join_with_a:
-            join_clause += u" join mag_authors_paperid3 a on v.pub_id=a.pub_id "
+            join_clause += " join mag_authors_paperid3 a on v.pub_id=a.pub_id "
 
         if chosen_columns:
-            where_clause = u" AND ".join(u"({}={})".format(c, random.choice(column_values[c])) for c in chosen_columns)
+            where_clause = " AND ".join("({}={})".format(c, random.choice(column_values[c])) for c in chosen_columns)
         else:
-            where_clause = u" TRUE"
+            where_clause = " TRUE"
 
         timing = {}
         start_time = time()
@@ -111,7 +111,7 @@ if __name__ == "__main__":
             timing["0. in with"] = elapsed(start_time)
 
             start_time = time()
-            q = u"select count(distinct v.doi) from ricks_fast_pub_affil_journal v {} where {}".format(join_clause, where_clause)
+            q = "select count(distinct v.doi) from ricks_fast_pub_affil_journal v {} where {}".format(join_clause, where_clause)
 
             cursor.execute(q)
             timing["1. after execute"] = elapsed(start_time)
@@ -120,5 +120,5 @@ if __name__ == "__main__":
             rows = cursor.fetchall()
             timing["2. after fetchall"] = elapsed(start_time)
 
-            print u"{:>10}s {:>15,} values:  {}".format(timing["1. after execute"], rows[0]["count"], where_clause)
+            print("{:>10}s {:>15,} values:  {}".format(timing["1. after execute"], rows[0]["count"], where_clause))
 

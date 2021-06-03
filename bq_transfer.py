@@ -66,20 +66,20 @@ def to_bq_from_local_file(temp_data_filename, bq_tablename, columns_to_export, a
             job_config=job_config)  # API request
 
     job.result()  # Waits for table load to complete.
-    print('Loaded {} rows into {}:{}.'.format(job.output_rows, dataset_id, table_id))
+    print(('Loaded {} rows into {}:{}.'.format(job.output_rows, dataset_id, table_id)))
 
 
 def from_bq_to_local_file(temp_data_filename, bq_tablename, header=True):
 
-    print "here"
+    print("here")
     setup_bigquery_creds()
-    print "after creds"
+    print("after creds")
     client = bigquery.Client()
     (dataset_id, table_id) = bq_tablename.split(".")
     dataset_ref = client.dataset(dataset_id)
     table_ref = dataset_ref.table(table_id)
     table = client.get_table(table_ref)
-    print "got table"
+    print("got table")
     fieldnames = [schema.name for schema in table.schema]
 
     query = ('SELECT * FROM `unpaywall-bhd.{}` '.format(bq_tablename))
@@ -87,26 +87,26 @@ def from_bq_to_local_file(temp_data_filename, bq_tablename, header=True):
         query,
         # Location must match that of the dataset(s) referenced in the query.
         location='US')  # API request - starts the query
-    print "after running query"
+    print("after running query")
     rows = list(query_job)
-    print "got rows"
+    print("got rows")
 
     with open(temp_data_filename, 'wb') as f:
-        print "in data file writing"
+        print("in data file writing")
         # delimiter workaround from https://stackoverflow.com/questions/43048618/csv-reader-refuses-tab-delimiter?noredirect=1&lq=1#comment73182042_43048618
-        writer = unicodecsv.DictWriter(f, fieldnames=fieldnames, delimiter=str(u'\t').encode('utf-8'))
+        writer = unicodecsv.DictWriter(f, fieldnames=fieldnames, delimiter=str('\t').encode('utf-8'))
         if header:
             writer.writeheader()
         for row in rows:
             clean_row = []
             for val in row:
-                if isinstance(val, basestring):
-                    clean_row.append(val.replace(u"\t", u" "))
+                if isinstance(val, str):
+                    clean_row.append(val.replace("\t", " "))
                 else:
                     clean_row.append(val)
-            writer.writerow(dict(zip(fieldnames, clean_row)))
+            writer.writerow(dict(list(zip(fieldnames, clean_row))))
 
-    print('Saved {} rows from {}.'.format(len(rows), bq_tablename))
+    print(('Saved {} rows from {}.'.format(len(rows), bq_tablename)))
     return fieldnames
 
 
@@ -116,11 +116,11 @@ def to_bq_since_updated_raw(db_tablename, bq_tablename, bq_tablename_for_update_
 
     # get the max updated date of the stuff already in bigquery
     max_updated = None
-    query = u"SELECT cast(max(updated) as string) as result from {}".format(bq_tablename_for_update_date)
+    query = "SELECT cast(max(updated) as string) as result from {}".format(bq_tablename_for_update_date)
     results = run_bigquery_query(query)
     if results:
         max_updated = results[0].result
-        print u"max_updated: {}".format(max_updated)
+        print("max_updated: {}".format(max_updated))
     if not max_updated:
         return
 
@@ -144,7 +144,7 @@ def to_bq_overwrite_data(db_tablename, bq_tablename):
     # export everything from db that is more recent than what is in bigquery into a temporary csv file
     q = """COPY {} to STDOUT WITH (FORMAT CSV, HEADER)""".format(
             db_tablename)
-    print u"\n\n{}\n\n".format(q)
+    print("\n\n{}\n\n".format(q))
 
     temp_data_filename = 'data_export.csv'
     cursor = db.session.connection().connection.cursor()
@@ -168,18 +168,18 @@ def to_bq_updated_data(db_tablename, bq_tablename):
                         GROUP BY id
                         )""".format(bq_tablename, bq_tablename)
     results = run_bigquery_query(query)
-    print u"deleted: {}".format(results)
+    print("deleted: {}".format(results))
 
-    query = u"SELECT max(updated) from {}".format(bq_tablename)
+    query = "SELECT max(updated) from {}".format(bq_tablename)
     results = run_bigquery_query(query)
-    print u"max_updated: {}".format(results)
+    print("max_updated: {}".format(results))
 
 
 def to_bq_import_unpaywall():
     # do a quick check before we start
-    query = u"SELECT count(id) from unpaywall.unpaywall"
+    query = "SELECT count(id) from unpaywall.unpaywall"
     results = run_bigquery_query(query)
-    print u"count in unpaywall: {}".format(results)
+    print("count in unpaywall: {}".format(results))
 
     # first import into unpaywall_raw, then select most recently updated and dedup, then create unpaywall from
     # view that extracts fields from json
@@ -198,32 +198,32 @@ def to_bq_import_unpaywall():
                 ) 
                 WHERE rn = 1"""
     results = run_bigquery_query(query)
-    print u"done deduplication"
+    print("done deduplication")
 
     # this view uses unpaywall_raw
     query = """create or replace table `unpaywall-bhd.unpaywall.unpaywall` as (select * from `unpaywall-bhd.unpaywall.unpaywall_view`)"""
     results = run_bigquery_query(query)
-    print u"done update table from view"
+    print("done update table from view")
 
-    query = u"SELECT count(id) from unpaywall.unpaywall"
+    query = "SELECT count(id) from unpaywall.unpaywall"
     results = run_bigquery_query(query)
-    print u"count in unpaywall: {}".format(results)
+    print("count in unpaywall: {}".format(results))
 
-    query = u"SELECT max(updated) from unpaywall.unpaywall"
+    query = "SELECT max(updated) from unpaywall.unpaywall"
     results = run_bigquery_query(query)
-    print u"max_updated in unpaywall: {}".format(results)
+    print("max_updated in unpaywall: {}".format(results))
 
 
 def from_bq_overwrite_data(db_tablename, bq_tablename):
     temp_data_filename = 'data_export.csv'
 
     column_names = from_bq_to_local_file(temp_data_filename, bq_tablename, header=False)
-    print "column_names", column_names
-    print "\n"
+    print("column_names", column_names)
+    print("\n")
 
     cursor = db.session.connection().connection.cursor()
 
-    cursor.execute(u"truncate {};".format(db_tablename))
+    cursor.execute("truncate {};".format(db_tablename))
 
     # replace quoted tabs with just a tab, because the quote is there by mistake
     # temp_data_cleaned_filename = 'data_export_cleaned.csv'

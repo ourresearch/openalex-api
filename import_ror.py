@@ -8,7 +8,7 @@ from time import time
 from time import sleep
 import datetime
 import shortuuid
-from urllib import quote
+from urllib.parse import quote
 import os
 import re
 import simplejson as json
@@ -21,7 +21,8 @@ from util import safe_commit
 
 # from https://stackoverflow.com/a/39293287/596939
 import sys
-reload(sys)
+import importlib
+importlib.reload(sys)
 if sys.version_info.major < 3:
     sys.setdefaultencoding('utf8')
 
@@ -45,22 +46,22 @@ class Ror(db.Model):
         super(Ror, self).__init__(**kwargs)
 
     def __repr__(self):
-        return u"{} ({}) {}".format(self.__class__.__name__, self.ror_id, self.name)
+        return "{} ({}) {}".format(self.__class__.__name__, self.ror_id, self.name)
 
 def loop_through_lines():
-    temp_data_filename = u"/Users/hpiwowar/Downloads/ror.json"
+    temp_data_filename = "/Users/hpiwowar/Downloads/ror.json"
     with open(temp_data_filename,'rB') as f:
         lines = f.read()
     data = json.loads(lines)
-    print len(data)
+    print(len(data))
     ror_objs = []
     for my_dict in data:
-        ror_id = my_dict["id"].replace(u"https://ror.org/", u"")
+        ror_id = my_dict["id"].replace("https://ror.org/", "")
         # print "before get"
         my_ror = Ror.query.get(ror_id)
         # print "after get", my_ror
         if my_ror:
-            print ".",
+            print(".", end=' ')
         else:
             my_ror = Ror()
             links = my_dict["links"]
@@ -78,13 +79,13 @@ def loop_through_lines():
             my_ror.api_raw = json.dumps(my_dict)
             # print my_ror
             ror_objs.append(my_ror)
-            print "adding", my_ror
+            print("adding", my_ror)
             db.session.add(my_ror)
             if len(ror_objs) > 10:
-                print "committing"
+                print("committing")
                 safe_commit(db)
                 ror_objs = []
-    print "committing"
+    print("committing")
     safe_commit(db)
     # pprint(data[0:2])
 

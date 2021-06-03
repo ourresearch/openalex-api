@@ -6,7 +6,7 @@ from time import time
 from time import sleep
 import datetime
 import shortuuid
-from urllib import quote
+from urllib.parse import quote
 import os
 import re
 import json
@@ -46,7 +46,7 @@ class PmcPmhDates(db.Model):
         super(PmcPmhDates, self).__init__(**kwargs)
 
     def __repr__(self):
-        return u"{} ({}) {}".format(self.__class__.__name__, self.pmh_id, self.pmh_date)
+        return "{} ({}) {}".format(self.__class__.__name__, self.pmh_id, self.pmh_date)
 
 
 class MyOAIItemIterator(OAIItemIterator):
@@ -99,8 +99,8 @@ class MySickle(Sickle):
         start_time = time()
         for _ in range(self.max_retries):
             if self.http_method == 'GET':
-                payload_str = "&".join("%s=%s" % (k,v) for k,v in kwargs.items())
-                url_without_encoding = u"{}?{}".format(self.endpoint, payload_str)
+                payload_str = "&".join("%s=%s" % (k,v) for k,v in list(kwargs.items()))
+                url_without_encoding = "{}?{}".format(self.endpoint, payload_str)
                 http_response = requests.get(url_without_encoding,
                                              **self.request_args)
                 self.http_response_url = http_response.url
@@ -138,30 +138,30 @@ def get_pmh_dates(start_date = None):
 
     while True:
         (header, my_sickle, start_date) = call_pmh_endpoint(start_date, my_sickle)  # can iterate up if no records
-        xml_content = header.next()
+        xml_content = next(header)
         while xml_content:
-            matches = re.findall(ur"<identifier>(.+?)</identifier><datestamp>(.+?)</datestamp>", str(xml_content))
+            matches = re.findall(r"<identifier>(.+?)</identifier><datestamp>(.+?)</datestamp>", str(xml_content))
             (pmh_id, pmh_date) = matches[0]
             my_obj = PmcPmhDates(pmh_id=pmh_id, pmh_date=pmh_date)
-            print ".",
+            print(".", end=' ')
             new_objects.append(my_obj)
 
             if len(new_objects) > 500:
                 # print "committing"
                 with get_db_cursor() as cursor:
-                    command = u"""INSERT INTO unpaywall_pmc_pmh_dates (pmh_id, pmh_date, updated) values """
+                    command = """INSERT INTO unpaywall_pmc_pmh_dates (pmh_id, pmh_date, updated) values """
                     insert_strings = []
                     for obj in new_objects:
-                        insert_string = u"""('{}', '{}', '{}')""".format(
+                        insert_string = """('{}', '{}', '{}')""".format(
                             obj.pmh_id, obj.pmh_date, obj.updated)
                         insert_strings.append(insert_string)
-                    command = command + u",".join(insert_strings) + u";"
-                    print "*",
+                    command = command + ",".join(insert_strings) + ";"
+                    print("*", end=' ')
                     cursor.execute(command)
                 new_objects = []
 
             try:
-                xml_content = header.next()
+                xml_content = next(header)
             except:
                 xml_content = None
                 start_date = start_date + datetime.timedelta(days=1)
@@ -189,7 +189,7 @@ def call_pmh_endpoint(start_date, my_sickle=None):
         start_date = start_date + datetime.timedelta(days=1)
         return call_pmh_endpoint(start_date, my_sickle)
 
-    print "{}\n".format(start_date.isoformat()[0:10])
+    print("{}\n".format(start_date.isoformat()[0:10]))
     return (header, my_sickle, start_date)
 
 
