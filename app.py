@@ -15,7 +15,7 @@ import requests
 import json
 import random
 import warnings
-import urlparse
+from urllib.parse import urlparse
 import psycopg2
 import psycopg2.extras # needed though you wouldn't guess it
 from psycopg2.pool import ThreadedConnectionPool
@@ -112,7 +112,7 @@ Compress(app)
 app.config["COMPRESS_DEBUG"] = compress_json
 
 
-redshift_url = urlparse.urlparse(os.getenv("DATABASE_URL_REDSHIFT"))
+redshift_url = urlparse(os.getenv("DATABASE_URL_REDSHIFT"))
 app.config['postgreSQL_pool'] = ThreadedConnectionPool(2, 5,
                                   database=redshift_url.path[1:],
                                   user=redshift_url.username,

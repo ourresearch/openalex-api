@@ -76,7 +76,7 @@ def json_resp(thing):
     json_str = json.dumps(thing, sort_keys=True, default=json_dumper, indent=4)
 
     if request.path.endswith(".json") and (os.getenv("FLASK_DEBUG", False) == "True"):
-        logger.info(u"rendering output through debug_api.html template")
+        logger.info("rendering output through debug_api.html template")
         resp = make_response(render_template(
             'debug_api.html',
             data=json_str))
@@ -122,7 +122,7 @@ def after_request_stuff(resp):
 def base_endpoint():
     return jsonify_fast({
         "version": "0.0.1",
-        "msg": "Don't panic"
+        "msg": "Welcome to OpenAlex. Don't panic"
     })
 
 
@@ -227,7 +227,7 @@ def funder_lookup(id):
 
 @app.route("/autocomplete/institutions/name/<q>", methods=["GET"])
 def institutions_name_autocomplete(q):
-    institutions = Institution.query.filter(Institution.org_name.ilike(u'%{}%'.format(q))).order_by(Institution.num_papers.desc()).limit(10).all()
+    institutions = Institution.query.filter(Institution.org_name.ilike('%{}%'.format(q))).order_by(Institution.num_papers.desc()).limit(10).all()
     return jsonify({"list": [inst.to_dict() for inst in institutions], "count": len(institutions)})
 
 
@@ -416,9 +416,9 @@ def unpaywall_journals_subscriptions_csv():
 
     def csv_value(subscription, key):
         if key == "issns":
-            return u" " + u";".join(subscription[key]) #need to prefix with space or excel interprets some issns as a date
+            return " " + ";".join(subscription[key]) #need to prefix with space or excel interprets some issns as a date
         if key == "issn_l":
-            return u" {}".format(subscription[key])  #need to prefix with space or excel interprets some issns as a date
+            return " {}".format(subscription[key])  #need to prefix with space or excel interprets some issns as a date
         if "proportion" in key:
             return round(subscription[key], 4)
         return subscription[key]
@@ -463,7 +463,7 @@ def unpaywall_journals_issn(q):
     for response in responses:
         if to_unicode_or_bust(q).lower() in response["issns"]:
             return jsonify(response)
-    abort_json(404, u"issn not found in this subscription package")
+    abort_json(404, "issn not found in this subscription package")
 
 
 @app.route("/breakdown", methods=["GET"])
@@ -487,7 +487,7 @@ def build_oa_filter():
     if request.args.get("oa_host", None):
         oa_host_text = request.args.get("oa_host", "")
         if oa_host_text == "any":
-            oa_filter = u" and oa_status != 'closed' "
+            oa_filter = " and oa_status != 'closed' "
     return oa_filter
 
 def build_text_filter():
@@ -496,11 +496,11 @@ def build_text_filter():
         text_query = request.args.get("q", None)
         if text_query:
             if is_issn(text_query):
-                text_filter = u" and u.journal_issn_l = '{}' ".format(text_query)
+                text_filter = " and u.journal_issn_l = '{}' ".format(text_query)
             elif is_doi(text_query):
-                text_filter = u" and u.doi = '{}' ".format(clean_doi(text_query))
+                text_filter = " and u.doi = '{}' ".format(clean_doi(text_query))
             else:
-                text_filter = u" and u.title ilike '%{}%' ".format(text_query)
+                text_filter = " and u.title ilike '%{}%' ".format(text_query)
     return text_filter
 
 
@@ -530,7 +530,7 @@ def get_total_count(package):
 @app.route("/articles", methods=["GET"])
 def unpaywall_journals_articles_paged():
     package = request.args.get("package", "cdl_elsevier")
-    print package
+    print(package)
 
     # page starts at 1 not 0
     if request.args.get("page"):
@@ -543,7 +543,7 @@ def unpaywall_journals_articles_paged():
     else:
         pagesize = 20
     if pagesize > 1000:
-        abort_json(400, u"pagesize too large; max 1000")
+        abort_json(400, "pagesize too large; max 1000")
 
     offset = (page - 1) * pagesize
 
@@ -643,7 +643,7 @@ def metrics_oa_geo_all_as_csv():
                 row["level"] = level
                 all_response_values.append(row)
 
-    keys = rows[0].keys()
+    keys = list(rows[0].keys())
     keys.reverse()  # a bit nicer this way
     values = [[r[k] for k in keys] for r in all_response_values]  # do it this way to make sure they are in order
     return jsonify_fast({"_timing": timing, "response": {"keys": keys, "values": values}})
@@ -860,16 +860,16 @@ def get_affiliation_rows_from_doi(dirty_doi):
 def get_citation_from_crossref(dirty_doi):
     my_doi = clean_doi(dirty_doi)
     headers = {"Accept": "text/bibliography; style=cell; locale=en-US"}
-    r = requests.get(u"https://doi.org/{}".format(my_doi), headers=headers)
+    r = requests.get("https://doi.org/{}".format(my_doi), headers=headers)
     if r.status_code == 200:
         my_citation = r.content.decode('utf-8').strip()
-        return u"[{}]".format(my_citation)
-    return u"https://doi.org/{}".format(my_doi)
+        return "[{}]".format(my_citation)
+    return "https://doi.org/{}".format(my_doi)
 
 def get_citation_elements_from_crossref(dirty_doi):
     my_doi = clean_doi(dirty_doi)
     headers = {"Accept": "application/json", "User-Agent": "team@ourresearch.org"}
-    r = requests.get(u"https://api.crossref.org/works/{}".format(my_doi), headers=headers)
+    r = requests.get("https://api.crossref.org/works/{}".format(my_doi), headers=headers)
     if r.status_code == 200:
         data = r.json()["message"]
         try:
@@ -900,7 +900,7 @@ def row_dict_to_api(row, doi=None, published_date=None, journal_name=None, polic
         # print "published_date_datetime", published_date_datetime
         if enforcement_date_datetime > published_date_datetime:
             # is prior to enforcement date and isn't a valid policy
-            print "published date is prior to enforcement date for this permission so it isn't applicable"
+            print("published date is prior to enforcement date for this permission so it isn't applicable")
             return None
 
     public_notes = row.get("public_notes")
@@ -918,7 +918,7 @@ def row_dict_to_api(row, doi=None, published_date=None, journal_name=None, polic
             if published_date and embargo > 0:
                 published_date_datetime = dateutil.parser.parse(published_date)
                 embargo_date = published_date_datetime + monthdelta(embargo)
-                embargo_date_display = embargo_date.isoformat()[0:10]
+                embargo_date_display = embargo_date.isoformat ()[0:10]
     except (ValueError, TypeError):
         if row["postprint_embargo"] and published_date:
             public_notes += "embargo: {}; assuming 36 months for embargo calculations.".format(row["postprint_embargo"])
@@ -954,7 +954,7 @@ def row_dict_to_api(row, doi=None, published_date=None, journal_name=None, polic
 
     permission_required = False
     if row["has_policy"]:
-        if u"No" in row["has_policy"]:
+        if "No" in row["has_policy"]:
             can_archive = False
         elif "Permission Required" in row["has_policy"]:
             can_archive = False
@@ -1020,18 +1020,18 @@ def row_dict_to_api(row, doi=None, published_date=None, journal_name=None, polic
         if deposit_statement_required_completed:
             deposit_statement_required_completed = deposit_statement_required_completed.replace("{", "")
             deposit_statement_required_completed = deposit_statement_required_completed.replace("}", "")
-            deposit_statement_required_completed = re.sub( u"<<URL>>", u"{doi_url}", deposit_statement_required_completed, flags=re.IGNORECASE)
-            deposit_statement_required_completed = re.sub( u"<<Date of Publication>>", u"{published_date}", deposit_statement_required_completed, flags=re.IGNORECASE)
-            deposit_statement_required_completed = re.sub( u"<<Citation>>", u"{citation}", deposit_statement_required_completed, flags=re.IGNORECASE)
-            deposit_statement_required_completed = re.sub( u"<<DOI>>", u"{doi}", deposit_statement_required_completed, flags=re.IGNORECASE)
-            deposit_statement_required_completed = re.sub( u"<<(c)>>", u"{year}", deposit_statement_required_completed, flags=re.IGNORECASE)
-            deposit_statement_required_completed = re.sub( u"<<Year>>", u"{year}", deposit_statement_required_completed, flags=re.IGNORECASE)
-            deposit_statement_required_completed = re.sub( u"<<Journal Title>>", u"'{journal_name}'", deposit_statement_required_completed, flags=re.IGNORECASE)
-            deposit_statement_required_completed = re.sub( u"<<Author>>", u"{author}", deposit_statement_required_completed, flags=re.IGNORECASE)
-            deposit_statement_required_completed = re.sub( u"<<Article title>>", u"{article_title}", deposit_statement_required_completed, flags=re.IGNORECASE)
-            deposit_statement_required_completed = re.sub( u"<<Vol>>", u"{volume}", deposit_statement_required_completed, flags=re.IGNORECASE)
-            deposit_statement_required_completed = re.sub( u"<<Issue>>", u"{issue}", deposit_statement_required_completed, flags=re.IGNORECASE)
-            deposit_statement_required_completed = re.sub( u"<<Pages>>", u"{pages}", deposit_statement_required_completed, flags=re.IGNORECASE)
+            deposit_statement_required_completed = re.sub( "<<URL>>", "{doi_url}", deposit_statement_required_completed, flags=re.IGNORECASE)
+            deposit_statement_required_completed = re.sub( "<<Date of Publication>>", "{published_date}", deposit_statement_required_completed, flags=re.IGNORECASE)
+            deposit_statement_required_completed = re.sub( "<<Citation>>", "{citation}", deposit_statement_required_completed, flags=re.IGNORECASE)
+            deposit_statement_required_completed = re.sub( "<<DOI>>", "{doi}", deposit_statement_required_completed, flags=re.IGNORECASE)
+            deposit_statement_required_completed = re.sub( "<<(c)>>", "{year}", deposit_statement_required_completed, flags=re.IGNORECASE)
+            deposit_statement_required_completed = re.sub( "<<Year>>", "{year}", deposit_statement_required_completed, flags=re.IGNORECASE)
+            deposit_statement_required_completed = re.sub( "<<Journal Title>>", "'{journal_name}'", deposit_statement_required_completed, flags=re.IGNORECASE)
+            deposit_statement_required_completed = re.sub( "<<Author>>", "{author}", deposit_statement_required_completed, flags=re.IGNORECASE)
+            deposit_statement_required_completed = re.sub( "<<Article title>>", "{article_title}", deposit_statement_required_completed, flags=re.IGNORECASE)
+            deposit_statement_required_completed = re.sub( "<<Vol>>", "{volume}", deposit_statement_required_completed, flags=re.IGNORECASE)
+            deposit_statement_required_completed = re.sub( "<<Issue>>", "{issue}", deposit_statement_required_completed, flags=re.IGNORECASE)
+            deposit_statement_required_completed = re.sub( "<<Pages>>", "{pages}", deposit_statement_required_completed, flags=re.IGNORECASE)
             citation = None
             if doi and ("{citation}" in deposit_statement_required_completed):
                 citation = get_citation_from_crossref(doi)
@@ -1047,7 +1047,7 @@ def row_dict_to_api(row, doi=None, published_date=None, journal_name=None, polic
             my_data.update({"doi": doi,
                        "citation": citation,
                        "year": published_date[0:4] if published_date else None,
-                       "doi_url": u"https://doi.org/{}".format(doi) if doi else None,
+                       "doi_url": "https://doi.org/{}".format(doi) if doi else None,
                        "published_date": published_date,
                        "journal_name": journal_name.decode("utf-8")
                        })
@@ -1056,7 +1056,7 @@ def row_dict_to_api(row, doi=None, published_date=None, journal_name=None, polic
 
     can_archive_conditions = OrderedDict()
     can_archive_conditions["doi"] = doi
-    can_archive_conditions["doi_url"] = u"https://doi.org/{}".format(doi) if doi else None
+    can_archive_conditions["doi_url"] = "https://doi.org/{}".format(doi) if doi else None
     can_archive_conditions["published_date"] = published_date
     can_archive_conditions["permission_required"] = permission_required
     can_archive_conditions["permission_required_contact"] = row["permissions_request_contact_email"]
@@ -1228,7 +1228,7 @@ def permissions_doi_get(dirty_doi):
     try:
         doi = clean_doi(dirty_doi)
     except:
-        abort_json(404, u"Not a valid doi: https://doi.org/{}".format(dirty_doi))
+        abort_json(404, "Not a valid doi: https://doi.org/{}".format(dirty_doi))
 
     query = {"doi": doi, "query_time": datetime.datetime.now().isoformat()}
 
@@ -1236,9 +1236,9 @@ def permissions_doi_get(dirty_doi):
     try:
         (doi_permission_rows, published_date, journal_name, issn) = get_journal_permission_rows_from_doi(doi)
     except NoDoiException:
-        abort_json(404, u"Not a valid doi: https://doi.org/{}".format(dirty_doi))
+        abort_json(404, "Not a valid doi: https://doi.org/{}".format(dirty_doi))
     except NotJournalArticleException:
-        abort_json(501, u"The service currently only provide permissions for journal articles and conference papers.")
+        abort_json(501, "The service currently only provide permissions for journal articles and conference papers.")
 
     query["published_date"] = published_date
     query["journal_name"] = journal_name
@@ -1476,7 +1476,7 @@ def get_jump_response(package="mit_elsevier", min_arg=None):
             continue
 
         my_dict = {}
-        for field in row.keys():
+        for field in list(row.keys()):
             if not row[field]:
                 row[field] = 0
 
@@ -1578,7 +1578,10 @@ if __name__ == "__main__":
 
 
 
-
+# PATH=$(pyenv root)/shims:$PATH
+# echo 'PATH=$(pyenv root)/shims:$PATH' >> ~/.zshrc
+# /Users/hpiwowar/.pyenv/versions/3.9.5/bin/python3
+# PYTHONPATH=/Library/Frameworks/Python.framework/Versions/2.7/lib/python2.7/site-packages:
 
 
 
