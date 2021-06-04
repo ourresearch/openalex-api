@@ -73,7 +73,7 @@ def get_column_values_for_querying(column, random=False):
     return values
 
 
-def do_query(filters, groupby=None, details=False, details_limit=100, verbose=True):
+def do_query(filters, groupby=None, details=False, limit=100, verbose=True):
     timer = Timer()
 
     # chosen_columns = ["has_green", "state"]
@@ -101,11 +101,11 @@ def do_query(filters, groupby=None, details=False, details_limit=100, verbose=Tr
                     {join_clause} 
                     WHERE {where_clause}
                     ORDER BY RANDOM()
-                    LIMIT {details_limit}
+                    LIMIT {limit}
                     """.format(
                         join_clause=join_clause,
                         where_clause=where_clause,
-                        details_limit=details_limit)
+                        limit=limit)
         else:
             q = """SELECT {groupby}, count(distinct v.doi) as n 
                     FROM ricks_fast_pub_affil_journal v 
@@ -113,10 +113,12 @@ def do_query(filters, groupby=None, details=False, details_limit=100, verbose=Tr
                     WHERE {where_clause}
                     GROUP BY {groupby} 
                     ORDER BY n DESC
+                    limit {limit}
                     """.format(
                         join_clause=join_clause,
                         where_clause=where_clause,
-                        groupby=groupby)
+                        groupby=groupby,
+                        limit=limit)
         if verbose:
             print(q)
 
@@ -172,4 +174,4 @@ if __name__ == "__main__":
         filters = ["({}={})".format(c, random.choice(column_values[c])) for c in chosen_columns[1:]]
         groupby = chosen_columns[0]
 
-        do_query(filters, groupby, verbose=False)
+        (rows, q, timing) = do_query(filters, groupby, verbose=False)
