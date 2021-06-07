@@ -31,7 +31,7 @@ import requests
 from collections import OrderedDict
 import copy
 from call_openalex_api import get_column_values
-from call_openalex_api import all_columns
+from call_openalex_api import field_lookup
 from call_openalex_api import do_query
 
 from app import app
@@ -475,7 +475,7 @@ def get_standard_versions(dirty_list):
 def attribute_list():
     timer = Timer()
     timer.log_timing("get values")
-    return jsonify_fast_no_sort({"_timing": timer.to_dict(), "response": all_columns})
+    return jsonify_fast_no_sort({"_timing": timer.to_dict(), "response": list(field_lookup.keys())})
 
 @app.route("/works/attribute/<attribute>/random", methods=["GET"])
 def works_attribute_random(attribute):

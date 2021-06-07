@@ -22,102 +22,167 @@ from app import get_db_cursor
 # for each of them, pick a random setting
 # pick an aggregation level (top dois, top journals, top publishers, top countries)
 
-all_columns = ['v.doi', 'v.is_oa', 'v.has_hybrid', 'v.has_green', 'v.has_gold', 'v.has_bronze',
-               'v.issn_l', 'v.publisher', 'v.org', 'v.year', 'v.city', 'v.state', 'v.country',
-               'v.continent', 'v.subcontinent', 'a.normalized_name']
-
-# number of combos of length up to four
+# number of combos of length up to four when have 15 options
 # is 15 choose 4 + 15 choose 3 + ... 15 choose 1  https://www.calculatorsoup.com/calculators/discretemathematics/combinations.php?n=15&r=4&action=solve
 # = 1365 + 455 + 105 + 15
 # = 1940
 # 3.5 seconds per = 3.5*1940 = 6790 seconds = 1.9 hours until everything has been primed once
 
-def get_column_values(column, random=False):
+table_lookup = {}
+join_lookup = {}
+
+join_lookup["mag_main_papers"] = " "
+table_lookup["mag_main_papers"] = [
+    ("doi", str),
+    ("doc_type", str),
+    ("year", int),
+]
+
+join_lookup["mag_main_authors"] = """ LEFT OUTER JOIN mag_main_paper_author_affiliations ON mag_main_paper_author_affiliations.paper_id = mag_main_papers.paper_id
+                                        JOIN mag_main_authors ON mag_main_paper_author_affiliations.author_id = mag_main_authors.author_id """
+table_lookup["mag_main_authors"] = [
+    ("normalized_name", str),
+    ("author_id", int),
+]
+
+join_lookup["unpaywall_oa_location"] = " LEFT OUTER JOIN unpaywall_oa_location ON unpaywall_oa_location.doi = LOWER(mag_main_papers.doi) "
+table_lookup["unpaywall_oa_location"] = [
+    # ("endpoint_id", str),
+    ("version", str),
+    ("license", str),
+    ("repository_institution", str),
+]
+
+join_lookup["unpaywall"] = " LEFT OUTER JOIN unpaywall ON unpaywall.doi = LOWER(mag_main_papers.doi) "
+table_lookup["unpaywall"] = [
+    ("genre", str),
+    # ("journal_is_in_doaj", str),
+    ("journal_is_oa", str),
+    ("oa_status", str),
+    ("best_version", str),
+    ("has_green", bool),
+    ("is_oa_bool", bool),
+]
+
+# join_lookup["journalsdb_computed"] = " LEFT OUTER JOIN journalsdb_computed ON unpaywall.doi = journalsdb_computed_flat.issn "
+# table_lookup["journalsdb_computed"] = [
+#     ("publisher", str),
+#     ("issn_l", str),
+# ]
+
+field_lookup = {}
+for table_name in table_lookup:
+    for (field, datatype) in table_lookup[table_name]:
+        column_dict = {}
+        column_dict["table_name"] = table_name
+        column_dict["column_name"] = "{}.{}".format(table_name, field)
+        column_dict["datatype"] = datatype
+        field_lookup[field] = column_dict
+
+def get_column_values(column, random=False, limit=100):
     print("getting values for column {}".format(column))
-    (column_table, column_solo) = column.split(".")
-    if (column_table == "a"):
-        table = "mag_authors_paperid3 a"
+
+    global field_lookup
+    lookup_dict = field_lookup[column]
+
+    if random:
+        orderby = "random()"
     else:
-        table = "ricks_fast_pub_affil_journal v"
+        orderby = "n"
+
+    q = """select {column}, count(*) as n 
+        from {table} 
+        -- where {column} is not null 
+        group by {column} 
+        order by {orderby} desc 
+        limit {limit}""".format(column=lookup_dict["column_name"], table=lookup_dict["table_name"], orderby=orderby, limit=limit)
 
     with get_db_cursor() as cursor:
-        if random:
-            q = "select {column}, count(*) as n from {table} where {column} is not null group by {column} order by random() limit 100".format(
-                column=column, table=table)
-        else:
-            q = "select {column}, count(*) as n from {table} where {column} is not null group by {column} order by n desc limit 100".format(
-                column=column, table=table)
         cursor.execute(q)
         rows = cursor.fetchall()
 
     return rows
 
 
-def get_column_values_for_querying(column, random=False):
-    (column_table, column_solo) = column.split(".")
+def get_column_values_for_querying(field, random=False):
+    column_name_solo = field
 
-    rows = get_column_values(column, random)
+    rows = get_column_values(field, random)
 
     values = []
     for row in rows:
-        if isinstance(row[column_solo], bool) or isinstance(row[column_solo], int) or isinstance(row[column_solo], int):
-            value = row[column_solo]
+        if isinstance(row[column_name_solo], bool) or isinstance(row[column_name_solo], int) or isinstance(row[column_name_solo], int):
+            value = row[column_name_solo]
             values.append(value)
         else:
             # value = row[column_solo].decode('utf-8')
-            value = row[column_solo]
-            value = value.replace("'", "''")
+            value = row[column_name_solo]
             if value:
-                value = "'{}'".format(value)
                 values.append(value)  # don't include empty strings
     return values
 
+def filter_or_group_uses_table(filters, groupby, table_name):
+    for filter in filters:
+        (filter_field, filter_value) = filter.split(":", 1)
+        if table_name == field_lookup[filter_field]["table_name"]:
+            return True
+    if groupby and (table_name == field_lookup[groupby]["table_name"]):
+        return True
+    return False
 
 def do_query(filters, groupby=None, details=False, limit=100, verbose=True):
     timer = Timer()
 
-    # chosen_columns = ["has_green", "state"]
-    # print num_columns, chosen_columns
-    join_with_a = any([filter.startswith("(a.") for filter in filters]) or groupby.startswith("a.")
-
     join_clause = " "
-    if join_with_a:
-        join_clause += " JOIN mag_authors_paperid3 a ON v.pub_id=a.pub_id "
+    for table_name in table_lookup:
+        if filter_or_group_uses_table(filters, groupby, table_name):
+            join_clause += join_lookup[table_name]
 
-    if (len(filters) > 0) and (len(filters[0]) > 0):
-        where_clause = " AND ".join(filters)
+    filter_string_list = []
+    for filter in filters:
+        (filter_field, filter_value) = filter.split(":", 1)
+        if field_lookup[filter_field]["datatype"] == str:
+            filter_value = filter_value.replace("'", "''")
+            filter_value = "'{}'".format(filter_value)
+        filter_column_name = field_lookup[filter_field]["column_name"]
+        filter_string = " ( {} = {} ) ".format(filter_column_name, filter_value)
+        filter_string_list.append(filter_string)
+
+    if filter_string_list:
+        where_clause = " AND ".join(filter_string_list)
     else:
-        where_clause = " TRUE"
+        where_clause = " TRUE "
+
+    groupby_clause = 1
+    if groupby:
+        groupby_clause = field_lookup[groupby]["column_name"]
 
     with get_db_cursor() as cursor:
         timer.log_timing("0. in with")
 
-        if not groupby:
-            groupby = 1
-
         if details:
-            q = """SELECT v.*, 1 as n
-                    FROM ricks_fast_pub_affil_journal v 
+            q = """SELECT mag_main_papers.*, 1 as n
+                    FROM mag_main_papers
                     {join_clause} 
                     WHERE {where_clause}
-                    ORDER BY RANDOM()
+                    ORDER BY mag_main_papers.publication_date DESC
                     LIMIT {limit}
                     """.format(
                         join_clause=join_clause,
                         where_clause=where_clause,
                         limit=limit)
         else:
-            q = """SELECT {groupby}, count(distinct v.doi) as n 
-                    FROM ricks_fast_pub_affil_journal v 
+            q = """SELECT {groupby_clause}, count(distinct mag_main_papers.paper_id) as n 
+                    FROM mag_main_papers 
                     {join_clause} 
                     WHERE {where_clause}
-                    GROUP BY {groupby} 
+                    GROUP BY {groupby_clause} 
                     ORDER BY n DESC
                     limit {limit}
                     """.format(
                         join_clause=join_clause,
                         where_clause=where_clause,
-                        groupby=groupby,
+                        groupby_clause=groupby_clause,
                         limit=limit)
         if verbose:
             print(q)
@@ -128,9 +193,9 @@ def do_query(filters, groupby=None, details=False, limit=100, verbose=True):
         rows = cursor.fetchall()
         timer.log_timing("2. after fetchall")
 
-        print("{:>10}s {:>15,} rows:  {}, group by {}".format(timer.elapsed_total, len(rows), where_clause, groupby))
+        print("{:>10}s {:>15,} rows:  {}, GROUP BY {}".format(timer.elapsed_total, len(rows), where_clause, groupby))
 
-        if not details and (groupby == "v.doi"):
+        if not details and (groupby == "mag_main_papers.paper_id"):
             rows = [row["doi"] for row in rows]
 
         q = re.sub("\s+", ' ', q)
@@ -141,19 +206,24 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Run stuff.")
     parser.add_argument('--warm', action='store_true', help="warm cache")
 
+    max_num_filters = 3
+
     parsed_args = parser.parse_args()
     parsed_vars = vars(parsed_args)
 
-    chosen_columns_combinations_remaining = []
+    chosen_fields_combinations_remaining = []
+    all_columns = field_lookup.keys()
     if parsed_vars.get("warm"):
-        for num_columns in range(1, 5):
-            chosen_columns_combinations_remaining += combinations(all_columns, num_columns)
-        # print chosen_columns_combinations_remaining
-        random.shuffle(chosen_columns_combinations_remaining)
+        # add one for groupby, and one for offstet
+        for num_fields in range(1, max_num_filters + 1 + 1):
+            chosen_fields_combinations_remaining += combinations(all_columns, num_fields)
+        # print chosen_fields_combinations_remaining
+        random.shuffle(chosen_fields_combinations_remaining)
 
     start_time = time()
     print("getting valid column values")
     column_values = {}
+    all_columns = list(field_lookup.keys())
     random.shuffle(all_columns)   # helps be fast in parallel
     for c in all_columns:
         column_values[c] = get_column_values_for_querying(c)
@@ -163,15 +233,16 @@ if __name__ == "__main__":
     keep_running = True
     while keep_running:
 
-        if chosen_columns_combinations_remaining:
-            chosen_columns = chosen_columns_combinations_remaining.pop()
-            if not chosen_columns_combinations_remaining:
+        if chosen_fields_combinations_remaining:
+            chosen_fields = chosen_fields_combinations_remaining.pop()
+            if not chosen_fields_combinations_remaining:
                 keep_running = False
         else:
-            num_columns = random.randint(1,4)
-            chosen_columns = random.sample(all_columns, num_columns)
+            num_fields = random.randint(1,4)
+            chosen_fields = random.sample(all_columns, num_fields)
 
-        filters = ["({}={})".format(c, random.choice(column_values[c])) for c in chosen_columns[1:]]
-        groupby = chosen_columns[0]
+        filters = ["{}:{}".format(c, random.choice(column_values[c])) for c in chosen_fields[1:]]
+        groupby = chosen_fields[0]
 
         (rows, q, timing) = do_query(filters, groupby, verbose=False)
+        # (rows, q, timing) = do_query(filters, groupby, verbose=True)
