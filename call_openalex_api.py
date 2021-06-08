@@ -228,7 +228,7 @@ def do_query(filters, groupby=None, details=False, limit=100, verbose=True):
         rows = cursor.fetchall()
         timer.log_timing("2. after fetchall")
 
-        print("{:>10}s {:>15,} rows:  {}, GROUP BY {}".format(timer.elapsed_total, len(rows), ",".join(filters), groupby))
+        print("{:>10}s {:>15,} rows:  {}, GROUP BY {}".format(timer.elapsed_total, len(rows), ", ".join(filters), groupby))
 
         if not details and (groupby == "mag_main_papers.paper_id"):
             rows = [row["doi"] for row in rows]
