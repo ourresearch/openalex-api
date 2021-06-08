@@ -78,8 +78,8 @@ table_lookup["mag_paperid_affiliations_details"] = [
 ]
 
 join_lookup["journalsdb_computed"] = """LEFT OUTER JOIN mag_main_journals ON mag_main_journals.journal_id = mag_main_papers.journal_id
-                                        LEFT OUTER JOIN journalsdb_computed_flat ON mag_main_journals.issn = journalsdb_computed_flat.issn
-                                        LEFT OUTER JOIN journalsdb_computed ON journalsdb_computed_flat.issn_l = journalsdb_computed.issn_l  """
+                                        JOIN journalsdb_computed_flat ON mag_main_journals.issn = journalsdb_computed_flat.issn
+                                        JOIN journalsdb_computed ON journalsdb_computed_flat.issn_l = journalsdb_computed.issn_l  """
 table_lookup["journalsdb_computed"] = [
     ("publisher", str),
     ("issn_l", str),
