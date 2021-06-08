@@ -498,12 +498,13 @@ def works_query():
     details = str2bool(request.args.get("details", False))
     format = request.args.get("format", "json")
     limit = max(100, int(request.args.get("limit", 10)))
+    queryonly = str2bool(request.args.get("queryonly", False))
 
     if groupby:
         details = False
 
     filters_list = filter.split(",")
-    (rows, sql, timing) = do_query(filters_list, groupby, details, limit)
+    (rows, sql, timing) = do_query(filters_list, groupby, details, limit, queryonly)
     return jsonify_fast_no_sort({"_timing": timing,
                          "query": {"filter": filter,
                                    "groupby": groupby,

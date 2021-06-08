@@ -38,14 +38,14 @@ table_lookup["mag_main_papers"] = [
     ("year", int),
 ]
 
-join_lookup["mag_main_authors"] = """ LEFT OUTER JOIN mag_main_paper_author_affiliations ON mag_main_paper_author_affiliations.paper_id = mag_main_papers.paper_id
+join_lookup["mag_main_authors"] = """ JOIN mag_main_paper_author_affiliations ON mag_main_paper_author_affiliations.paper_id = mag_main_papers.paper_id
                                         JOIN mag_main_authors ON mag_main_paper_author_affiliations.author_id = mag_main_authors.author_id """
 table_lookup["mag_main_authors"] = [
     ("normalized_name", str),
     ("author_id", int),
 ]
 
-join_lookup["unpaywall_oa_location"] = " LEFT OUTER JOIN unpaywall_oa_location ON unpaywall_oa_location.doi = mag_main_papers.doi_lower "
+join_lookup["unpaywall_oa_location"] = " JOIN unpaywall_oa_location ON unpaywall_oa_location.doi = mag_main_papers.doi_lower "
 table_lookup["unpaywall_oa_location"] = [
     # ("endpoint_id", str),
     ("version", str),
@@ -53,7 +53,7 @@ table_lookup["unpaywall_oa_location"] = [
     ("repository_institution", str),
 ]
 
-join_lookup["unpaywall"] = " LEFT OUTER JOIN unpaywall ON unpaywall.doi = mag_main_papers.doi_lower "
+join_lookup["unpaywall"] = " JOIN unpaywall ON unpaywall.doi = mag_main_papers.doi_lower "
 table_lookup["unpaywall"] = [
     ("genre", str),
     # ("journal_is_in_doaj", str),
@@ -65,7 +65,7 @@ table_lookup["unpaywall"] = [
 ]
 
 
-join_lookup["mag_paperid_affiliations_details"] = " LEFT OUTER JOIN mag_paperid_affiliations_details ON mag_main_papers.paper_id = mag_paperid_affiliations_details.paper_id "
+join_lookup["mag_paperid_affiliations_details"] = " JOIN mag_paperid_affiliations_details ON mag_main_papers.paper_id = mag_paperid_affiliations_details.paper_id "
 table_lookup["mag_paperid_affiliations_details"] = [
     ("ror_id", str),
     # ("grid_id", str),
@@ -77,7 +77,7 @@ table_lookup["mag_paperid_affiliations_details"] = [
     ("continent", str),
 ]
 
-join_lookup["journalsdb_computed"] = """LEFT OUTER JOIN mag_main_journals ON mag_main_journals.journal_id = mag_main_papers.journal_id
+join_lookup["journalsdb_computed"] = """JOIN mag_main_journals ON mag_main_journals.journal_id = mag_main_papers.journal_id
                                         JOIN journalsdb_computed_flat ON mag_main_journals.issn = journalsdb_computed_flat.issn
                                         JOIN journalsdb_computed ON journalsdb_computed_flat.issn_l = journalsdb_computed.issn_l  """
 table_lookup["journalsdb_computed"] = [
@@ -156,22 +156,28 @@ def get_column_values_for_querying(field, random=False):
                 values.append(value)  # don't include empty strings
     return values
 
-def filter_or_group_uses_table(filters, groupby, table_name):
+def is_filter_uses_table(filters, table_name):
     for filter in filters:
         (filter_field, filter_value) = filter.split(":", 1)
         if table_name == field_lookup[filter_field]["table_name"]:
             return True
+    return False
+
+def is_groupby_uses_table(groupby, table_name):
     if groupby and (table_name == field_lookup[groupby]["table_name"]):
         return True
     return False
 
-def do_query(filters, groupby=None, details=False, limit=100, verbose=True):
+def do_query(filters, groupby=None, details=False, limit=100, verbose=True, queryonly=False):
     timer = Timer()
 
     join_clause = " "
     for table_name in table_lookup:
-        if filter_or_group_uses_table(filters, groupby, table_name):
+        if is_filter_uses_table(filters, table_name):
             join_clause += join_lookup[table_name]
+        if is_groupby_uses_table(groupby, table_name):
+            if join_lookup[table_name]:
+                join_clause += " LEFT OUTER " + join_lookup[table_name]
 
     filter_string_list = []
     for filter in filters:
@@ -222,6 +228,12 @@ def do_query(filters, groupby=None, details=False, limit=100, verbose=True):
         if verbose:
             print(q)
 
+        q = re.sub("\s+", ' ', q)
+
+        if queryonly:
+            print("QueryOnly set, so not running")
+            return (None, q, timer.to_dict())
+
         cursor.execute(q)
         timer.log_timing("1. after execute")
 
@@ -233,7 +245,6 @@ def do_query(filters, groupby=None, details=False, limit=100, verbose=True):
         if not details and (groupby == "mag_main_papers.paper_id"):
             rows = [row["doi"] for row in rows]
 
-        q = re.sub("\s+", ' ', q)
         return (rows, q, timer.to_dict())
 
 
