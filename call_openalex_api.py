@@ -241,7 +241,12 @@ def do_query(filters, groupby=None, details=False, limit=100, verbose=True, quer
         rows = cursor.fetchall()
         timer.log_timing("2. after fetchall")
 
-        print("{:>10}s {:>15,} rows:  ?filter={}&groupby={}".format(timer.elapsed_total, len(rows), ",".join(filters), groupby))
+        if filters:
+            query_string = "https://api.openalex.org/works/query?filter={}&groupby={}".format(",".join(filters), groupby)
+        else:
+            query_string = "https://api.openalex.org/works/query?groupby={}".format(groupby)
+
+        print("{:>10}s {:>15,} rows:  {}".format(timer.elapsed_total, len(rows), query_string))
 
         if not details and (groupby == "mag_main_papers.paper_id"):
             rows = [row["doi"] for row in rows]
