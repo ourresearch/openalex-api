@@ -64,27 +64,29 @@ table_lookup["unpaywall"] = [
     ("is_oa_bool", bool),
 ]
 
-#
-# join_lookup["mag_paperid_affiliations_details"] = " LEFT OUTER JOIN mag_paperid_affiliations_details ON mag_main_papers.paper_id = mag_paperid_affiliations_details.paper_id "
-# table_lookup["mag_paperid_affiliations_details"] = [
-#     ("ror_id", str),
-#     ("grid_id", str),
-#     ("org", str),
-#     ("city", str),
-#     ("region", str),
-#     ("state", str),
-#     ("country", str),
-#     ("continent", str),
-# ]
-#
-# join_lookup["journalsdb_computed"] = """ LEFT OUTER JOIN journalsdb_computed ON mag_main_papers.journal_id = mag_main_journals.journal_id
-#                                          LEFT OUTER JOIN journalsdb_computed_flat ON mag_main_journals.issn = journalsdb_computed_flat.issn
-#                                          LEFT OUTER JOIN journalsdb_computed ON journalsdb_computed_flat.issn_l = journalsdb_computed.issn_l  """
-# table_lookup["journalsdb_computed"] = [
-#     ("issn", str),
-#     ("publisher", str),
-#     ("issn_l", str),
-# ]
+
+join_lookup["mag_paperid_affiliations_details"] = " LEFT OUTER JOIN mag_paperid_affiliations_details ON mag_main_papers.paper_id = mag_paperid_affiliations_details.paper_id "
+table_lookup["mag_paperid_affiliations_details"] = [
+    ("ror_id", str),
+    ("grid_id", str),
+    ("org", str),
+    ("city", str),
+    ("region", str),
+    ("state", str),
+    ("country", str),
+    ("continent", str),
+]
+
+join_lookup["journalsdb_computed"] = """LEFT OUTER JOIN mag_main_journals ON mag_main_journals.journal_id = mag_main_papers.journal_id
+                                        LEFT OUTER JOIN journalsdb_computed_flat ON mag_main_journals.issn = journalsdb_computed_flat.issn
+                                        LEFT OUTER JOIN journalsdb_computed ON journalsdb_computed_flat.issn_l = journalsdb_computed.issn_l  """
+table_lookup["journalsdb_computed"] = [
+    ("publisher", str),
+    ("issn_l", str),
+]
+
+
+
 
 field_lookup = {}
 for table_name in table_lookup:
@@ -94,6 +96,22 @@ for table_name in table_lookup:
         column_dict["column_name"] = "{}.{}".format(table_name, field)
         column_dict["datatype"] = datatype
         field_lookup[field] = column_dict
+
+
+max_num_filters = 3
+chosen_fields_combinations_remaining = []
+all_fields = field_lookup.keys()
+# add one for groupby, and one for offset
+for num_fields in range(1, max_num_filters + 1 + 1):
+    chosen_fields_combinations_remaining += combinations(all_fields, num_fields)
+# print chosen_fields_combinations_remaining
+random.shuffle(chosen_fields_combinations_remaining)
+
+
+print("Number of fields: {}".format(len(field_lookup.keys())))
+print("Number of tables: {}".format(len(table_lookup.keys())))
+print("Number of combos with {} filters and a group-by: {}".format(max_num_filters, len(chosen_fields_combinations_remaining)))
+print("Number of hours it'd take to go through in a single thread, if 10 seconds each: {}".format(round(len(chosen_fields_combinations_remaining) * 10.0 / 60.0), 1))
 
 def get_column_values(column, random=False, limit=100):
     print("getting values for column {}".format(column))
@@ -222,43 +240,31 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Run stuff.")
     parser.add_argument('--warm', action='store_true', help="warm cache")
 
-    max_num_filters = 3
-
     parsed_args = parser.parse_args()
     parsed_vars = vars(parsed_args)
 
-    chosen_fields_combinations_remaining = []
-    all_columns = field_lookup.keys()
-    if parsed_vars.get("warm"):
-        # add one for groupby, and one for offstet
-        for num_fields in range(1, max_num_filters + 1 + 1):
-            chosen_fields_combinations_remaining += combinations(all_columns, num_fields)
-        # print chosen_fields_combinations_remaining
-        random.shuffle(chosen_fields_combinations_remaining)
-
     start_time = time()
     print("getting valid column values")
-    column_values = {}
-    all_columns = list(field_lookup.keys())
-    random.shuffle(all_columns)   # helps be fast in parallel
-    for c in all_columns:
-        column_values[c] = get_column_values_for_querying(c)
+    all_fields = list(field_lookup.keys())
+    random.shuffle(all_fields)   # helps be fast in parallel
+    field_values = {}
+    for field in all_fields:
+        field_values[field] = get_column_values_for_querying(field)
     print("done, took {} seconds".format(elapsed(start_time)))
 
-
     keep_running = True
-    while keep_running:
 
-        if chosen_fields_combinations_remaining:
+    while keep_running:
+        if parsed_vars.get("warm"):
             chosen_fields = chosen_fields_combinations_remaining.pop()
             if not chosen_fields_combinations_remaining:
                 keep_running = False
         else:
             num_fields = random.randint(1,4)
-            chosen_fields = random.sample(all_columns, num_fields)
+            chosen_fields = random.sample(all_fields, num_fields)
 
-        filters = ["{}:{}".format(c, random.choice(column_values[c])) for c in chosen_fields[1:]]
+        filters = ["{}:{}".format(c, random.choice(field_values[c])) for c in chosen_fields[1:]]
         groupby = chosen_fields[0]
 
+        print("\nnow running {}, groupby:{}".format(",".join(filters), groupby))
         (rows, q, timing) = do_query(filters, groupby, verbose=False)
-        # (rows, q, timing) = do_query(filters, groupby, verbose=True)
