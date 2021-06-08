@@ -68,10 +68,10 @@ table_lookup["unpaywall"] = [
 join_lookup["mag_paperid_affiliations_details"] = " LEFT OUTER JOIN mag_paperid_affiliations_details ON mag_main_papers.paper_id = mag_paperid_affiliations_details.paper_id "
 table_lookup["mag_paperid_affiliations_details"] = [
     ("ror_id", str),
-    ("grid_id", str),
+    # ("grid_id", str),
     ("org", str),
     ("city", str),
-    ("region", str),
+    # ("region", str),
     ("state", str),
     ("country", str),
     ("continent", str),
@@ -101,9 +101,10 @@ for table_name in table_lookup:
 max_num_filters = 3
 chosen_fields_combinations_remaining = []
 all_fields = field_lookup.keys()
-# add one for groupby, and one for offset
-for num_fields in range(1, max_num_filters + 1 + 1):
-    chosen_fields_combinations_remaining += combinations(all_fields, num_fields)
+# add one for offset
+num_groupbys = 1
+for num_filters in range(0, max_num_filters + 1):
+    chosen_fields_combinations_remaining += combinations(all_fields, num_groupbys + num_filters)
 # print chosen_fields_combinations_remaining
 random.shuffle(chosen_fields_combinations_remaining)
 
@@ -260,10 +261,10 @@ if __name__ == "__main__":
             if not chosen_fields_combinations_remaining:
                 keep_running = False
         else:
-            num_fields = random.randint(1,4)
+            num_fields = random.randint(num_groupbys, num_groupbys + max_num_filters)
             chosen_fields = random.sample(all_fields, num_fields)
 
-        filters = ["{}:{}".format(c, random.choice(field_values[c])) for c in chosen_fields[1:]]
+        filters = ["{}:{}".format(c, random.choice(field_values[c])) for c in chosen_fields[num_groupbys:]]
         groupby = chosen_fields[0]
 
         print("\nnow running {}, groupby:{}".format(",".join(filters), groupby))
