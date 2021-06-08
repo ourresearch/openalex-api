@@ -77,12 +77,18 @@ table_lookup["mag_paperid_affiliations_details"] = [
     ("continent", str),
 ]
 
-join_lookup["journalsdb_computed"] = """JOIN mag_main_journals ON mag_main_journals.journal_id = mag_main_papers.journal_id
+join_lookup["journalsdb_computed"] = """ JOIN mag_main_journals ON mag_main_journals.journal_id = mag_main_papers.journal_id
                                         JOIN journalsdb_computed_flat ON mag_main_journals.issn = journalsdb_computed_flat.issn
                                         JOIN journalsdb_computed ON journalsdb_computed_flat.issn_l = journalsdb_computed.issn_l  """
 table_lookup["journalsdb_computed"] = [
     ("publisher", str),
     ("issn_l", str),
+]
+
+join_lookup["mag_paperid_fields_of_study"] = """ JOIN mag_paperid_fields_of_study ON mag_paperid_fields_of_study.paper_id = mag_main_papers.paper_id """
+table_lookup["mag_paperid_fields_of_study"] = [
+    ("field_of_study_id", int),
+    ("normalized_field_of_study_name", str),
 ]
 
 
