@@ -203,7 +203,7 @@ def do_query(filters, groupby=None, details=False, limit=100, verbose=True, quer
         timer.log_timing("0. in with")
 
         if details:
-            q = """SELECT mag_main_papers.*, 1 as n
+            q = """SELECT mag_main_papers.*
                     FROM mag_main_papers
                     {join_clause} 
                     WHERE {where_clause}
@@ -232,7 +232,6 @@ def do_query(filters, groupby=None, details=False, limit=100, verbose=True, quer
         q = re.sub("\s+", ' ', q)
 
         if queryonly:
-            print("QueryOnly set, so not running")
             return (None, q, timer.to_dict())
 
         cursor.execute(q)

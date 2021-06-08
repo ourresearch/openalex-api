@@ -495,10 +495,16 @@ def works_attribute_top(attribute):
 def works_query():
     filter = request.args.get("filter", "")
     groupby = request.args.get("groupby", None)
-    details = str2bool(request.args.get("details", False))
     format = request.args.get("format", "json")
     limit = max(100, int(request.args.get("limit", 10)))
-    queryonly = str2bool(request.args.get("queryonly", False))
+
+    queryonly = False
+    if "queryonly" in request.args:
+        queryonly = True
+
+    details = False
+    if "detailss" in request.args:
+        details = True
 
     if groupby:
         details = False
@@ -506,7 +512,7 @@ def works_query():
     filters_list = []
     if filter:
         filters_list = filter.split(",")
-    (rows, sql, timing) = do_query(filters_list, groupby, details, limit, queryonly)
+    (rows, sql, timing) = do_query(filters_list, groupby, details, limit=limit, verbose=False, queryonly=queryonly)
     return jsonify_fast_no_sort({"_timing": timing,
                          "query": {"filter": filter,
                                    "groupby": groupby,
