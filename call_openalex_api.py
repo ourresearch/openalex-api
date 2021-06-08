@@ -45,7 +45,7 @@ table_lookup["mag_main_authors"] = [
     ("author_id", int),
 ]
 
-join_lookup["unpaywall_oa_location"] = " LEFT OUTER JOIN unpaywall_oa_location ON unpaywall_oa_location.doi = LOWER(mag_main_papers.doi) "
+join_lookup["unpaywall_oa_location"] = " LEFT OUTER JOIN unpaywall_oa_location ON unpaywall_oa_location.doi = mag_main_papers.doi_lower "
 table_lookup["unpaywall_oa_location"] = [
     # ("endpoint_id", str),
     ("version", str),
@@ -53,7 +53,7 @@ table_lookup["unpaywall_oa_location"] = [
     ("repository_institution", str),
 ]
 
-join_lookup["unpaywall"] = " LEFT OUTER JOIN unpaywall ON unpaywall.doi = LOWER(mag_main_papers.doi) "
+join_lookup["unpaywall"] = " LEFT OUTER JOIN unpaywall ON unpaywall.doi = mag_main_papers.doi_lower "
 table_lookup["unpaywall"] = [
     ("genre", str),
     # ("journal_is_in_doaj", str),
@@ -64,8 +64,24 @@ table_lookup["unpaywall"] = [
     ("is_oa_bool", bool),
 ]
 
-# join_lookup["journalsdb_computed"] = " LEFT OUTER JOIN journalsdb_computed ON unpaywall.doi = journalsdb_computed_flat.issn "
+#
+# join_lookup["mag_paperid_affiliations_details"] = " LEFT OUTER JOIN mag_paperid_affiliations_details ON mag_main_papers.paper_id = mag_paperid_affiliations_details.paper_id "
+# table_lookup["mag_paperid_affiliations_details"] = [
+#     ("ror_id", str),
+#     ("grid_id", str),
+#     ("org", str),
+#     ("city", str),
+#     ("region", str),
+#     ("state", str),
+#     ("country", str),
+#     ("continent", str),
+# ]
+#
+# join_lookup["journalsdb_computed"] = """ LEFT OUTER JOIN journalsdb_computed ON mag_main_papers.journal_id = mag_main_journals.journal_id
+#                                          LEFT OUTER JOIN journalsdb_computed_flat ON mag_main_journals.issn = journalsdb_computed_flat.issn
+#                                          LEFT OUTER JOIN journalsdb_computed ON journalsdb_computed_flat.issn_l = journalsdb_computed.issn_l  """
 # table_lookup["journalsdb_computed"] = [
+#     ("issn", str),
 #     ("publisher", str),
 #     ("issn_l", str),
 # ]
