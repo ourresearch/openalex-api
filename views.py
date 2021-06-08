@@ -503,7 +503,9 @@ def works_query():
     if groupby:
         details = False
 
-    filters_list = filter.split(",")
+    filters_list = []
+    if filter:
+        filters_list = filter.split(",")
     (rows, sql, timing) = do_query(filters_list, groupby, details, limit, queryonly)
     return jsonify_fast_no_sort({"_timing": timing,
                          "query": {"filter": filter,
