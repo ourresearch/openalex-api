@@ -141,11 +141,11 @@ table_lookup["unpaywall_oa_location"] = [
 ]
 
 
-# join_lookup["mag_paperid_fields_of_study"] = """ JOIN mag_paperid_fields_of_study ON mag_paperid_fields_of_study.paper_id = mag_main_papers.paper_id """
-# table_lookup["mag_paperid_fields_of_study"] = [
-#     ("field_of_study_id", int),
-#     ("normalized_field_of_study_name", str),
-# ]
+join_lookup["mag_paperid_fields_of_study"] = """ JOIN mag_paperid_fields_of_study ON mag_paperid_fields_of_study.paper_id = mag_combo_all.paper_id """
+table_lookup["mag_paperid_fields_of_study"] = [
+    ("field_of_study_id", int),
+    ("normalized_field_of_study_name", str),
+]
 
 
 
