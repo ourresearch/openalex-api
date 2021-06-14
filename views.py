@@ -503,7 +503,7 @@ def works_query():
         queryonly = True
 
     details = False
-    if "detailss" in request.args:
+    if "details" in request.args:
         details = True
 
     if groupby:
