@@ -125,15 +125,14 @@ table_lookup["mag_combo_all"] += [
     ("issn_l", str),
 ]
 
-join_lookup["mag_main_authors"] = """ JOIN mag_main_paper_author_affiliations ON mag_main_paper_author_affiliations.paper_id = mag_combo_all.paper_id
-                                        JOIN mag_main_authors ON mag_main_paper_author_affiliations.author_id = mag_main_authors.author_id """
-table_lookup["mag_main_authors"] = [
+join_lookup["mag_paperid_authors"] = """ JOIN mag_paperid_authors ON mag_paperid_authors.paper_id = mag_combo_all.paper_id """
+table_lookup["mag_paperid_authors"] = [
     ("normalized_name", str),
     ("author_id", int),
 ]
 
-join_lookup["unpaywall_oa_location"] = " JOIN unpaywall_oa_location ON unpaywall_oa_location.doi = mag_combo_all.doi "
-table_lookup["unpaywall_oa_location"] = [
+join_lookup["unpaywall_paperid_oa_location"] = " JOIN unpaywall_paperid_oa_location ON unpaywall_paperid_oa_location.paper_id = mag_combo_all.paper_id "
+table_lookup["unpaywall_paperid_oa_location"] = [
     # ("endpoint_id", str),
     ("version", str),
     ("license", str),
@@ -165,17 +164,15 @@ chosen_fields_combinations_remaining = []
 all_fields = field_lookup.keys()
 # add one for offset
 num_groupbys = 1
-use_all_combos = True
 
-if use_all_combos:
-    for num_filters in range(0, max_num_filters + 1):
-        new_combo = list(combinations(all_fields, num_groupbys + num_filters))
-        random.shuffle(new_combo)  # randomize within the filter size
-        chosen_fields_combinations_remaining += new_combo
-else:
-    max_num_filters = len(field_lookup) - 2
-    chosen_fields_combinations_remaining = list(combinations(all_fields, num_groupbys + max_num_filters + 1))
-    print(chosen_fields_combinations_remaining)
+for num_filters in range(0, max_num_filters + 1):
+    new_combo = list(combinations(all_fields, num_groupbys + num_filters))
+    random.shuffle(new_combo)  # randomize within the filter size
+    chosen_fields_combinations_remaining += new_combo
+
+# max_num_filters = len(field_lookup) - 2
+# chosen_fields_combinations_remaining = list(combinations(all_fields, num_groupbys + max_num_filters + 1))
+# print(chosen_fields_combinations_remaining)
 
 # print chosen_fields_combinations_remaining
 
@@ -278,8 +275,7 @@ def do_query(filters, groupby=None, details=False, limit=100, verbose=True, quer
                     {join_clause} 
                     WHERE {where_clause}
                     ORDER BY mag_combo_all.publication_date DESC
-                    LIMIT {limit}
-                    """.format(
+                    LIMIT {limit}""".format(
                         join_clause=join_clause,
                         where_clause=where_clause,
                         limit=limit)
@@ -290,14 +286,13 @@ def do_query(filters, groupby=None, details=False, limit=100, verbose=True, quer
                     WHERE {where_clause}
                     GROUP BY {groupby_clause} 
                     ORDER BY n DESC
-                    limit {limit}
-                    """.format(
+                    limit {limit}""".format(
                         join_clause=join_clause,
                         where_clause=where_clause,
                         groupby_clause=groupby_clause,
                         limit=limit)
         if verbose:
-            print(q)
+            print("\n\n{}".format(q))
 
         q = re.sub("\s+", ' ', q)
 
