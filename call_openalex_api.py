@@ -169,14 +169,15 @@ use_all_combos = True
 
 if use_all_combos:
     for num_filters in range(0, max_num_filters + 1):
-        chosen_fields_combinations_remaining += list(combinations(all_fields, num_groupbys + num_filters))
+        new_combo = list(combinations(all_fields, num_groupbys + num_filters))
+        random.shuffle(new_combo)  # randomize within the filter size
+        chosen_fields_combinations_remaining += new_combo
 else:
     max_num_filters = len(field_lookup) - 2
     chosen_fields_combinations_remaining = list(combinations(all_fields, num_groupbys + max_num_filters + 1))
     print(chosen_fields_combinations_remaining)
 
 # print chosen_fields_combinations_remaining
-random.shuffle(chosen_fields_combinations_remaining)
 
 
 print("Number of fields: {}".format(len(field_lookup.keys())))
