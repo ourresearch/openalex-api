@@ -10,7 +10,7 @@ class Institution(db.Model):
     country = db.Column(db.Text)
     country_code = db.Column(db.Text)
     continent = db.Column(db.Text)
-    num_papers = db.Column(db.Numeric)
+    num_papers = db.Column(db.Numeric(asdecimal=False))
 
     def to_dict(self):
         response = {

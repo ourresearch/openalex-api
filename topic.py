@@ -6,8 +6,8 @@ class Topic(db.Model):
 
     issnl = db.Column(db.Text, db.ForeignKey("bq_our_journals_issnl.issnl"), primary_key=True)
     topic = db.Column(db.Text, primary_key=True)
-    num_articles_3years = db.Column(db.Numeric)
-    quadrant = db.Column(db.Numeric)
+    num_articles_3years = db.Column(db.Numeric(asdecimal=False))
+    quadrant = db.Column(db.Numeric(asdecimal=False))
 
     def to_dict(self):
         response = [self.topic, self.quadrant]
