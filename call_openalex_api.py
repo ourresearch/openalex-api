@@ -179,7 +179,6 @@ else:
 
 # print chosen_fields_combinations_remaining
 
-
 print("Number of fields: {}".format(len(field_lookup.keys())))
 print("Number of tables: {}".format(len(table_lookup.keys())))
 print("Number of combos with {} filters and a group-by: {}".format(max_num_filters, len(chosen_fields_combinations_remaining)))
@@ -344,7 +343,7 @@ if __name__ == "__main__":
 
     while keep_running:
         if parsed_vars.get("warm"):
-            chosen_fields = chosen_fields_combinations_remaining.pop()
+            chosen_fields = chosen_fields_combinations_remaining.pop(0)
             if not chosen_fields_combinations_remaining:
                 keep_running = False
         else:
