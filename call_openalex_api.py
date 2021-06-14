@@ -242,7 +242,7 @@ def do_query(filters, groupby=None, details=False, limit=100, verbose=True, quer
     for table_name in table_lookup:
         # give priority to groupby, make sure each table is only joined once
         if is_groupby_uses_table(groupby, table_name):
-            if join_lookup[table_name] != "":
+            if join_lookup[table_name] != "" and table_name != "mag_paperid_authors":
                 join_clause += " LEFT OUTER " + join_lookup[table_name]
         elif is_filter_uses_table(filters, table_name):
             join_clause += join_lookup[table_name]
