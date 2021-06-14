@@ -31,30 +31,74 @@ from app import get_db_cursor
 table_lookup = {}
 join_lookup = {}
 
-join_lookup["mag_main_papers"] = ""
-table_lookup["mag_main_papers"] = [
+# join_lookup["mag_main_papers"] = ""
+# table_lookup["mag_main_papers"] = [
+#     ("doi", str),
+#     ("doc_type", str),
+#     ("year", int),
+# ]
+#
+#
+#
+# join_lookup["unpaywall"] = " JOIN unpaywall ON unpaywall.doi = mag_main_papers.doi_lower "
+# table_lookup["unpaywall"] = [
+#     ("doi", str),
+#     ("genre", str),
+#     # ("journal_is_in_doaj", str),
+#     ("journal_is_oa", str),
+#     ("oa_status", str),
+#     ("best_version", str),
+#     ("has_green", bool),
+#     ("is_oa_bool", bool),
+# ]
+#
+#
+# join_lookup["mag_paperid_affiliations_details"] = " JOIN mag_paperid_affiliations_details ON mag_main_papers.paper_id = mag_paperid_affiliations_details.paper_id "
+# table_lookup["mag_paperid_affiliations_details"] = [
+#     ("ror_id", str),
+#     # ("grid_id", str),
+#     ("org", str),
+#     ("city", str),
+#     # ("region", str),
+#     ("state", str),
+#     ("country", str),
+#     ("continent", str),
+# ]
+#
+# join_lookup["journalsdb_computed"] = """ JOIN mag_main_journals ON mag_main_journals.journal_id = mag_main_papers.journal_id
+#                                         JOIN journalsdb_computed_flat ON mag_main_journals.issn = journalsdb_computed_flat.issn
+#                                         JOIN journalsdb_computed ON journalsdb_computed_flat.issn_l = journalsdb_computed.issn_l  """
+# table_lookup["journalsdb_computed"] = [
+#     ("publisher", str),
+#     ("issn_l", str),
+# ]
+# join_lookup["mag_main_authors"] = """ JOIN mag_main_paper_author_affiliations ON mag_main_paper_author_affiliations.paper_id = mag_main_papers.paper_id
+#                                         JOIN mag_main_authors ON mag_main_paper_author_affiliations.author_id = mag_main_authors.author_id """
+# table_lookup["mag_main_authors"] = [
+#     ("normalized_name", str),
+#     ("author_id", int),
+# ]
+#
+# join_lookup["unpaywall_oa_location"] = " JOIN unpaywall_oa_location ON unpaywall_oa_location.doi = mag_main_papers.doi_lower "
+# table_lookup["unpaywall_oa_location"] = [
+#     # ("endpoint_id", str),
+#     ("version", str),
+#     ("license", str),
+#     ("repository_institution", str),
+# ]
+
+
+
+join_lookup["mag_combo_all"] = ""
+table_lookup["mag_combo_all"] = [
     ("doi", str),
     ("doc_type", str),
     ("year", int),
 ]
 
-join_lookup["mag_main_authors"] = """ JOIN mag_main_paper_author_affiliations ON mag_main_paper_author_affiliations.paper_id = mag_main_papers.paper_id
-                                        JOIN mag_main_authors ON mag_main_paper_author_affiliations.author_id = mag_main_authors.author_id """
-table_lookup["mag_main_authors"] = [
-    ("normalized_name", str),
-    ("author_id", int),
-]
 
-join_lookup["unpaywall_oa_location"] = " JOIN unpaywall_oa_location ON unpaywall_oa_location.doi = mag_main_papers.doi_lower "
-table_lookup["unpaywall_oa_location"] = [
-    # ("endpoint_id", str),
-    ("version", str),
-    ("license", str),
-    ("repository_institution", str),
-]
 
-join_lookup["unpaywall"] = " JOIN unpaywall ON unpaywall.doi = mag_main_papers.doi_lower "
-table_lookup["unpaywall"] = [
+table_lookup["mag_combo_all"] += [
     ("genre", str),
     # ("journal_is_in_doaj", str),
     ("journal_is_oa", str),
@@ -65,8 +109,7 @@ table_lookup["unpaywall"] = [
 ]
 
 
-join_lookup["mag_paperid_affiliations_details"] = " JOIN mag_paperid_affiliations_details ON mag_main_papers.paper_id = mag_paperid_affiliations_details.paper_id "
-table_lookup["mag_paperid_affiliations_details"] = [
+table_lookup["mag_combo_all"] += [
     ("ror_id", str),
     # ("grid_id", str),
     ("org", str),
@@ -77,13 +120,26 @@ table_lookup["mag_paperid_affiliations_details"] = [
     ("continent", str),
 ]
 
-join_lookup["journalsdb_computed"] = """ JOIN mag_main_journals ON mag_main_journals.journal_id = mag_main_papers.journal_id
-                                        JOIN journalsdb_computed_flat ON mag_main_journals.issn = journalsdb_computed_flat.issn
-                                        JOIN journalsdb_computed ON journalsdb_computed_flat.issn_l = journalsdb_computed.issn_l  """
-table_lookup["journalsdb_computed"] = [
+table_lookup["mag_combo_all"] += [
     ("publisher", str),
     ("issn_l", str),
 ]
+
+join_lookup["mag_main_authors"] = """ JOIN mag_main_paper_author_affiliations ON mag_main_paper_author_affiliations.paper_id = mag_combo_all.paper_id
+                                        JOIN mag_main_authors ON mag_main_paper_author_affiliations.author_id = mag_main_authors.author_id """
+table_lookup["mag_main_authors"] = [
+    ("normalized_name", str),
+    ("author_id", int),
+]
+
+join_lookup["unpaywall_oa_location"] = " JOIN unpaywall_oa_location ON unpaywall_oa_location.doi = mag_combo_all.doi "
+table_lookup["unpaywall_oa_location"] = [
+    # ("endpoint_id", str),
+    ("version", str),
+    ("license", str),
+    ("repository_institution", str),
+]
+
 
 # join_lookup["mag_paperid_fields_of_study"] = """ JOIN mag_paperid_fields_of_study ON mag_paperid_fields_of_study.paper_id = mag_main_papers.paper_id """
 # table_lookup["mag_paperid_fields_of_study"] = [
@@ -109,8 +165,16 @@ chosen_fields_combinations_remaining = []
 all_fields = field_lookup.keys()
 # add one for offset
 num_groupbys = 1
-for num_filters in range(0, max_num_filters + 1):
-    chosen_fields_combinations_remaining += combinations(all_fields, num_groupbys + num_filters)
+use_all_combos = True
+
+if use_all_combos:
+    for num_filters in range(0, max_num_filters + 1):
+        chosen_fields_combinations_remaining += list(combinations(all_fields, num_groupbys + num_filters))
+else:
+    max_num_filters = len(field_lookup) - 2
+    chosen_fields_combinations_remaining = list(combinations(all_fields, num_groupbys + max_num_filters + 1))
+    print(chosen_fields_combinations_remaining)
+
 # print chosen_fields_combinations_remaining
 random.shuffle(chosen_fields_combinations_remaining)
 
@@ -209,19 +273,19 @@ def do_query(filters, groupby=None, details=False, limit=100, verbose=True, quer
         timer.log_timing("0. in with")
 
         if details:
-            q = """SELECT mag_main_papers.*
-                    FROM mag_main_papers
+            q = """SELECT mag_combo_all.*
+                    FROM mag_combo_all
                     {join_clause} 
                     WHERE {where_clause}
-                    ORDER BY mag_main_papers.publication_date DESC
+                    ORDER BY mag_combo_all.publication_date DESC
                     LIMIT {limit}
                     """.format(
                         join_clause=join_clause,
                         where_clause=where_clause,
                         limit=limit)
         else:
-            q = """SELECT {groupby_clause}, count(distinct mag_main_papers.paper_id) as n 
-                    FROM mag_main_papers 
+            q = """SELECT {groupby_clause}, count(distinct mag_combo_all.paper_id) as n 
+                    FROM mag_combo_all 
                     {join_clause} 
                     WHERE {where_clause}
                     GROUP BY {groupby_clause} 
@@ -253,7 +317,7 @@ def do_query(filters, groupby=None, details=False, limit=100, verbose=True, quer
 
         print("{:>10}s {:>15,} rows:  {}".format(timer.elapsed_total, len(rows), query_string))
 
-        if not details and (groupby == "mag_main_papers.paper_id"):
+        if not details and (groupby == "mag_combo_all.paper_id"):
             rows = [row["doi"] for row in rows]
 
         return (rows, q, timer.to_dict())
