@@ -271,7 +271,7 @@ def do_query(entity, filters, groupby=None, details=False, limit=100, verbose=Tr
         if field_lookup[entity][filter_field]["datatype"] == str:
             filter_value = filter_value.replace("'", "''")
             filter_value = "'{}'".format(filter_value)
-        filter_column_name = field_lookup[filter_field][entity]["column_name"]
+        filter_column_name = field_lookup[entity][filter_field]["column_name"]
         filter_string = " ( {} = {} ) ".format(filter_column_name, filter_value)
         filter_string_list.append(filter_string)
 
@@ -372,7 +372,7 @@ if __name__ == "__main__":
                 num_fields = random.randint(num_groupbys, num_groupbys + max_num_filters)
                 chosen_fields = random.sample(all_fields[entity], num_fields)
 
-            filters = ["{}:{}".format(c, random.choice(field_values[c])) for c in chosen_fields[num_groupbys:]]
+            filters = ["{}:{}".format(c, random.choice(field_values[entity][c])) for c in chosen_fields[num_groupbys:]]
             groupby = chosen_fields[0]
 
             (rows, q, timing) = do_query(entity, filters, groupby, verbose=False)
