@@ -375,4 +375,4 @@ if __name__ == "__main__":
             filters = ["{}:{}".format(c, random.choice(field_values[c])) for c in chosen_fields[num_groupbys:]]
             groupby = chosen_fields[0]
 
-            (rows, q, timing) = do_query(entity, filters, groupby, verbose=True)
+            (rows, q, timing) = do_query(entity, filters, groupby, verbose=False)
