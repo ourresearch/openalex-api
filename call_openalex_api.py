@@ -148,27 +148,34 @@ table_lookup["mag_paperid_fields_of_study"] = [
 
 
 
-
 field_lookup = {}
-for table_name in table_lookup:
-    for (field, datatype) in table_lookup[table_name]:
-        column_dict = {}
-        column_dict["table_name"] = table_name
-        column_dict["column_name"] = "{}.{}".format(table_name, field)
-        column_dict["datatype"] = datatype
-        field_lookup[field] = column_dict
+entities = ["works"]
+for entity in entities:
+    field_lookup[entity] = {}
+    for table_name in table_lookup:
+        for (field, datatype) in table_lookup[table_name]:
+            column_dict = {}
+            column_dict["table_name"] = table_name
+            column_dict["column_name"] = "{}.{}".format(table_name, field)
+            column_dict["datatype"] = datatype
+            field_lookup[entity][field] = column_dict
 
 
 max_num_filters = 3
 chosen_fields_combinations_remaining = []
-all_fields = field_lookup.keys()
+all_fields = {}
+for entity in entities:
+    all_fields[entity] = field_lookup[entity].keys()
 # add one for offset
 num_groupbys = 1
 
-for num_filters in range(0, max_num_filters + 1):
-    new_combo = list(combinations(all_fields, num_groupbys + num_filters))
-    random.shuffle(new_combo)  # randomize within the filter size
-    chosen_fields_combinations_remaining += new_combo
+chosen_fields_combinations_remaining = {}
+for entity in entities:
+    chosen_fields_combinations_remaining[entity] = []
+    for num_filters in range(0, max_num_filters + 1):
+        new_combo = list(combinations(all_fields[entity], num_groupbys + num_filters))
+        random.shuffle(new_combo)  # randomize within the filter size
+        chosen_fields_combinations_remaining[entity] += new_combo
 
 # max_num_filters = len(field_lookup) - 2
 # chosen_fields_combinations_remaining = list(combinations(all_fields, num_groupbys + max_num_filters + 1))
@@ -176,16 +183,16 @@ for num_filters in range(0, max_num_filters + 1):
 
 # print chosen_fields_combinations_remaining
 
-print("Number of fields: {}".format(len(field_lookup.keys())))
-print("Number of tables: {}".format(len(table_lookup.keys())))
-print("Number of combos with {} filters and a group-by: {}".format(max_num_filters, len(chosen_fields_combinations_remaining)))
-print("Number of hours it'd take to go through in a single thread, if 10 seconds each: {}".format(round(len(chosen_fields_combinations_remaining) * 10.0 / 60.0), 1))
+# print("Number of fields: {}".format(len(field_lookup.keys())))
+# print("Number of tables: {}".format(len(table_lookup.keys())))
+# print("Number of combos with {} filters and a group-by: {}".format(max_num_filters, len(chosen_fields_combinations_remaining)))
+# print("Number of hours it'd take to go through in a single thread, if 10 seconds each: {}".format(round(len(chosen_fields_combinations_remaining) * 10.0 / 60.0), 1))
 
-def get_column_values(column, random=False, limit=100):
+def get_column_values(entity, column, random=False, limit=100):
     print("getting values for column {}".format(column))
 
     global field_lookup
-    lookup_dict = field_lookup[column]
+    lookup_dict = field_lookup[entity][column]
 
     if random:
         orderby = "random()"
@@ -206,10 +213,10 @@ def get_column_values(column, random=False, limit=100):
     return rows
 
 
-def get_column_values_for_querying(field, random=False):
+def get_column_values_for_querying(entity, field, random=False):
     column_name_solo = field
 
-    rows = get_column_values(field, random)
+    rows = get_column_values(entity, field, random)
 
     values = []
     for row in rows:
@@ -223,20 +230,26 @@ def get_column_values_for_querying(field, random=False):
                 values.append(value)  # don't include empty strings
     return values
 
-def is_filter_uses_table(filters, table_name):
+def is_filter_uses_table(entity, filters, table_name):
     for filter in filters:
         (filter_field, filter_value) = filter.split(":", 1)
-        if table_name == field_lookup[filter_field]["table_name"]:
+        if table_name == field_lookup[entity][filter_field]["table_name"]:
             return True
     return False
 
-def is_groupby_uses_table(groupby, table_name):
-    if groupby and (table_name == field_lookup[groupby]["table_name"]):
+def is_groupby_uses_table(entity, groupby, table_name):
+    if groupby and (table_name == field_lookup[entity][groupby]["table_name"]):
         return True
     return False
 
-def do_query(filters, groupby=None, details=False, limit=100, verbose=True, queryonly=False):
+def do_query(entity, filters, groupby=None, details=False, limit=100, verbose=True, queryonly=False):
     timer = Timer()
+
+    # for now, till we crack these ones
+    if is_groupby_uses_table(entity, groupby, "mag_paperid_authors") and is_filter_uses_table(entity, filters, "unpaywall_paperid_oa_location"):
+        rows = []
+        q = None
+        return (rows, q, timer.to_dict())
 
     join_clause = " "
     for table_name in table_lookup:
@@ -248,17 +261,17 @@ def do_query(filters, groupby=None, details=False, limit=100, verbose=True, quer
         #     join_clause += join_lookup[table_name]
 
         # just do simple one for now
-        if is_groupby_uses_table(groupby, table_name) or is_filter_uses_table(filters, table_name):
+        if is_groupby_uses_table(entity, groupby, table_name) or is_filter_uses_table(entity, filters, table_name):
             if join_lookup[table_name] != "":
                 join_clause += join_lookup[table_name]
 
     filter_string_list = []
     for filter in filters:
         (filter_field, filter_value) = filter.split(":", 1)
-        if field_lookup[filter_field]["datatype"] == str:
+        if field_lookup[entity][filter_field]["datatype"] == str:
             filter_value = filter_value.replace("'", "''")
             filter_value = "'{}'".format(filter_value)
-        filter_column_name = field_lookup[filter_field]["column_name"]
+        filter_column_name = field_lookup[filter_field][entity]["column_name"]
         filter_string = " ( {} = {} ) ".format(filter_column_name, filter_value)
         filter_string_list.append(filter_string)
 
@@ -269,7 +282,7 @@ def do_query(filters, groupby=None, details=False, limit=100, verbose=True, quer
 
     groupby_clause = 1
     if groupby:
-        groupby_clause = field_lookup[groupby]["column_name"]
+        groupby_clause = field_lookup[entity][groupby]["column_name"]
 
     with get_db_cursor() as cursor:
         timer.log_timing("0. in with")
@@ -330,27 +343,36 @@ if __name__ == "__main__":
     parsed_args = parser.parse_args()
     parsed_vars = vars(parsed_args)
 
+    entities = ["works"]
+
     start_time = time()
     print("getting valid column values")
-    all_fields = list(field_lookup.keys())
-    random.shuffle(all_fields)   # helps be fast in parallel
     field_values = {}
-    for field in all_fields:
-        field_values[field] = get_column_values_for_querying(field)
+    all_fields = {}
+    for entity in entities:
+        field_values[entity] = {}
+        all_fields[entity] = list(field_lookup[entity].keys())
+        random.shuffle(all_fields[entity])   # helps be fast in parallel
+        for field in all_fields[entity]:
+            field_values[entity][field] = get_column_values_for_querying(entity, field)
     print("done, took {} seconds".format(elapsed(start_time)))
+    # print(all_fields)
 
     keep_running = True
 
     while keep_running:
-        if parsed_vars.get("warm"):
-            chosen_fields = chosen_fields_combinations_remaining.pop(0)
-            if not chosen_fields_combinations_remaining:
-                keep_running = False
-        else:
-            num_fields = random.randint(num_groupbys, num_groupbys + max_num_filters)
-            chosen_fields = random.sample(all_fields, num_fields)
 
-        filters = ["{}:{}".format(c, random.choice(field_values[c])) for c in chosen_fields[num_groupbys:]]
-        groupby = chosen_fields[0]
+        for entity in entities:
+            if parsed_vars.get("warm"):
+                chosen_fields = chosen_fields_combinations_remaining[entity].pop(0)
+                # print(chosen_fields)
+                if not chosen_fields_combinations_remaining:
+                    keep_running = False
+            else:
+                num_fields = random.randint(num_groupbys, num_groupbys + max_num_filters)
+                chosen_fields = random.sample(all_fields[entity], num_fields)
 
-        (rows, q, timing) = do_query(filters, groupby, verbose=False)
+            filters = ["{}:{}".format(c, random.choice(field_values[c])) for c in chosen_fields[num_groupbys:]]
+            groupby = chosen_fields[0]
+
+            (rows, q, timing) = do_query(entity, filters, groupby, verbose=True)

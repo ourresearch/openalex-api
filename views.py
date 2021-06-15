@@ -471,28 +471,28 @@ def get_standard_versions(dirty_list):
 
 
 
-@app.route("/works/attribute/list", methods=["GET"])
-def attribute_list():
+@app.route("/<entity>/attribute/list", methods=["GET"])
+def attribute_list(entity):
     timer = Timer()
     timer.log_timing("get values")
-    return jsonify_fast_no_sort({"_timing": timer.to_dict(), "response": list(field_lookup.keys())})
+    return jsonify_fast_no_sort({"_timing": timer.to_dict(), "response": list(field_lookup[entity].keys())})
 
-@app.route("/works/attribute/<attribute>/random", methods=["GET"])
-def works_attribute_random(attribute):
+@app.route("/<entity>/attribute/<attribute>/random", methods=["GET"])
+def works_attribute_random(entity, attribute):
     timer = Timer()
-    response = get_column_values(attribute, random=True)
-    timer.log_timing("get values")
-    return jsonify_fast_no_sort({"_timing": timer.to_dict(), "response": response})
-
-@app.route("/works/attribute/<attribute>/top", methods=["GET"])
-def works_attribute_top(attribute):
-    timer = Timer()
-    response = get_column_values(attribute, random=False)
+    response = get_column_values(entity, attribute, random=True)
     timer.log_timing("get values")
     return jsonify_fast_no_sort({"_timing": timer.to_dict(), "response": response})
 
-@app.route("/works/query", methods=["GET"])
-def works_query():
+@app.route("/<entity>/attribute/<attribute>/top", methods=["GET"])
+def works_attribute_top(entity, attribute):
+    timer = Timer()
+    response = get_column_values(entity, attribute, random=False)
+    timer.log_timing("get values")
+    return jsonify_fast_no_sort({"_timing": timer.to_dict(), "response": response})
+
+@app.route("/<entity>/query", methods=["GET"])
+def works_query(entity):
     filter = request.args.get("filter", "")
     groupby = request.args.get("groupby", None)
     format = request.args.get("format", "json")
@@ -512,7 +512,7 @@ def works_query():
     filters_list = []
     if filter:
         filters_list = filter.split(",")
-    (rows, sql, timing) = do_query(filters_list, groupby, details, limit=limit, verbose=False, queryonly=queryonly)
+    (rows, sql, timing) = do_query(entity, filters_list, groupby, details, limit=limit, verbose=False, queryonly=queryonly)
     return jsonify_fast_no_sort({"_timing": timing,
                          "query": {"filter": filter,
                                    "groupby": groupby,
