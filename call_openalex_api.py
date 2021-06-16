@@ -87,15 +87,28 @@ join_lookup = {}
 #     ("repository_institution", str),
 # ]
 
+entity_table_lookup = {
+    "works": "mag_combo_all",
+    "authors": "mag_paperid_authors",
+    "journals": "journalsdb_computed",
+    "oa_locations": "unpaywall_paperid_oa_location",
+    "fields_of_study": "mag_paperid_fields_of_study"
+}
 
+for entity in entity_table_lookup.keys():
+    join_lookup[entity] = {}
 
-join_lookup["mag_combo_all"] = ""
+join_lookup["works"]["mag_combo_all"] = ""
+join_lookup["authors"]["mag_combo_all"] = """ JOIN mag_combo_all ON mag_paperid_authors.paper_id = mag_combo_all.paper_id  """
+join_lookup["journals"]["mag_combo_all"] = """ JOIN mag_combo_all ON journalsdb_computed.issn_l = mag_combo_all.issn_l  """
+join_lookup["oa_locations"]["mag_combo_all"] = """ JOIN mag_combo_all ON unpaywall_paperid_oa_location.paper_id = mag_combo_all.paper_id  """
+join_lookup["fields_of_study"]["mag_combo_all"] = """ JOIN mag_combo_all ON mag_paperid_fields_of_study.paper_id = mag_combo_all.paper_id  """
 table_lookup["mag_combo_all"] = [
+    ("paper_id", int),
     ("doi", str),
     ("doc_type", str),
     ("year", int),
 ]
-
 
 
 table_lookup["mag_combo_all"] += [
@@ -125,13 +138,13 @@ table_lookup["mag_combo_all"] += [
     ("issn_l", str),
 ]
 
-join_lookup["mag_paperid_authors"] = """ JOIN mag_paperid_authors ON mag_paperid_authors.paper_id = mag_combo_all.paper_id """
+join_lookup["works"]["mag_paperid_authors"] = """ JOIN mag_paperid_authors ON mag_paperid_authors.paper_id = mag_combo_all.paper_id """
 table_lookup["mag_paperid_authors"] = [
     ("normalized_name", str),
     ("author_id", int),
 ]
 
-join_lookup["unpaywall_paperid_oa_location"] = " JOIN unpaywall_paperid_oa_location ON unpaywall_paperid_oa_location.paper_id = mag_combo_all.paper_id "
+join_lookup["works"]["unpaywall_paperid_oa_location"] = " JOIN unpaywall_paperid_oa_location ON unpaywall_paperid_oa_location.paper_id = mag_combo_all.paper_id "
 table_lookup["unpaywall_paperid_oa_location"] = [
     # ("endpoint_id", str),
     ("version", str),
@@ -140,7 +153,7 @@ table_lookup["unpaywall_paperid_oa_location"] = [
 ]
 
 
-join_lookup["mag_paperid_fields_of_study"] = """ JOIN mag_paperid_fields_of_study ON mag_paperid_fields_of_study.paper_id = mag_combo_all.paper_id """
+join_lookup["works"]["mag_paperid_fields_of_study"] = """ JOIN mag_paperid_fields_of_study ON mag_paperid_fields_of_study.paper_id = mag_combo_all.paper_id """
 table_lookup["mag_paperid_fields_of_study"] = [
     ("field_of_study_id", int),
     ("normalized_field_of_study_name", str),
@@ -149,7 +162,7 @@ table_lookup["mag_paperid_fields_of_study"] = [
 
 
 field_lookup = {}
-entities = ["works"]
+entities = entity_table_lookup.keys()
 for entity in entities:
     field_lookup[entity] = {}
     for table_name in table_lookup:
@@ -242,6 +255,27 @@ def is_groupby_uses_table(entity, groupby, table_name):
         return True
     return False
 
+def get_work(id_type, id):
+    filters = []
+    if id_type == "paper_id":
+        filters = ["paper_id:{}".format(id)]
+    if id_type == "doi":
+        filters = ["doi:{}".format(id)]
+
+    (rows, q, timer_dict) = do_query("works", filters, details=True)
+    this_work_dict = rows[0]
+    keys_to_keep = ["paper_id", "doi", "publication_date", "year", "doc_type", "genre", "issn_l"]
+    response_dict = { my_key: this_work_dict[my_key] for my_key in keys_to_keep }
+
+    verbose = True
+    (response_dict["authors"], dummy1, dummy2) = do_query("authors", filters, details=True, verbose=verbose)
+    (response_dict["oa_locations"], dummy1, dummy2) = do_query("oa_locations", filters, details=True, verbose=verbose)
+    (response_dict["fields_of_study"], dummy1, dummy2) = do_query("fields_of_study", filters, details=True, verbose=verbose)
+    (response_dict["journal"], dummy1, dummy2) = do_query("journals", filters, details=True, verbose=verbose)
+
+    return (response_dict, timer_dict)
+
+
 def do_query(entity, filters, groupby=None, details=False, limit=100, verbose=True, queryonly=False):
     timer = Timer()
 
@@ -255,15 +289,15 @@ def do_query(entity, filters, groupby=None, details=False, limit=100, verbose=Tr
     for table_name in table_lookup:
         # give priority to groupby, make sure each table is only joined once
         # if is_groupby_uses_table(groupby, table_name):
-        #     if join_lookup[table_name] != "" and table_name != "mag_paperid_authors":
-        #         join_clause += " LEFT OUTER " + join_lookup[table_name]
+        #     if join_lookup[entity][table_name] != "" and table_name != "mag_paperid_authors":
+        #         join_clause += " LEFT OUTER " + join_lookup[entity][table_name]
         # elif is_filter_uses_table(filters, table_name):
-        #     join_clause += join_lookup[table_name]
+        #     join_clause += join_lookup[entity][table_name]
 
         # just do simple one for now
         if is_groupby_uses_table(entity, groupby, table_name) or is_filter_uses_table(entity, filters, table_name):
-            if join_lookup[table_name] != "":
-                join_clause += join_lookup[table_name]
+            if join_lookup[entity][table_name] != "":
+                join_clause += join_lookup[entity][table_name]
 
     filter_string_list = []
     for filter in filters:
@@ -284,16 +318,19 @@ def do_query(entity, filters, groupby=None, details=False, limit=100, verbose=Tr
     if groupby:
         groupby_clause = field_lookup[entity][groupby]["column_name"]
 
+    entity_table = entity_table_lookup[entity]
+
     with get_db_cursor() as cursor:
         timer.log_timing("0. in with")
 
         if details:
-            q = """SELECT mag_combo_all.*
-                    FROM mag_combo_all
+            q = """SELECT distinct {entity_table}.*
+                    FROM {entity_table}
                     {join_clause} 
                     WHERE {where_clause}
                     ORDER BY mag_combo_all.publication_date DESC
                     LIMIT {limit}""".format(
+                        entity_table=entity_table,
                         join_clause=join_clause,
                         where_clause=where_clause,
                         limit=limit)
@@ -305,6 +342,7 @@ def do_query(entity, filters, groupby=None, details=False, limit=100, verbose=Tr
                     GROUP BY {groupby_clause} 
                     ORDER BY n DESC
                     limit {limit}""".format(
+                        entity_table=entity_table,
                         join_clause=join_clause,
                         where_clause=where_clause,
                         groupby_clause=groupby_clause,
@@ -324,9 +362,9 @@ def do_query(entity, filters, groupby=None, details=False, limit=100, verbose=Tr
         timer.log_timing("2. after fetchall")
 
         if filters:
-            query_string = "https://api.openalex.org/works/query?filter={}&groupby={}".format(",".join(filters), groupby)
+            query_string = "https://api.openalex.org/{}/query?filter={}&groupby={}".format(entity, ",".join(filters), groupby)
         else:
-            query_string = "https://api.openalex.org/works/query?groupby={}".format(groupby)
+            query_string = "https://api.openalex.org/{}/query?groupby={}".format(entity, groupby)
 
         print("{:>10}s {:>15,} rows:  {}".format(timer.elapsed_total, len(rows), query_string))
 

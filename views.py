@@ -33,6 +33,7 @@ import copy
 from call_openalex_api import get_column_values
 from call_openalex_api import field_lookup
 from call_openalex_api import do_query
+from call_openalex_api import get_work
 
 from app import app
 from app import db
@@ -470,29 +471,33 @@ def get_standard_versions(dirty_list):
     return [lookup.get(v.lower(), v.lower()) for v in dirty_list if v]
 
 
+@app.route("/works/<id_type>/<path:id>", methods=["GET"])
+def works_id_type_get(id_type, id):
+    (response, timer_dict) = get_work(id_type, id)
+    return jsonify_fast_no_sort({"_timing": timer_dict, "response": response})
 
 @app.route("/<entity>/attribute/list", methods=["GET"])
-def attribute_list(entity):
+def entity_attribute_list(entity):
     timer = Timer()
     timer.log_timing("get values")
     return jsonify_fast_no_sort({"_timing": timer.to_dict(), "response": list(field_lookup[entity].keys())})
 
 @app.route("/<entity>/attribute/<attribute>/random", methods=["GET"])
-def works_attribute_random(entity, attribute):
+def entity_attribute_random(entity, attribute):
     timer = Timer()
     response = get_column_values(entity, attribute, random=True)
     timer.log_timing("get values")
     return jsonify_fast_no_sort({"_timing": timer.to_dict(), "response": response})
 
 @app.route("/<entity>/attribute/<attribute>/top", methods=["GET"])
-def works_attribute_top(entity, attribute):
+def entity_attribute_top(entity, attribute):
     timer = Timer()
     response = get_column_values(entity, attribute, random=False)
     timer.log_timing("get values")
     return jsonify_fast_no_sort({"_timing": timer.to_dict(), "response": response})
 
 @app.route("/<entity>/query", methods=["GET"])
-def works_query(entity):
+def entity_query(entity):
     filter = request.args.get("filter", "")
     groupby = request.args.get("groupby", None)
     format = request.args.get("format", "json")
