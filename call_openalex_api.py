@@ -324,8 +324,8 @@ def do_query(entity, filters, groupby=None, details=False, limit=100, verbose=Tr
         timer.log_timing("0. in with")
 
         if details:
-            q = """SELECT distinct mag_combo_all.paper_id, max(doi) as doi, max(doc_type) as doc_type, max(issn_l) as issn_l, max(paper_title) as paper_title, 
-            max(journal_title) as journal_title, max(publication_date) as publication_date, max(year) as year 
+            q = """SELECT mag_combo_all.paper_id, max(mag_combo_all.doi) as doi, max(mag_combo_all.doc_type) as doc_type, max(mag_combo_all.issn_l) as issn_l, max(mag_combo_all.paper_title) as paper_title, 
+            max(mag_combo_all.journal_title) as journal_title, max(mag_combo_all.publication_date) as publication_date, max(mag_combo_all.year) as year 
                     FROM {entity_table}
                     {join_clause} 
                     WHERE {where_clause}
@@ -363,10 +363,16 @@ def do_query(entity, filters, groupby=None, details=False, limit=100, verbose=Tr
         rows = cursor.fetchall()
         timer.log_timing("2. after fetchall")
 
-        if filters:
-            query_string = "https://api.openalex.org/{}/query?filter={}&groupby={}".format(entity, ",".join(filters), groupby)
+        if details:
+            if filters:
+                query_string = "https://api.openalex.org/{}/query?filter={}&details".format(entity, ",".join(filters))
+            else:
+                query_string = "https://api.openalex.org/{}/query?details".format(entity)
         else:
-            query_string = "https://api.openalex.org/{}/query?groupby={}".format(entity, groupby)
+            if filters:
+                query_string = "https://api.openalex.org/{}/query?filter={}&groupby={}".format(entity, ",".join(filters), groupby)
+            else:
+                query_string = "https://api.openalex.org/{}/query?groupby={}".format(entity, groupby)
 
         print("{:>10}s {:>15,} rows:  {}".format(timer.elapsed_total, len(rows), query_string))
 
