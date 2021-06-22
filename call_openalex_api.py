@@ -324,10 +324,12 @@ def do_query(entity, filters, groupby=None, details=False, limit=100, verbose=Tr
         timer.log_timing("0. in with")
 
         if details:
-            q = """SELECT distinct {entity_table}.*
+            q = """SELECT distinct mag_combo_all.paper_id, max(doi) as doi, max(doc_type) as doc_type, max(issn_l) as issn_l, max(paper_title) as paper_title, 
+            max(journal_title) as journal_title, max(publication_date) as publication_date, max(year) as year 
                     FROM {entity_table}
                     {join_clause} 
                     WHERE {where_clause}
+                    GROUP BY mag_combo_all.paper_id, mag_combo_all.publication_date
                     ORDER BY mag_combo_all.publication_date DESC
                     LIMIT {limit}""".format(
                         entity_table=entity_table,
@@ -413,4 +415,6 @@ if __name__ == "__main__":
             filters = ["{}:{}".format(c, random.choice(field_values[entity][c])) for c in chosen_fields[num_groupbys:]]
             groupby = chosen_fields[0]
 
-            (rows, q, timing) = do_query(entity, filters, groupby, verbose=False)
+            details = True
+            verbose = False
+            (rows, q, timing) = do_query(entity, filters, groupby, verbose=verbose, details=details)
