@@ -108,6 +108,8 @@ table_lookup["mag_combo_all"] = [
     ("doi", str),
     ("doc_type", str),
     ("year", int),
+    ("paper_title", str),
+    ("journal_title", str),
 ]
 
 
@@ -276,10 +278,10 @@ def get_work(id_type, id):
     return (response_dict, timer_dict)
 
 
-def do_query(entity, filters, groupby=None, details=False, limit=100, verbose=True, queryonly=False):
+def do_query(entity, filters, searches=[], groupby=None, details=False, limit=100, verbose=True, queryonly=False):
     timer = Timer()
 
-    # for now, till we crack these ones
+    # just bail on these for now, till we crack these ones
     if is_groupby_uses_table(entity, groupby, "mag_paperid_authors") and is_filter_uses_table(entity, filters, "unpaywall_paperid_oa_location"):
         rows = []
         q = None
@@ -298,6 +300,10 @@ def do_query(entity, filters, groupby=None, details=False, limit=100, verbose=Tr
         if is_groupby_uses_table(entity, groupby, table_name) or is_filter_uses_table(entity, filters, table_name):
             if join_lookup[entity][table_name] != "":
                 join_clause += join_lookup[entity][table_name]
+        elif searches != []:
+            if is_filter_uses_table(entity, searches, table_name) and join_lookup[entity][table_name]:
+                join_clause += join_lookup[entity][table_name]
+
 
     filter_string_list = []
     for filter in filters:
@@ -308,6 +314,13 @@ def do_query(entity, filters, groupby=None, details=False, limit=100, verbose=Tr
         filter_column_name = field_lookup[entity][filter_field]["column_name"]
         filter_string = " ( {} = {} ) ".format(filter_column_name, filter_value)
         filter_string_list.append(filter_string)
+
+    for search in searches:
+        (search_field, search_value) = search.split(":", 1)
+        search_value = search_value.replace("'", "''")
+        search_column_name = field_lookup[entity][search_field]["column_name"]
+        search_string = " ( {} ilike '%{}%' ) ".format(search_column_name, search_value)
+        filter_string_list.append(search_string)
 
     if filter_string_list:
         where_clause = " AND ".join(filter_string_list)
@@ -421,6 +434,7 @@ if __name__ == "__main__":
             filters = ["{}:{}".format(c, random.choice(field_values[entity][c])) for c in chosen_fields[num_groupbys:]]
             groupby = chosen_fields[0]
 
+            searches = []
             verbose = False
-            (rows, q, timing) = do_query(entity, filters, groupby, verbose=verbose, details=False)
-            (rows, q, timing) = do_query(entity, filters, groupby, verbose=verbose, details=True)
+            (rows, q, timing) = do_query(entity, filters, searches, groupby, verbose=verbose, details=False)
+            (rows, q, timing) = do_query(entity, filters, searches, groupby, verbose=verbose, details=True)

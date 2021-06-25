@@ -499,6 +499,7 @@ def entity_attribute_top(entity, attribute):
 @app.route("/<entity>/query", methods=["GET"])
 def entity_query(entity):
     filter = request.args.get("filter", "")
+    search = request.args.get("search", "")
     groupby = request.args.get("groupby", None)
     format = request.args.get("format", "json")
     limit = max(100, int(request.args.get("limit", 10)))
@@ -517,9 +518,15 @@ def entity_query(entity):
     filters_list = []
     if filter:
         filters_list = filter.split(",")
-    (rows, sql, timing) = do_query(entity, filters_list, groupby, details, limit=limit, verbose=False, queryonly=queryonly)
+
+    searches_list = []
+    if search:
+        searches_list = search.split(",")
+
+    (rows, sql, timing) = do_query(entity, filters_list, searches_list, groupby, details, limit=limit, verbose=False, queryonly=queryonly)
     return jsonify_fast_no_sort({"_timing": timing,
                          "query": {"filter": filter,
+                                   "search": search,
                                    "groupby": groupby,
                                    "details": details,
                                    "format": format,
