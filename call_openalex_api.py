@@ -398,6 +398,7 @@ def do_query(entity, filters, searches=[], groupby=None, details=False, limit=10
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Run stuff.")
     parser.add_argument('--warm', action='store_true', help="warm cache")
+    parser.add_argument('--verbose', action='store_true', help="print verbose")
 
     parsed_args = parser.parse_args()
     parsed_vars = vars(parsed_args)
@@ -435,6 +436,6 @@ if __name__ == "__main__":
             groupby = chosen_fields[0]
 
             searches = []
-            verbose = False
+            verbose = parsed_vars.get("verbose")
             (rows, q, timing) = do_query(entity, filters, searches, groupby, verbose=verbose, details=False)
             (rows, q, timing) = do_query(entity, filters, searches, groupby, verbose=verbose, details=True)
