@@ -1,26 +1,17 @@
-import os
-import sickle
-import boto
 import datetime
 import requests
-from time import sleep
 from time import time
-from urllib import quote
-import zlib
-import re
-import json
+import urllib.parse
 import argparse
-from sqlalchemy.dialects.postgresql import JSONB
-from requests.packages.urllib3.util.retry import Retry
+import json
+import copy
 
 from app import db
 from app import logger
-from util import elapsed
-from util import safe_commit
-from util import clean_doi
-from util import DelayedAdapter
-
 from app import get_db_cursor
+from util import elapsed
+from util import clean_doi
+
 
 
 # data from https://archive.org/details/crossref_doi_metadata
@@ -132,7 +123,7 @@ def get_new_dois_and_data_from_crossref(query_doi=None, first=None, last=None, t
             resp_data = resp.json()["message"]
             next_cursor = resp_data.get("next-cursor", None)
             if next_cursor:
-                next_cursor = quote(next_cursor)
+                next_cursor = urllib.parse.quote(next_cursor)
 
             if not resp_data["items"] or not next_cursor:
                 has_more_responses = False
@@ -178,12 +169,17 @@ def scroll_through_all_dois(query_doi=None, first=None, last=None, today=False, 
     # base_url = "https://api.crossref.org/works?filter=type:journal-article,from-pub-date:2017,until-pub-date:2017&rows=1000&select=DOI&cursor={next_cursor}"
 
     # base_url = "https://api.crossref.org/works?filter=type:journal-article,from-issued-date:2018,until-issued-date:2018&rows={rows}&select=DOI,published-print,published-online,issued&cursor={next_cursor}"
-    base_url = "https://api.crossref.org/works?filter=type:journal-article,from-issued-date:2018,until-issued-date:2018&rows={rows}&select=DOI,issued&cursor={next_cursor}"
+    # base_url = "https://api.crossref.org/works?filter=type:journal-article,from-issued-date:2018,until-issued-date:2018&rows={rows}&select=DOI,issued&cursor={next_cursor}"
 
     # if first:
     #     base_url = "https://api.crossref.org/works?filter=from-created-date:{first},until-created-date:{last}&rows={rows}&select=DOI&cursor={next_cursor}"
     # else:
     #     base_url = "https://api.crossref.org/works?filter=until-created-date:{last}&rows={rows}&select=DOI&cursor={next_cursor}"
+
+    if first:
+        base_url = "https://api.crossref.org/works?filter=from-created-date:{first},until-created-date:{last}&rows={rows}&cursor={next_cursor}"
+    else:
+        base_url = "https://api.crossref.org/works?filter=until-created-date:{last}&rows={rows}&cursor={next_cursor}"
 
     next_cursor = "*"
     has_more_responses = True
@@ -209,13 +205,22 @@ def scroll_through_all_dois(query_doi=None, first=None, last=None, today=False, 
         resp_data = resp.json()["message"]
         next_cursor = resp_data.get("next-cursor", None)
         if next_cursor:
-            next_cursor = quote(next_cursor)
+            next_cursor = urllib.parse.quote(next_cursor)
             if resp_data["items"] and len(resp_data["items"]) == chunk_size:
                 has_more_responses = True
 
-        def get_fields(row):
+        def get_fields(row_original):
+            row = copy.deepcopy(row_original)
             fields = {}
             fields["doi"] = clean_doi(row["DOI"])
+            if "reference" in row:
+                del row["reference"]
+            fields["api_response"] = json.dumps(row)
+            fields["api_response"] = fields["api_response"].replace("'", "''")
+            if len(fields["api_response"]) > 64000:
+                print("remaining api_response still too long even after deleting references")
+                print(len(fields["api_response"]))
+                print(fields["doi"])
             # fields["dates_text"] = json.dumps(row)  # too slow for now
             fields["dates_text"] = None
             issued_year = ""
@@ -240,19 +245,41 @@ def scroll_through_all_dois(query_doi=None, first=None, last=None, today=False, 
             fields["issued_day"] = issued_day
             return fields
 
+        def get_references(items):
+            references = []
+            for item in items:
+                doi = clean_doi(item["DOI"])
+                for reference_row in item.get("reference", []):
+                    reference = {}
+                    reference["doi"] = doi
+                    reference["api_response"] = json.dumps(reference_row)
+                    reference["api_response"] = reference["api_response"].replace("'", "''")
+                    references += [reference]
+            return references
+
         data_dicts = [get_fields(api_raw) for api_raw in resp_data["items"]]
+        data_reference_dicts = get_references(resp_data["items"])
         with get_db_cursor() as cursor:
-            # command = u"""INSERT INTO crossref_2017_dois_fresh (doi) values """
-            command = u"""INSERT INTO crossref_dois_fresh_dates (doi, dates_text, issued_year, issued_month, issued_day) values """
+            command = u"""INSERT INTO crossref_raw_direct (doi, updated, api_raw) values """
             insert_strings = []
             for my_dict in data_dicts:
-                insert_string = u"""('{doi}', '{dates_text}', '{issued_year}', '{issued_month}', '{issued_day}')""".format(**my_dict)
+                insert_string = u"""('{doi}', sysdate, '{api_response}')""".format(**my_dict)
                 insert_strings.append(insert_string)
             command = command + u",".join(insert_strings) + u";"
             # print command
-            print "*",
-
+            print("*"),
             cursor.execute(command)
+
+            if data_reference_dicts:
+                command = u"""INSERT INTO crossref_reference_raw_direct (doi, updated, api_raw) values """
+                insert_strings = []
+                for my_dict in data_reference_dicts:
+                    insert_string = u"""('{doi}', sysdate, '{api_response}')""".format(**my_dict)
+                    insert_strings.append(insert_string)
+                command = command + u",".join(insert_strings) + u";"
+                # print command
+                print("!"),
+                cursor.execute(command)
 
         logger.info(u"loop done in {} seconds".format(elapsed(start_time, 2)))
 
@@ -267,7 +294,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Run stuff.")
 
 
-    scroll_through_all_dois(None, "2017", "2017")
+    scroll_through_all_dois(None, "2021-05-01", "2021-05-10")
 
     #
     # function = scroll_through_all_dois
