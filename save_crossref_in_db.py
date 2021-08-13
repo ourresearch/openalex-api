@@ -252,6 +252,10 @@ def scroll_through_all_dois(query_doi=None, first=None, last=None, today=False, 
                 for reference_row in item.get("reference", []):
                     reference = {}
                     reference["doi"] = doi
+                    try:
+                        reference["doi_referenced"] = clean_doi(reference_row["DOI"])
+                    except:
+                        reference["doi_referenced"] = None
                     reference["api_response"] = json.dumps(reference_row)
                     reference["api_response"] = reference["api_response"].replace("'", "''")
                     references += [reference]
@@ -271,10 +275,10 @@ def scroll_through_all_dois(query_doi=None, first=None, last=None, today=False, 
             cursor.execute(command)
 
             if data_reference_dicts:
-                command = u"""INSERT INTO crossref_reference_raw_direct (doi, updated, api_raw) values """
+                command = u"""INSERT INTO crossref_reference_raw_direct (doi, doi_referenced, updated, api_raw) values """
                 insert_strings = []
                 for my_dict in data_reference_dicts:
-                    insert_string = u"""('{doi}', sysdate, '{api_response}')""".format(**my_dict)
+                    insert_string = u"""('{doi}', '{doi_referenced}', sysdate, '{api_response}')""".format(**my_dict)
                     insert_strings.append(insert_string)
                 command = command + u",".join(insert_strings) + u";"
                 # print command
