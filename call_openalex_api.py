@@ -229,7 +229,7 @@ def get_column_values(entity, column, random=False, limit=100):
 
 
 def get_column_values_for_querying(entity, field, random=False):
-    column_name_solo = field
+    column_name_solo = field.upper()
 
     rows = get_column_values(entity, field, random)
 
@@ -337,18 +337,21 @@ def do_query(entity, filters, searches=[], groupby=None, details=False, limit=10
         timer.log_timing("0. in with")
 
         if details:
-            q = """SELECT mag_combo_all.paper_id, max(mag_combo_all.doi) as doi, max(mag_combo_all.doc_type) as doc_type, max(mag_combo_all.issn_l) as issn_l, max(mag_combo_all.paper_title) as paper_title, 
-            max(mag_combo_all.journal_title) as journal_title, max(mag_combo_all.publication_date) as publication_date, max(mag_combo_all.year) as year 
+            q = """SELECT paper_id, doi, doc_type, issn_l, paper_title, 
+            journal_title, publication_date, year
+            from mag_combo_all 
+            where paper_id in (
+            select distinct mag_combo_all.paper_id 
                     FROM {entity_table}
                     {join_clause} 
                     WHERE {where_clause}
-                    GROUP BY mag_combo_all.paper_id, mag_combo_all.publication_date
-                    ORDER BY mag_combo_all.publication_date DESC
-                    LIMIT {limit}""".format(
-                        entity_table=entity_table,
-                        join_clause=join_clause,
-                        where_clause=where_clause,
-                        limit=limit)
+            )
+            ORDER BY mag_combo_all.publication_date DESC
+            LIMIT {limit}""".format(
+                entity_table=entity_table,
+                join_clause=join_clause,
+                where_clause=where_clause,
+                limit=limit)
         else:
             q = """SELECT {groupby_clause}, count(distinct mag_combo_all.paper_id) as n 
                     FROM mag_combo_all 

@@ -42,9 +42,6 @@ from app import get_db_cursor
 from app import logger
 from data.funders import funder_names
 from institution import Institution
-from geo import get_oa_from_redshift
-from geo import get_oa_from_redshift_fast
-from geo import get_all_rows_fast
 from util import clean_doi
 from util import is_doi
 from util import is_issn
@@ -303,102 +300,6 @@ def get_total_count(package):
     return rows["num_articles"]
 
 
-
-
-@newrelic.agent.function_trace()
-def get_oa_from_redshift_country():
-    return get_oa_from_redshift("country")
-
-@newrelic.agent.function_trace()
-def get_oa_from_redshift_subcontinent():
-    return get_oa_from_redshift("subcontinent")
-
-@newrelic.agent.function_trace()
-def get_oa_from_redshift_continent():
-    return get_oa_from_redshift("continent")
-
-@newrelic.agent.function_trace()
-def get_oa_from_redshift_global():
-    return get_oa_from_redshift("global")
-
-
-@app.route("/metrics/geo", methods=["GET"])
-@newrelic.agent.function_trace()
-def metrics_oa_geo_hack_for_subcontinents():
-
-    groupby = request.args.get("groupby", "country")
-    if groupby == "country":
-        groupby = "subcontinent_as_country"
-    get_oa_newrelic_wrapper = newrelic.agent.FunctionTraceWrapper(
-        get_oa_from_redshift_fast, name=groupby, group='get_oa_from_redshift')
-    (response, timing) = get_oa_newrelic_wrapper(groupby)
-    return jsonify_fast_no_sort({"_timing": timing, "response": response})
-
-@app.route("/metrics/geo_real", methods=["GET"])
-@newrelic.agent.function_trace()
-def metrics_oa_geo_fast():
-
-    groupby = request.args.get("groupby", "country")
-    get_oa_newrelic_wrapper = newrelic.agent.FunctionTraceWrapper(
-        get_oa_from_redshift_fast, name=groupby, group='get_oa_from_redshift')
-    (response, timing) = get_oa_newrelic_wrapper(groupby)
-    return jsonify_fast_no_sort({"_timing": timing, "response": response})
-
-@app.route("/metrics/geo_all", methods=["GET"])
-@newrelic.agent.function_trace()
-def metrics_oa_geo_all_as_csv():
-
-    all_response_values = []
-    for level in ["country", "subcontinent", "continent", "global"]:
-
-        undefer_column = '*'
-        (rows, timing) = get_all_rows_fast(level, undefer_column)
-        for row in rows:
-            if row.get(level, "global"):
-                row["bronze_gold_green_hybrid"] = row["is_oa"]
-                row["gold_green_hybrid"] = row["green_gold_hybrid"]
-                del(row["green_gold_hybrid"])
-                row["bronze_gold_green"] = row["bronze_green_gold"]
-                del(row["bronze_green_gold"])
-                row["closed"] = row["num_distinct_articles"] - row["is_oa"]
-                row["year"] = int(row["year"])
-                row["continent"] = row.get("continent", None)
-                row["subcontinent"] = row.get("subcontinent", None)
-                row["name"] = row.get(level, "global")
-                row["iso2"] = row.get("country_iso2", None)
-                row["id"] = row.get("country_iso3", hashlib.md5(row["name"].encode()).hexdigest()[0:4])
-                row["level"] = level
-                all_response_values.append(row)
-
-    keys = list(rows[0].keys())
-    keys.reverse()  # a bit nicer this way
-    values = [[r[k] for k in keys] for r in all_response_values]  # do it this way to make sure they are in order
-    return jsonify_fast_no_sort({"_timing": timing, "response": {"keys": keys, "values": values}})
-
-@app.route("/metrics/map/continent", methods=["GET"])
-@newrelic.agent.function_trace()
-def metrics_continent_map():
-    with open("data/world-continents.json") as f:
-        data = f.read()
-    return Response(data, mimetype="application/json")
-
-@app.route("/metrics/map/country", methods=["GET"])
-@newrelic.agent.function_trace()
-def metrics_country_map():
-    with open("data/world-countries-sans-antarctica.json") as f:
-        data = f.read()
-    return Response(data, mimetype="application/json")
-
-@app.route("/metrics/iso2_to_iso3", methods=["GET"])
-@newrelic.agent.function_trace()
-def metrics_iso2_to_iso3():
-
-    all_response_values = {}
-    (rows, timing) = get_all_rows_fast("country", "country_iso2, country_iso3")
-    for row in rows:
-        all_response_values[row["country_iso2"]] = row["country_iso3"]
-
-    return jsonify_fast_no_sort({"_timing": timing, "response": all_response_values})
 
 def controlled_vocab(text):
     if not text:

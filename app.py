@@ -51,7 +51,8 @@ libraries_to_mum = [
     "paramiko",
     "chardet",
     "cryptography",
-    "psycopg2"
+    "psycopg2",
+    "snowflake"
 ]
 
 
@@ -73,10 +74,12 @@ app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = True  # as instructed, to suppres
 app.config['SQLALCHEMY_ECHO'] = (os.getenv("SQLALCHEMY_ECHO", False) == "True")
 # app.config['SQLALCHEMY_ECHO'] = True
 
-app.config["SQLALCHEMY_DATABASE_URI"] = os.getenv("DATABASE_URL")  # don't use this though, default is unclear, use binds
+# app.config["SQLALCHEMY_DATABASE_URI"] = os.getenv("DATABASE_URL")  # don't use this though, default is unclear, use binds
+app.config["SQLALCHEMY_DATABASE_URI"] = os.getenv("DATABASE_URL_REDSHIFT")  # don't use this though, default is unclear, use binds
 app.config["SQLALCHEMY_BINDS"] = {
     "unpaywall_db": os.getenv("DATABASE_URL_UNPAYWALL"),
     "redshift_db": os.getenv("DATABASE_URL_REDSHIFT"),
+    "snowflake_db": os.getenv("DATABASE_URL_SNOWFLAKE"),
     "paperbuzz_db": os.getenv("DATABASE_URL_PAPERBUZZ"),
     "pubmed_db": os.getenv("DATABASE_URL_MEDOC")
 }
@@ -121,26 +124,61 @@ app.config['postgreSQL_pool'] = ThreadedConnectionPool(2, 5,
                                   port=redshift_url.port)
 
 
-@contextmanager
-def get_db_connection():
-    try:
-        connection = app.config['postgreSQL_pool'].getconn()
-        connection.set_isolation_level(psycopg2.extensions.ISOLATION_LEVEL_AUTOCOMMIT)
-        connection.autocommit=True
-        # connection.readonly = True
-        yield connection
-    finally:
-        app.config['postgreSQL_pool'].putconn(connection)
 
-@contextmanager
+# import snowflake
+# class DictLowercaseCursor(snowflake.connector.DictCursor):
+#     def __init__(self, *args, **kwargs):  # it didn't work with or
+#         super().__init__(*args, **kwargs) # without these 2 lines
+#
+#     def execute(self, sql, args=None):
+#         sql =
+#         super().execute(sql, args)
+
+
+# @contextmanager
+def get_db_connection():
+    # conn = snowflake_engine.connect()
+
+    import snowflake.connector
+    from urllib.parse import urlparse
+    from urllib.parse import parse_qs
+    connection_parse = urlparse(os.getenv("DATABASE_URL_SNOWFLAKE"))
+    connection_query = parse_qs(connection_parse.query)
+
+    #create connection
+    conn = snowflake.connector.connect(
+        user=connection_query["user"][0],
+        password=connection_query["password"][0],
+        account=connection_parse.netloc,
+        warehouse=connection_query["warehouse"][0],
+        database=connection_query["db"][0],
+        schema=connection_query["schema"][0])
+    return conn
+
+    # try:
+    #     connection = app.config['postgreSQL_pool'].getconn()
+    #     connection.set_isolation_level(psycopg2.extensions.ISOLATION_LEVEL_AUTOCOMMIT)
+    #     connection.autocommit=True
+    #     # connection.readonly = True
+    #     yield connection
+    # finally:
+    #     app.config['postgreSQL_pool'].putconn(connection)
+
+# @contextmanager
 def get_db_cursor(commit=False):
-    with get_db_connection() as connection:
-      cursor = connection.cursor(
-                  cursor_factory=psycopg2.extras.RealDictCursor)
-      try:
-          yield cursor
-          if commit:
-              connection.commit()
-      finally:
-          cursor.close()
-          pass
+    import snowflake
+
+    conn = get_db_connection()
+    curs = conn.cursor(snowflake.connector.DictCursor)
+    return curs
+
+    # with get_db_connection() as connection:
+    #   cursor = connection.cursor(
+    #               cursor_factory=psycopg2.extras.RealDictCursor)
+    #   try:
+    #       yield cursor
+    #       if commit:
+    #           connection.commit()
+    #   finally:
+    #       cursor.close()
+    #       pass
