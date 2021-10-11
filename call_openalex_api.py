@@ -229,7 +229,7 @@ def get_column_values(entity, column, random=False, limit=100):
 
 
 def get_column_values_for_querying(entity, field, random=False):
-    column_name_solo = field.upper()
+    column_name_solo = field
 
     rows = get_column_values(entity, field, random)
 
