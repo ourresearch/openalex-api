@@ -337,7 +337,7 @@ def do_query(entity, filters, searches=[], groupby=None, details=False, limit=10
         timer.log_timing("0. in with")
 
         if details:
-            q = """SELECT paper_id, doi, doc_type, issn_l, paper_title, 
+            q = """SELECT distinct paper_id, doi, doc_type, issn_l, paper_title, 
             journal_title, publication_date, year
             from mag_combo_all 
             where paper_id in (

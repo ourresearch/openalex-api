@@ -281,7 +281,7 @@ def get_total_count(package):
 
     command = """
             select count(doi) as num_articles
-            from unpaywall_production u
+            from unpaywall u
             join ricks_unpaywall_journals_subscription_agg j on u.journal_issn_l = j.journal_issn_l
             where 
             package_id = '{package}' and
