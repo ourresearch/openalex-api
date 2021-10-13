@@ -345,8 +345,8 @@ def do_query(entity, filters, searches=[], groupby=None, details=False, limit=10
                     FROM {entity_table}
                     {join_clause} 
                     WHERE {where_clause}
-                    LIMIT {limit}
                     ORDER BY mag_combo_all.publication_date DESC
+                    LIMIT {limit}
             )
             """.format(
                 entity_table=entity_table,
