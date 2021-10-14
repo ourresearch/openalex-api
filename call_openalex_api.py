@@ -65,10 +65,10 @@ join_lookup = {}
 #     ("continent", str),
 # ]
 #
-# join_lookup["journalsdb_computed"] = """ JOIN mag_main_journals ON mag_main_journals.journal_id = mag_main_papers.journal_id
-#                                         JOIN journalsdb_computed_flat ON mag_main_journals.issn = journalsdb_computed_flat.issn
-#                                         JOIN journalsdb_computed ON journalsdb_computed_flat.issn_l = journalsdb_computed.issn_l  """
-# table_lookup["journalsdb_computed"] = [
+# join_lookup["mid.journalsdb_computed"] = """ JOIN mag_main_journals ON mag_main_journals.journal_id = mag_main_papers.journal_id
+#                                         JOIN mid.journalsdb_computed_flat ON mag_main_journals.issn = mid.journalsdb_computed_flat.issn
+#                                         JOIN mid.journalsdb_computed ON mid.journalsdb_computed_flat.issn_l = mid.journalsdb_computed.issn_l  """
+# table_lookup["mid.journalsdb_computed"] = [
 #     ("publisher", str),
 #     ("issn_l", str),
 # ]
@@ -88,22 +88,22 @@ join_lookup = {}
 # ]
 
 entity_table_lookup = {
-    "works": "mag_combo_all",
-    "authors": "mag_paperid_authors",
-    "journals": "journalsdb_computed",
-    "oa_locations": "unpaywall_paperid_oa_location",
-    "fields_of_study": "mag_paperid_fields_of_study"
+    "works": "api.mag_combo_all",
+    "authors": "api.mag_paperid_authors",
+    "journals": "mid.journalsdb_computed",
+    "oa_locations": "api.unpaywall_paperid_oa_location",
+    "fields_of_study": "api.mag_paperid_fields_of_study"
 }
 
 for entity in entity_table_lookup.keys():
     join_lookup[entity] = {}
 
-join_lookup["works"]["mag_combo_all"] = ""
-join_lookup["authors"]["mag_combo_all"] = """ JOIN mag_combo_all ON mag_paperid_authors.paper_id = mag_combo_all.paper_id  """
-join_lookup["journals"]["mag_combo_all"] = """ JOIN mag_combo_all ON journalsdb_computed.issn_l = mag_combo_all.issn_l  """
-join_lookup["oa_locations"]["mag_combo_all"] = """ JOIN mag_combo_all ON unpaywall_paperid_oa_location.paper_id = mag_combo_all.paper_id  """
-join_lookup["fields_of_study"]["mag_combo_all"] = """ JOIN mag_combo_all ON mag_paperid_fields_of_study.paper_id = mag_combo_all.paper_id  """
-table_lookup["mag_combo_all"] = [
+join_lookup["works"]["api.mag_combo_all"] = ""
+join_lookup["authors"]["api.mag_combo_all"] = """ JOIN api.mag_combo_all ON api.mag_paperid_authors.paper_id = api.mag_combo_all.paper_id  """
+join_lookup["journals"]["api.mag_combo_all"] = """ JOIN api.mag_combo_all ON mid.journalsdb_computed.issn_l = api.mag_combo_all.issn_l  """
+join_lookup["oa_locations"]["api.mag_combo_all"] = """ JOIN api.mag_combo_all ON api.unpaywall_paperid_oa_location.paper_id = api.mag_combo_all.paper_id  """
+join_lookup["fields_of_study"]["api.mag_combo_all"] = """ JOIN api.mag_combo_all ON api.mag_paperid_fields_of_study.paper_id = api.mag_combo_all.paper_id  """
+table_lookup["api.mag_combo_all"] = [
     ("paper_id", int),
     ("doi", str),
     ("doc_type", str),
@@ -113,7 +113,7 @@ table_lookup["mag_combo_all"] = [
 ]
 
 
-table_lookup["mag_combo_all"] += [
+table_lookup["api.mag_combo_all"] += [
     ("genre", str),
     # ("journal_is_in_doaj", str),
     ("journal_is_oa", str),
@@ -124,7 +124,7 @@ table_lookup["mag_combo_all"] += [
 ]
 
 
-table_lookup["mag_combo_all"] += [
+table_lookup["api.mag_combo_all"] += [
     ("ror_id", str),
     # ("grid_id", str),
     ("org", str),
@@ -135,19 +135,19 @@ table_lookup["mag_combo_all"] += [
     ("continent", str),
 ]
 
-table_lookup["mag_combo_all"] += [
+table_lookup["api.mag_combo_all"] += [
     ("publisher", str),
     ("issn_l", str),
 ]
 
-join_lookup["works"]["mag_paperid_authors"] = """ JOIN mag_paperid_authors ON mag_paperid_authors.paper_id = mag_combo_all.paper_id """
-table_lookup["mag_paperid_authors"] = [
+join_lookup["works"]["api.mag_paperid_authors"] = """ JOIN api.mag_paperid_authors ON api.mag_paperid_authors.paper_id = api.mag_combo_all.paper_id """
+table_lookup["api.mag_paperid_authors"] = [
     ("normalized_name", str),
     ("author_id", int),
 ]
 
-join_lookup["works"]["unpaywall_paperid_oa_location"] = " JOIN unpaywall_paperid_oa_location ON unpaywall_paperid_oa_location.paper_id = mag_combo_all.paper_id "
-table_lookup["unpaywall_paperid_oa_location"] = [
+join_lookup["works"]["api.unpaywall_paperid_oa_location"] = " JOIN api.unpaywall_paperid_oa_location ON api.unpaywall_paperid_oa_location.paper_id = api.mag_combo_all.paper_id "
+table_lookup["api.unpaywall_paperid_oa_location"] = [
     # ("endpoint_id", str),
     ("version", str),
     ("license", str),
@@ -155,8 +155,8 @@ table_lookup["unpaywall_paperid_oa_location"] = [
 ]
 
 
-join_lookup["works"]["mag_paperid_fields_of_study"] = """ JOIN mag_paperid_fields_of_study ON mag_paperid_fields_of_study.paper_id = mag_combo_all.paper_id """
-table_lookup["mag_paperid_fields_of_study"] = [
+join_lookup["works"]["api.mag_paperid_fields_of_study"] = """ JOIN api.mag_paperid_fields_of_study ON api.mag_paperid_fields_of_study.paper_id = api.mag_combo_all.paper_id """
+table_lookup["api.mag_paperid_fields_of_study"] = [
     ("field_of_study_id", int),
     ("normalized_field_of_study_name", str),
 ]
@@ -282,7 +282,7 @@ def do_query(entity, filters, searches=[], groupby=None, details=False, limit=10
     timer = Timer()
 
     # just bail on these for now, till we crack these ones
-    if is_groupby_uses_table(entity, groupby, "mag_paperid_authors") and is_filter_uses_table(entity, filters, "unpaywall_paperid_oa_location"):
+    if is_groupby_uses_table(entity, groupby, "api.mag_paperid_authors") and is_filter_uses_table(entity, filters, "api.unpaywall_paperid_oa_location"):
         rows = []
         q = None
         return (rows, q, timer.to_dict())
@@ -291,7 +291,7 @@ def do_query(entity, filters, searches=[], groupby=None, details=False, limit=10
     for table_name in table_lookup:
         # give priority to groupby, make sure each table is only joined once
         # if is_groupby_uses_table(groupby, table_name):
-        #     if join_lookup[entity][table_name] != "" and table_name != "mag_paperid_authors":
+        #     if join_lookup[entity][table_name] != "" and table_name != "api.mag_paperid_authors":
         #         join_clause += " LEFT OUTER " + join_lookup[entity][table_name]
         # elif is_filter_uses_table(filters, table_name):
         #     join_clause += join_lookup[entity][table_name]
@@ -339,13 +339,13 @@ def do_query(entity, filters, searches=[], groupby=None, details=False, limit=10
         if details:
             q = """SELECT distinct paper_id, doi, doc_type, issn_l, paper_title, 
             journal_title, publication_date, year
-            from mag_combo_all 
+            from api.mag_combo_all 
             where paper_id in (
-            select distinct mag_combo_all.paper_id 
+            select distinct api.mag_combo_all.paper_id 
                     FROM {entity_table}
                     {join_clause} 
                     WHERE {where_clause}
-                    ORDER BY mag_combo_all.publication_date DESC
+                    ORDER BY api.mag_combo_all.publication_date DESC
                     LIMIT {limit}
             )
             """.format(
@@ -354,8 +354,8 @@ def do_query(entity, filters, searches=[], groupby=None, details=False, limit=10
                 where_clause=where_clause,
                 limit=limit)
         else:
-            q = """SELECT {groupby_clause}, count(distinct mag_combo_all.paper_id) as n 
-                    FROM mag_combo_all 
+            q = """SELECT {groupby_clause}, count(distinct api.mag_combo_all.paper_id) as n 
+                    FROM api.mag_combo_all 
                     {join_clause} 
                     WHERE {where_clause}
                     GROUP BY {groupby_clause} 
@@ -393,7 +393,7 @@ def do_query(entity, filters, searches=[], groupby=None, details=False, limit=10
 
         print("{:>10}s {:>15,} rows:  {}".format(timer.elapsed_total, len(rows), query_string))
 
-        if not details and (groupby == "mag_combo_all.paper_id"):
+        if not details and (groupby == "api.mag_combo_all.paper_id"):
             rows = [row["doi"] for row in rows]
 
         return (rows, q, timer.to_dict())

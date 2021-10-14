@@ -277,28 +277,6 @@ def build_text_filter():
     return text_filter
 
 
-def get_total_count(package):
-
-    command = """
-            select count(doi) as num_articles
-            from unpaywall u
-            join ricks_unpaywall_journals_subscription_agg j on u.journal_issn_l = j.journal_issn_l
-            where 
-            package_id = '{package}' and
-            u.published_date >= coalesce(j.from_date, '1900-01-01'::timestamp) and u.published_date < coalesce(j.to_date, '2100-01-01'::timestamp)
-            {text_filter}
-            {oa_filter}
-        """.format(text_filter=build_text_filter(),
-                   package=package,
-                   oa_filter=build_oa_filter())
-
-    # print command
-    with get_db_cursor() as cursor:
-        cursor.execute(command)
-        rows = cursor.fetchone()  # just get first row
-
-    return rows["num_articles"]
-
 
 
 def controlled_vocab(text):
@@ -319,58 +297,6 @@ def split_clean_list(text, use_controlled_vocab=False):
     except ValueError:
         pass
     return my_response
-
-
-def get_affiliation_rows_from_doi(dirty_doi):
-    my_doi = clean_doi(dirty_doi)
-    command = "select * from mag_doi_affiliations_details_view where doi='{}'".format(my_doi)
-    with get_db_cursor() as cursor:
-        cursor.execute(command)
-        rows = cursor.fetchall()
-    return rows
-
-def get_citation_from_crossref(dirty_doi):
-    my_doi = clean_doi(dirty_doi)
-    headers = {"Accept": "text/bibliography; style=cell; locale=en-US"}
-    r = requests.get("https://doi.org/{}".format(my_doi), headers=headers)
-    if r.status_code == 200:
-        my_citation = r.content.decode('utf-8').strip()
-        return "[{}]".format(my_citation)
-    return "https://doi.org/{}".format(my_doi)
-
-def get_citation_elements_from_crossref(dirty_doi):
-    my_doi = clean_doi(dirty_doi)
-    headers = {"Accept": "application/json", "User-Agent": "team@ourresearch.org"}
-    r = requests.get("https://api.crossref.org/works/{}".format(my_doi), headers=headers)
-    if r.status_code == 200:
-        data = r.json()["message"]
-        try:
-            author = data["author"][0]["family"]
-        except:
-            author = ""
-        response = {
-            "volume": data.get("volume", ""),
-            "issue": data.get("issue", ""),
-            "pages": data.get("page", ""),
-            "container_title": data.get("container_title", [""])[0],
-            "article_title": data["title"][0],
-            "author": author
-        }
-        return response
-    return {}
-
-
-def get_standard_versions(dirty_list):
-    if not dirty_list:
-        return []
-
-    lookup = {
-        "preprint": "submittedVersion",
-        "postprint": "acceptedVersion",
-        "publisher pdf": "publishedVersion"
-    }
-    return [lookup.get(v.lower(), v.lower()) for v in dirty_list if v]
-
 
 @app.route("/works/<id_type>/<path:id>", methods=["GET"])
 def works_id_type_get(id_type, id):
