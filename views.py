@@ -298,6 +298,10 @@ def split_clean_list(text, use_controlled_vocab=False):
         pass
     return my_response
 
+@app.route("/entity/<path:details>", methods=["GET"])
+def redirect_entity_endpoint(details):
+    return redirect('https://openalex-guts.herokuapp.com/{}'.format(details, code=302)) # 302 is temporary
+
 @app.route("/works/<id_type>/<path:id>", methods=["GET"])
 def works_id_type_get(id_type, id):
     (response, timer_dict) = get_work(id_type, id)
@@ -371,11 +375,15 @@ if __name__ == "__main__":
 
 
 # PATH=$(pyenv root)/shims:$PATH; unset PYTHONPATH
-# echo 'PATH=$(pyenv root)/shims:$PATH' >> ~/.zshrc
-# /Users/hpiwowar/.pyenv/versions/3.9.5/bin/python3  --version
-# PYTHONPATH=/Library/Frameworks/Python.framework/Versions/2.7/lib/python2.7/site-packages:
-# python --version
-
+if False:
+    pass
+    print("""
+    PATH=$(pyenv root)/shims:$PATH; unset PYTHONPATH
+    echo 'PATH=$(pyenv root)/shims:$PATH' >> ~/.zshrc
+    /Users/hpiwowar/.pyenv/versions/3.9.5/bin/python3  --version
+    PYTHONPATH=/Library/Frameworks/Python.framework/Versions/2.7/lib/python2.7/site-packages:
+    python --version
+    """)
 
 
 
